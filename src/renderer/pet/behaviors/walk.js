@@ -168,7 +168,7 @@ export default {
     }
 
     // Ease in (speed builds up) and ease out (slow down over the last ~40px).
-    const cruise = pet.walkSpeed || DEFAULT_SPEED;
+    const cruise = (pet.walkSpeed || DEFAULT_SPEED) * (rulesFor(pet).speed ?? 1); // sad = slower
     const target = cruise * Math.min(1, 0.25 + dist / 40);
     speedNow = approach(speedNow, target, dt, fleeing ? 12 : 5);
 

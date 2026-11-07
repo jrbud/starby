@@ -21,10 +21,11 @@
 //   quiet      true = unprompted lines (system reactions etc.) are dropped                  (chatter.js)
 //   bobSpeed   idle breathing speed (3 = the original)                                      (idle.js)
 //   eyesShut   eyes stay closed (uses the existing blink drawing, no new art)               (idle.js)
+//   speed      walk-speed multiplier: 0.5 = shuffles along at half speed                    (walk.js)
 
 const BASE = {
   stardust: 1, refuses: false, wander: true, follow: true, flee: true, lookAway: false,
-  hop: true, grabbable: true, quiet: false, bobSpeed: 3, eyesShut: false,
+  hop: true, grabbable: true, quiet: false, bobSpeed: 3, eyesShut: false, speed: 1,
 };
 
 export const MOODS = {
@@ -33,6 +34,9 @@ export const MOODS = {
   playful: { ...BASE, stardust: 2, bobSpeed: 4 },
   dizzy: { ...BASE, stardust: 0, wander: false, follow: false, flee: false, hop: false, bobSpeed: 2 },
   yawning: { ...BASE, stardust: 0, wander: 'corner', follow: false, flee: false, hop: false, bobSpeed: 2 },
+  // sad: you said no to a game (events/tag.js). Mopes: slow, no hops, avoids your eyes, doesn't
+  // come over to say hi. Wears off after a while, or a click cheers him up (mood.js).
+  sad: { ...BASE, follow: false, lookAway: true, hop: false, bobSpeed: 1.5, speed: 0.5 },
   sleepy: {
     ...BASE, stardust: 0, wander: false, follow: false, flee: false, hop: false, quiet: true, bobSpeed: 1, eyesShut: true,
   },

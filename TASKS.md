@@ -54,13 +54,16 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   jerks and fast swipes spin it. On release (`'toss'` mode) it keeps its speed and spin, glides, bounces
   off screen edges and wobbles back upright. "wheee!" on fast spins, dizzy wobble after 3+ turns.
   `pet.rotation` is rendered by `pet.js` (canvas only, so the speech bubble stays upright).
-- [x] **P1-6 (Nice) Tag event.** First *event* (`src/renderer/pet/events/`, see below): he says "let's play
-  tag!", races to the cursor (~560px/s), tags it, then runs away (450–780px/s, jukes sideways at 1150px/s
+- [x] **P1-6 (Nice) Tag event.** First *event* (`src/renderer/pet/events/`, see below). He first **asks**: stops,
+  says "wanna play tag?" and shows a Yes / No popup next to him (`events/prompt.js`, a clickable `.hit` box).
+  **No** → new `sad` mood (`moods.js` / `mood.js`: half walk speed, no hops, looks away, no "oh! hi"; 30s, or a
+  click cheers him up) and he won't ask on his own again for 10 min. No answer in 12s → "maybe later", not sad.
+  **Yes** → he races to the cursor (~560px/s), tags it, then runs away (450–780px/s, jukes sideways at 1150px/s
   when the cursor gets within 120px) while a 20s countdown runs top-right. Touch or grab him to win; survive
   the timer and he wins. Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
-  stays playful afterwards. Starts from the right-click menu ("Play tag"), `starby.startEvent('tag')`, or
-  randomly (every 60s, 20% chance, 4-min cooldown, only when happy/playful, relaxed and the cursor moved
-  in the last 10s). Tuning at the top of `events/tag.js`.
+  stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
+  skips the question. Random: every 60s, 20% chance, 4-min cooldown, only when happy/playful, relaxed and the
+  cursor moved in the last 10s. Tuning at the top of `events/tag.js`.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors

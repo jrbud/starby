@@ -16,7 +16,8 @@
 //                                        //   once per `cooldown` seconds (canStart still applies)
 //     watch(ctx) {},                     // optional, every tick even when NOT running (e.g. to
 //                                        //   notice things canStart needs)
-//     start(ctx, end) {},                // take over; call end(result) when finished
+//     start(ctx, end, reason) {},        // take over; call end(result) when finished. reason:
+//                                        //   'menu' | 'random' | 'devtools' | whatever the caller passed
 //     onTick(ctx, tick) {},              // 10x per second: decisions (on the session clock)
 //     update(ctx, dt) {},                // every frame: smooth motion/visuals
 //     stop(ctx, result) {},              // clean up and hand the star back (always called once)
@@ -54,7 +55,7 @@ export function createEventRunner(ctx) {
     ctx.log('event-start', { name, reason });
     const mine = active;
     // `end` only works for this run, so a stale callback can't end a later event.
-    event.start(ctx, (result) => { if (active === mine) finish(result); });
+    event.start(ctx, (result) => { if (active === mine) finish(result); }, reason);
     return true;
   }
 

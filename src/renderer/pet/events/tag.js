@@ -1,6 +1,11 @@
-// TAG — a high-priority event. The star gets playful, zooms over and tags your cursor, then
-// runs away much faster than normal while a countdown runs in the top-right corner.
+// TAG — a high-priority event. The star asks if you want to play; if you do, he gets playful,
+// zooms over and tags your cursor, then runs away much faster than normal while a countdown
+// runs in the top-right corner.
 //
+//   0. invite    he stops and asks: a Yes / No popup next to him (./prompt.js), up to INVITE_FOR s
+//                Yes → the game starts. No → he gets sad (mood.js 'sad') and won't ask again for
+//                a while. No answer → "maybe later", no hard feelings.
+//                (starby.startEvent('tag') in DevTools skips the question.)
 //   1. approach  he races to the cursor (up to APPROACH_FOR seconds; gives up if you dodge)
 //   2. tagged    touching the cursor: "tag! you're it!", the countdown starts
 //   3. run       he dodges away from the cursor at high speed, taunting from a distance; when
@@ -20,8 +25,11 @@ import { chat, lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { createCountdown } from './countdown.js';
+import { createPrompt } from './prompt.js';
 
 // ---- Tuning ----
+const INVITE_FOR = 12; // seconds to answer the popup
+const DECLINED_COOLDOWN = 600; // after a "no", don't ask again on his own for this long (seconds)
 const TAG_SECONDS = 20; // countdown length
 const APPROACH_FOR = 6; // seconds to reach the cursor before giving up
 const APPROACH_SPEED = 560; // px/s (his fastest normal walk is ~160)
@@ -44,7 +52,10 @@ const AUTO = { every: 60, chance: 0.2, cooldown: 240 };
 const USER_AROUND = 10; // seconds since the cursor last moved, to count as "you're there"
 
 const LINES = {
-  start: lineBag(["let's play tag!", 'wanna play tag?', 'hehe... tag time!']),
+  ask: lineBag(['wanna play tag?', 'hey! play tag with me?', 'tag? pleeease?']),
+  start: lineBag(["yay! let's play!", 'hehe... tag time!', "yesss! ok, here i come!"]),
+  declined: lineBag(['oh... ok.', 'aw... nevermind then', '*sniff* ok...']),
+  ignored: lineBag(['...maybe later then', 'oh, you\'re busy. ok!']),
   tag: lineBag(["tag! you're it!", 'tag! ✦ catch me!', "you're it! bye!"]),
   taunt: lineBag(['nyah nyah~', 'too slow!', 'over here!', "can't catch me!", 'catch me if you can ✦']),
   close: lineBag(['eep!', 'nope!', 'whoa, close!']),
@@ -71,6 +82,10 @@ let jukeCooldown = 0;
 let hopT = 0;
 let wasClose = false;
 let countdown = null;
+let prompt = null;
+let answer = null; // 'yes' | 'no', set by the popup buttons, acted on at the next tick
+let inviteLeft = 0;
+let declinedAt = -Infinity; // session seconds of the last "no" (kept between games)
 
 // Cursor-presence tracking for random starts (updated even when tag isn't running).
 let lastCursor = { x: -9999, y: -9999 };
@@ -106,6 +121,18 @@ function awayFrom(ctx, from, dist) {
   return best;
 }
 
+// Yes! (or DevTools): get playful and go tag the cursor.
+function beginGame(ctx) {
+  phase = 'approach';
+  approachLeft = APPROACH_FOR;
+  speedTarget = APPROACH_SPEED;
+  moodSwapIn = rand(...MOOD_SWAP);
+  requestMood(ctx, 'playful', 'tag');
+  cancelJump();
+  startJump({ height: rand(14, 22), air: 0.3 }); // excited hop
+  ctx.say(LINES.start(), 1500);
+}
+
 function finish(result) {
   const end = endGame;
   endGame = null;
@@ -127,30 +154,47 @@ export default {
     const relaxed = pet.mode === 'idle' || pet.mode === 'walk';
     const goodMood = pet.mood === 'happy' || pet.mood === 'playful';
     const userAround = ctx.clock.seconds - cursorMovedAt <= USER_AROUND;
-    return relaxed && goodMood && userAround;
+    const notJustRefused = ctx.clock.seconds - declinedAt >= DECLINED_COOLDOWN;
+    return relaxed && goodMood && userAround && notJustRefused;
   },
 
-  start(ctx, end) {
+  start(ctx, end, reason) {
     const { pet } = ctx;
     endGame = end;
-    phase = 'approach';
-    approachLeft = APPROACH_FOR;
     timeLeft = TAG_SECONDS;
     headStart = 0;
     speedNow = 0;
-    speedTarget = APPROACH_SPEED;
+    speedTarget = 0;
     accel = 8;
     jukeLeft = 0;
     jukeCooldown = 0;
     wasClose = false;
-    moodSwapIn = rand(...MOOD_SWAP);
+    answer = null;
+    target = { x: pet.x, y: pet.y }; // stay put while asking
     countdown = countdown || createCountdown(ctx.stage);
+    prompt = prompt || createPrompt(ctx.stage);
 
     pet.mode = 'tag'; // behaviors stand down
-    requestMood(ctx, 'playful', 'tag');
     cancelJump();
-    startJump({ height: rand(14, 22), air: 0.3 }); // excited hop
-    ctx.say(LINES.start(), 1500);
+    if (reason === 'devtools') {
+      beginGame(ctx);
+      return;
+    }
+
+    // ---- 0. Ask first ----
+    phase = 'invite';
+    inviteLeft = INVITE_FOR;
+    startJump({ height: rand(8, 12), air: 0.25 }); // perk up
+    ctx.say(LINES.ask(), INVITE_FOR * 1000);
+    ctx.log('tag-invite', { reason });
+    prompt.show({
+      text: 'Play tag with Starby?',
+      yes: 'Yes!',
+      no: 'No',
+      onYes: () => { answer = 'yes'; },
+      onNo: () => { answer = 'no'; },
+    });
+    prompt.place(pet);
   },
 
   onTick(ctx) {
@@ -166,6 +210,33 @@ export default {
       }
       return;
     }
+
+    // ---- 0. Waiting for an answer ----
+    if (phase === 'invite') {
+      inviteLeft -= TICK_SECONDS;
+      if (cursor.x > -1000) pet.facing = cursor.x >= centerOf(pet).x ? 1 : -1; // looks at you, hopeful
+      if (answer === 'yes') {
+        prompt.hide();
+        ctx.log('tag-answer', { answer: 'yes' });
+        beginGame(ctx);
+      } else if (answer === 'no') {
+        prompt.hide();
+        declinedAt = ctx.clock.seconds;
+        ctx.log('tag-answer', { answer: 'no' });
+        requestMood(ctx, 'sad', 'said no to tag');
+        ctx.say(LINES.declined(), 2500);
+        finish('declined');
+      } else if (inviteLeft <= 0) {
+        prompt.hide();
+        ctx.log('tag-answer', { answer: 'none' });
+        ctx.say(LINES.ignored(), 2000);
+        finish('ignored');
+      } else if (!isJumping() && chance(0.3, TICK_SECONDS)) {
+        startJump({ height: rand(6, 10), air: 0.22 }); // bouncing on the spot, waiting
+      }
+      return;
+    }
+
     if (pet.mood !== 'playful' && pet.mood !== 'happy') {
       if (pet.mood === 'dizzy') ctx.say(LINES.dizzy(), 2000);
       finish(`mood:${pet.mood}`);
@@ -289,6 +360,7 @@ export default {
     const kept = clampToScreen(ctx, pet.x, pet.y);
     pet.x = kept.x;
     pet.y = kept.y;
+    prompt?.place(pet); // the yes/no popup follows him (only visible while asking)
 
     // Quick scampering hop cycle (the jump owns bob/squash while a hop is in the air).
     if (!jumping) {
@@ -302,8 +374,12 @@ export default {
   stop(ctx) {
     const { pet } = ctx;
     endGame = null;
+    answer = null;
+    prompt?.hide();
     countdown?.hide();
     if (pet.mode === 'tag') pet.mode = 'idle'; // hand him back (grabbed → stays 'drag')
-    if (pet.mood === 'happy' || pet.mood === 'playful') requestMood(ctx, 'playful', 'tag over');
+    // After an actual game he stays playful for a bit (not after a "no" or no answer).
+    const played = phase !== 'invite';
+    if (played && (pet.mood === 'happy' || pet.mood === 'playful')) requestMood(ctx, 'playful', 'tag over');
   },
 };
