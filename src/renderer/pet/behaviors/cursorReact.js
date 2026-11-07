@@ -1,18 +1,28 @@
 // Cursor awareness:
 //   - eyes follow the cursor when it's near (every frame, smooth)
 //   - says hi when the cursor comes close (tick decision, with cooldown)
+//   - FOLLOW BRIEFLY: after noticing a calm cursor it sometimes takes a few steps toward it,
+//     then loses interest ('follow' mode; re-aimed every tick, walk.js does the walking,
+//     a ctx.after timer ends it)
 //   - FLINCH & RUN: if the cursor rushes at the star, it squashes, hops and runs away
 //     (tick decision → switches to 'flee' mode; walk.js does the actual running)
 //   - if you keep chasing it, it gives up for a bit so you can still catch/click it
 //
 // Cursor position comes from forwarded mousemove events (see clickThrough.js). Cursor speed
 // is measured once per tick (0.1s), which smooths out jittery per-frame mouse deltas.
-// TODO(cursor owner): follow briefly (P1-4).
 import { rand, clamp, clampToScreen, startJump, cancelJump } from './motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
 
 const NOTICE_RADIUS = 160;
 const NOTICE_COOLDOWN = 15; // seconds between "oh hi!" lines
+
+// Follow tuning
+const FOLLOW_CHANCE = 0.6; // chance of following after noticing
+const FOLLOW_COOLDOWN = 20; // seconds between follows
+const FOLLOW_FOR = [1.8, 3.5]; // seconds before it loses interest
+const FOLLOW_SPEED = [55, 80]; // px/s, an unhurried few steps
+const FOLLOW_STOP = 70; // stops this far (px) from the cursor, center to cursor
+const FOLLOW_TOO_FAR = 450; // cursor got this far away → stop following
 
 // Flinch tuning
 const FLINCH_RADIUS = 180; // the cursor's path has to come this close (px) to the star's center
@@ -28,6 +38,8 @@ const GIVE_UP_FOR = 20; // seconds
 
 const FLINCH_LINES = ['eek!', 'whoa!', '!!', 'hey!', 'too fast!'];
 const GIVE_UP_LINES = ['ok ok, you got me', "i'm too tired to run...", 'fine, you win'];
+const BORED_LINES = ['...nevermind', 'hm.', 'oh, ok'];
+const BORED_LINE_CHANCE = 0.3;
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 let near = false;
@@ -35,6 +47,9 @@ let noticeCooldown = 0;
 let flinchCooldown = 0;
 let braveUntil = 0; // session seconds; won't flee before this
 let prevCursor = null;
+let following = false;
+let followTimer = null; // scheduler id for "lose interest"
+let followCooldown = 0;
 
 function petCenter(pet) {
   return { x: pet.x + pet.size / 2, y: pet.y + pet.size / 2 };
@@ -56,6 +71,69 @@ function fleeTarget(ctx, awayX, awayY) {
   }
   return best;
 }
+
+// ---- Follow ----
+
+// A spot FOLLOW_STOP px short of the cursor (or right here if already that close).
+function setFollowTarget(ctx) {
+  const { pet, cursor } = ctx;
+  const c = petCenter(pet);
+  const dx = cursor.x - c.x;
+  const dy = cursor.y - c.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const go = Math.max(0, dist - FOLLOW_STOP);
+  const target = clampToScreen(ctx, pet.x + (dx / dist) * go, pet.y + (dy / dist) * go);
+  pet.targetX = target.x;
+  pet.targetY = target.y;
+}
+
+function startFollow(ctx) {
+  const { pet } = ctx;
+  following = true;
+  followCooldown = FOLLOW_COOLDOWN;
+  pet.walkSpeed = rand(...FOLLOW_SPEED);
+  pet.walkKind = 'follow';
+  setFollowTarget(ctx);
+  pet.mode = 'follow'; // walk.js does the walking
+  const seconds = rand(...FOLLOW_FOR);
+  ctx.cancel(followTimer);
+  followTimer = ctx.after(seconds, () => {
+    followTimer = null;
+    if (pet.mode === 'follow') endFollow(ctx, 'bored');
+  }, 'follow: lose interest');
+  ctx.log('follow', { forSeconds: Math.round(seconds * 10) / 10 });
+}
+
+function endFollow(ctx, reason) {
+  const { pet } = ctx;
+  ctx.cancel(followTimer);
+  followTimer = null;
+  following = false;
+  if (pet.mode === 'follow') pet.mode = 'idle';
+  ctx.log('follow-end', { reason });
+  if (reason === 'bored' && Math.random() < BORED_LINE_CHANCE) ctx.say(pick(BORED_LINES), 1500);
+}
+
+// Called every tick while following: stop if something else took over, otherwise re-aim.
+function keepFollowing(ctx, cursorDist) {
+  const { pet } = ctx;
+  if (pet.mode !== 'follow') {
+    // Walk.js finished the walk (reached the cursor), or it got grabbed / flinched.
+    const reason = pet.mode === 'idle' ? 'reached' : `interrupted:${pet.mode}`;
+    ctx.cancel(followTimer);
+    followTimer = null;
+    following = false;
+    ctx.log('follow-end', { reason });
+    return;
+  }
+  if (cursorDist > FOLLOW_TOO_FAR) {
+    endFollow(ctx, 'too-far');
+    return;
+  }
+  setFollowTarget(ctx);
+}
+
+// ---- Flinch ----
 
 function flinch(ctx, awayX, awayY) {
   const { pet } = ctx;
@@ -91,6 +169,7 @@ export default {
     const { pet, cursor } = ctx;
     noticeCooldown = Math.max(0, noticeCooldown - TICK_SECONDS);
     flinchCooldown = Math.max(0, flinchCooldown - TICK_SECONDS);
+    followCooldown = Math.max(0, followCooldown - TICK_SECONDS);
 
     // No cursor position yet (it hasn't moved over the screen since launch).
     if (cursor.x < -1000) return;
@@ -106,14 +185,20 @@ export default {
     // Speed of the cursor *toward* the star (positive = getting closer).
     const approach = (vx * awayX + vy * awayY) / dist;
 
+    if (following) keepFollowing(ctx, dist);
+
     // ---- Notice (only calm approaches; a rushing cursor gets a flinch instead) ----
     // Only react while it's going about its business (not held, thrown, or already running).
-    const free = pet.mode === 'idle' || pet.mode === 'walk';
+    const free = pet.mode === 'idle' || pet.mode === 'walk' || pet.mode === 'follow';
     const isNear = dist < NOTICE_RADIUS;
     const calm = approach < MIN_RUSH_SPEED / 2;
-    if (isNear && !near && calm && noticeCooldown === 0 && free) {
-      ctx.say('oh! hi :)', 1500);
-      noticeCooldown = NOTICE_COOLDOWN;
+    if (isNear && !near && calm && free && pet.mode !== 'follow') {
+      if (noticeCooldown === 0) {
+        ctx.say('oh! hi :)', 1500);
+        noticeCooldown = NOTICE_COOLDOWN;
+      }
+      // Curious: sometimes go over for a closer look.
+      if (followCooldown === 0 && Math.random() < FOLLOW_CHANCE) startFollow(ctx);
     }
     near = isNear;
 

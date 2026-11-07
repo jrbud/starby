@@ -85,6 +85,12 @@ export default {
     const { pet } = ctx;
     if (pet.mode === 'drag') cancelJump();
     if (pet.mode !== 'idle') {
+      // Left idle some other way (followed the cursor, got grabbed, flinched...): drop the
+      // pending walk, so it can't fire the moment it's idle again and skip the rest.
+      if (walkTimer !== null) {
+        ctx.cancel(walkTimer);
+        walkTimer = null;
+      }
       wasIdle = false;
       return;
     }
