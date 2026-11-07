@@ -52,7 +52,9 @@ export default {
         pet.y = clamp(pet.y, 0, ctx.groundY());
         pet.squash = 0.85;
         pet.mode = 'idle';
+        ctx.log('drop', { x: Math.round(pet.x), y: Math.round(pet.y) });
       } else {
+        ctx.log('click', {});
         petEl.dispatchEvent(new CustomEvent('pet:clicked'));
       }
     });
