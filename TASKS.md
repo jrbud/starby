@@ -105,7 +105,7 @@ before changing these — they're core).
 `src/shared/stateSchema.js` (only Person 4 edits the save format).
 
 - [ ] **P4-1 (Must) Fill out and balance the catalog.** Add more colors and accessories in
-  `shopCatalog.js`; new shapes/accessories need a draw function in `sprite.js`. **Flat fills and simple
+  `shopCatalog.js` (the star has one shape, so no shape items); new accessories need a draw function in `sprite.js`. **Flat fills and simple
   primitives only — no gradients, glow, shading or images.** Price so the first purchase takes ~5 minutes
   of play (drops are every 8–15s in `stardust.js`, so roughly 25 stardust).
 - [ ] **P4-2 (Must) Shop polish.** Make owned / equipped / can't-afford states obvious at a glance

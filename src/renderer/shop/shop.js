@@ -4,7 +4,7 @@
 import { drawSprite } from '../shared/sprite.js';
 
 const api = window.sprite;
-const SLOT_TITLES = { color: 'Colors', shape: 'Shapes', accessory: 'Accessories' };
+const SLOT_TITLES = { color: 'Colors', accessory: 'Accessories' };
 
 let catalog = [];
 let state = null;
@@ -13,7 +13,7 @@ const $ = (id) => document.getElementById(id);
 
 function equippedLook(overrides = {}) {
   const value = (slot) => catalog.find((i) => i.id === state.equipped[slot])?.value;
-  return { color: value('color'), shape: value('shape'), accessory: value('accessory'), ...overrides };
+  return { color: value('color'), accessory: value('accessory'), ...overrides };
 }
 
 function itemCard(item) {
