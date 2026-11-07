@@ -19,7 +19,7 @@ const SIZE = 64;
 
 /**
  * Shared pet state. Behaviors read and write this; pet.js renders it every frame.
- * mode: 'idle' | 'walk' | 'flee' | 'drag'  (add more as needed, e.g. 'sleep')
+ * mode: 'idle' | 'walk' | 'flee' | 'drag' | 'toss'  (add more as needed, e.g. 'sleep')
  */
 const pet = {
   x: 200,
@@ -29,6 +29,7 @@ const pet = {
   facing: 1, // 1 = right, -1 = left
   bob: 0, // vertical offset in px (idle bobbing, hops)
   squash: 1, // 1 = normal; <1 squashed, >1 stretched
+  rotation: 0, // radians, clockwise, around the star's center (drag/toss spin)
   lookX: 0, // -1..1 eye direction
   blink: false,
   look: { color: '#ffd84a', shape: 'star4', accessory: 'none' },
@@ -102,9 +103,15 @@ function applyState(state) {
 // ---- Render ----
 let lastDrawKey = '';
 function render() {
-  const { x, y, bob, squash, facing, look, lookX, blink } = pet;
+  const { x, y, bob, squash, facing, look, lookX, blink, rotation } = pet;
   petEl.style.transform = `translate(${x}px, ${y + bob}px)`;
-  canvas.style.transform = `scale(${(1 / Math.sqrt(squash)) * facing}, ${squash})`;
+  // The canvas's transform-origin is its bottom-center (squash from the feet, see pet.css).
+  // Rotation goes around the center instead: shift up half a size, rotate, shift back.
+  // Only the canvas rotates, so the speech bubble stays upright.
+  const half = SIZE / 2;
+  canvas.style.transform =
+    `translateY(${-half}px) rotate(${rotation}rad) translateY(${half}px) ` +
+    `scale(${(1 / Math.sqrt(squash)) * facing}, ${squash})`;
 
   // Only redraw the canvas when something visual changed.
   const key = `${look.color}|${look.shape}|${look.accessory}|${lookX.toFixed(1)}|${blink}`;

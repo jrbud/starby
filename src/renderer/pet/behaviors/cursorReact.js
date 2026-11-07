@@ -15,11 +15,10 @@ const NOTICE_RADIUS = 160;
 const NOTICE_COOLDOWN = 15; // seconds between "oh hi!" lines
 
 // Flinch tuning
-const FLINCH_RADIUS = 220; // only cursors this close (px, center to center) can scare it
-const MIN_RUSH_SPEED = 650; // px/s toward the star
-const REACH_WITHIN = 0.3; // ...or fast enough to reach it within this many seconds
-const HIT_RADIUS = 60; // what "reach it" means (px)
-const MAX_MISS = 90; // ignore fast cursors whose straight-line path passes further than this from the star
+const FLINCH_RADIUS = 180; // the cursor's path has to come this close (px) to the star's center
+const MIN_RUSH_SPEED = 1300; // px/s toward the star (a quick flick, not a normal mouse move)
+const MAX_MISS = 70; // ignore fast cursors whose straight-line path passes further than this from the star
+const MAX_REAL_SPEED = 8000; // px/s; faster than this is a cursor jump, not a hand movement
 const FLINCH_COOLDOWN = 2.5; // seconds between flinches
 const FLEE_DIST = [170, 280]; // px to run
 const FLEE_SPEED = [260, 340]; // px/s
@@ -95,8 +94,9 @@ export default {
 
     // No cursor position yet (it hasn't moved over the screen since launch).
     if (cursor.x < -1000) return;
-    const vx = prevCursor ? (cursor.x - prevCursor.x) / TICK_SECONDS : 0;
-    const vy = prevCursor ? (cursor.y - prevCursor.y) / TICK_SECONDS : 0;
+    const from = prevCursor; // where the cursor was last tick
+    const vx = from ? (cursor.x - from.x) / TICK_SECONDS : 0;
+    const vy = from ? (cursor.y - from.y) / TICK_SECONDS : 0;
     prevCursor = { x: cursor.x, y: cursor.y };
 
     const c = petCenter(pet);
@@ -107,23 +107,54 @@ export default {
     const approach = (vx * awayX + vy * awayY) / dist;
 
     // ---- Notice (only calm approaches; a rushing cursor gets a flinch instead) ----
+    // Only react while it's going about its business (not held, thrown, or already running).
+    const free = pet.mode === 'idle' || pet.mode === 'walk';
     const isNear = dist < NOTICE_RADIUS;
     const calm = approach < MIN_RUSH_SPEED / 2;
-    if (isNear && !near && calm && noticeCooldown === 0 && pet.mode !== 'drag' && pet.mode !== 'flee') {
+    if (isNear && !near && calm && noticeCooldown === 0 && free) {
       ctx.say('oh! hi :)', 1500);
       noticeCooldown = NOTICE_COOLDOWN;
     }
     near = isNear;
 
     // ---- Flinch ----
-    if (pet.mode === 'drag' || pet.mode === 'flee') return;
-    if (flinchCooldown > 0 || ctx.clock.seconds < braveUntil || dist > FLINCH_RADIUS) return;
+    if (!free || !from) return;
+    if (flinchCooldown > 0 || ctx.clock.seconds < braveUntil) return;
+    // Impossibly fast = the cursor jumped (e.g. first mousemove after a while), not a flick.
+    if (Math.hypot(vx, vy) > MAX_REAL_SPEED) return;
 
-    const fastEnough = approach > Math.max(MIN_RUSH_SPEED, (dist - HIT_RADIUS) / REACH_WITHIN);
-    // How close the cursor's current straight-line path passes to the star (cross product).
+    // Judge the whole path the cursor took since last tick (from → now), not just where it
+    // is now: a fast flick can cross the star's whole neighbourhood between two ticks.
+    const fromAwayX = c.x - from.x;
+    const fromAwayY = c.y - from.y;
+    const fromDist = Math.hypot(fromAwayX, fromAwayY) || 1;
+    // Speed toward the star at the start of the move (positive = heading at it).
+    const rushSpeed = (vx * fromAwayX + vy * fromAwayY) / fromDist;
+    if (rushSpeed < MIN_RUSH_SPEED) return;
+
+    // Closest point of that path to the star.
+    const sx = cursor.x - from.x;
+    const sy = cursor.y - from.y;
+    const along = clamp((fromAwayX * sx + fromAwayY * sy) / (sx * sx + sy * sy || 1), 0, 1);
+    const nearX = from.x + sx * along;
+    const nearY = from.y + sy * along;
+    if (Math.hypot(c.x - nearX, c.y - nearY) > FLINCH_RADIUS) return;
+
+    // How close the straight-line path passes to the star (cross product), i.e. was it aimed?
     const speed = Math.hypot(vx, vy) || 1;
-    const missBy = Math.abs(vx * awayY - vy * awayX) / speed;
-    if (fastEnough && missBy < MAX_MISS) flinch(ctx, awayX, awayY);
+    const missBy = Math.abs(vx * fromAwayY - vy * fromAwayX) / speed;
+    if (missBy >= MAX_MISS) return;
+
+    // Run away from the cursor's path. Dead-on hit (or it already flew past)? Jump sideways
+    // out of the path instead of back along it.
+    let fleeX = c.x - nearX;
+    let fleeY = c.y - nearY;
+    if (Math.hypot(fleeX, fleeY) < 10) {
+      const side = Math.random() < 0.5 ? 1 : -1;
+      fleeX = -vy * side;
+      fleeY = vx * side;
+    }
+    flinch(ctx, fleeX, fleeY);
   },
 
   update(ctx) {
