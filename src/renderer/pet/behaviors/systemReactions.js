@@ -107,7 +107,8 @@ async function watchBattery(ctx) {
     if (!battery.charging && battery.level <= LOW_BATTERY && !warnedLow) {
       warnedLow = true;
       const pct = Math.round(battery.level * 100);
-      chat(ctx, LOW_LINES().replace('{pct}', pct), 4000, { wait: 30 });
+      // Important enough to say even while he's asleep (other system reactions are dropped then).
+      chat(ctx, LOW_LINES().replace('{pct}', pct), 4000, { wait: 30, ignoreQuiet: true });
       ctx.log('battery-low', { percent: pct });
     }
   };
