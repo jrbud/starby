@@ -33,12 +33,12 @@ const SUBSTEPS = 4; // physics steps per frame, keeps fast spins stable
 
 // Throwing (speed, glide friction and wall bounce come from the Fling power slider)
 const SPIN_FRICTION = 1.4; // per second
-const STOP_DRAG = 150; // px/s² constant slow-down on top of friction, so slippery throws don't drift for ages
+const STOP_DRAG = 90; // px/s² constant slow-down on top of friction, so slippery throws don't drift for ages
 
 // Impact frames
 const IMPACT_MIN_SPEED = 700; // px/s into the wall; softer hits just bounce, no freeze
 const IMPACT_FULL_SPEED = 2500; // px/s into the wall for the full freeze
-const IMPACT_FREEZE_MAX = 1.0; // seconds
+const IMPACT_FREEZE_MAX = 0.25; // seconds — a quick hit-stop, not a long pause
 const IMPACT_SQUASH = 0.62; // how flat it gets against the wall (lower = flatter)
 const UPRIGHT_STIFFNESS = 60; // spring pulling it back upright...
 const UPRIGHT_DAMPING = 9; // ...and how quickly the wobble settles
