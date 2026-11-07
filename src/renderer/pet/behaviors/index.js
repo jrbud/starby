@@ -17,16 +17,18 @@
 //     log(type, data), events }      // session event log (see ../core/eventLog.js)
 // Behaviors coordinate through `ctx.pet.mode` ('idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss').
 // Only change the mode for states you own, and respect 'drag' (the user is holding the pet).
+// Emotions live in `ctx.pet.mood` (mood.js); read their rules with rulesFor() from ./moods.js.
 //
 // Order matters a little: within a tick and within a frame, behaviors run in this order.
 import idle from './idle.js';
 import walk from './walk.js';
 import drag from './drag.js';
 import cursorReact from './cursorReact.js';
+import mood from './mood.js';
 import speech from './speech.js';
 import stardust from './stardust.js';
 import systemReactions from './systemReactions.js';
 import sessionEvents from './sessionEvents.js';
 import shopOpener from './shopOpener.js';
 
-export const BEHAVIORS = [idle, walk, drag, cursorReact, speech, stardust, systemReactions, sessionEvents, shopOpener];
+export const BEHAVIORS = [idle, walk, drag, cursorReact, mood, speech, stardust, systemReactions, sessionEvents, shopOpener];

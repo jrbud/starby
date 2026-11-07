@@ -86,7 +86,8 @@ before changing these — they're core).
 
 **Owns:** `src/renderer/pet/behaviors/speech.js`, `src/renderer/pet/bubble.js`,
 `src/renderer/pet/behaviors/systemReactions.js`, `src/renderer/pet/behaviors/chatter.js`,
-`src/main/systemReads/*`.
+`src/renderer/pet/behaviors/mood.js`, `src/renderer/pet/behaviors/moods.js`, `src/main/systemReads/*`.
+Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with the team).
 
 > **Speech convention (for everyone):** lines that answer the user (click, flinch, drag) use plain
 > `ctx.say()` so they show instantly. Lines that come out of nowhere (idle chatter, system reactions,
@@ -122,8 +123,54 @@ before changing these — they're core).
   `'clipboard'` event no longer has a `preview`. `systemReads/clipboard.js` classifies the text in the main
   process and sends only `{ length, kind }`, with `kind` one of `'url' | 'number' | 'long' | 'text'`, so the
   copied text never reaches the renderer, the event log or DevTools. `systemReactions.js` has lines per kind.
-- [ ] **P3-5 (Nice) Sleepy at night.** Late `time-of-day` or long `'idle'` puts the star to sleep (closed
-  eyes, slow bob, "zzz"). Needs a new `'sleep'` mode — **agree with Person 1 first.**
+- [ ] **P3-5 (Nice) Sleepy at night.** Folded into P3-6: no new `'sleep'` mode needed. He yawns after
+  1 minute alone at night (2 minutes by day) and sleeps once he reaches a top corner.
+- [ ] **P3-6 (Must) Emotions.** Moods are a separate layer from `pet.mode`: **mode** = what the body is
+  doing (Person 1), **mood** = how he feels (`pet.mood`: happy, mad, playful, dizzy, yawning, sleepy),
+  **face** = which frames to show (`pet.face`: the mood, plus `dragged` while held and `talking` while happy
+  and speaking). Behaviors never check mood names: they read one rule from `rulesFor(ctx.pet)` in
+  `behaviors/moods.js` (`stardust`, `wander`, `follow`, `flee`, `hop`, `grabbable`, `quiet`, `bobSpeed`).
+  Every mood change is logged as `mood`. In DevTools: `starby.setMood('sleepy')`, `starby.mood()`.
+  - [x] **Phase 1 (Person 3): state machine + speech.** `mood.js` handles:
+    - **mad:** 4 clicks in 8s; 20s after the last poke he's happy again.
+    - **playful:** thrown at ≥500px/s; lasts 15s, and each throw or edge hit restarts it.
+    - **dizzy:** spun 3+ turns (`drag.js` logs `dizzy`), 3 throws within 20s, or the cursor circling him
+      3 times within 6s; lasts 5s.
+    - **yawning:** 2 minutes without interaction (1 at night) or the system `idle` event; sets `pet.goal`
+      to the nearest top corner.
+    - **sleepy:** reached that corner. **Only picking him up and shaking him wakes him**; clicks, the
+      cursor and throws don't, and he dangles asleep if held without shaking.
+    - **speech:** `speech.js` has click and idle lines for each mood. `chat()` drops unprompted lines while
+      he's asleep (the `quiet` rule), except low battery.
+    - Two lines added to the shared `behaviors/index.js` to register `mood.js`.
+  - [ ] **Phase 2: hook behaviors up to the rules** (small PRs by each owner):
+    - **Person 1, `idle.js`:** no walks when `!wander`; when `wander === 'corner'`, walk to `pet.goal`
+      instead of a random spot; breathing speed from `bobSpeed`; no hops when `!hop`.
+    - **Person 1, `walk.js`:** no turn-backs on corner walks.
+    - **Person 1, `cursorReact.js`:** skip follow and flee according to the rules; optionally face away
+      from the cursor while mad.
+    - **Person 1, `drag.js`:** `ctx.log('bounce', { x, y, speed })` on each edge hit during a throw, and
+      a **swat** instead of a grab when `!grabbable` (mad): the grab fails, he recoils, hops out from under
+      the cursor and says something like "hands off!". He never moves the real cursor: that would be a
+      system write, out of scope.
+    - **Person 2, `stardust.js`:** divide the drop timer by the `stardust` rate (0 = no drops). Drop 1–3
+      stardust at each `bounce`, but only for hits above a minimum speed and with a ~2s cooldown, so
+      throwing can't farm stardust (agree the numbers with Person 4 for balance).
+  - [ ] **Phase 3: faces (Person 4 + artists).** A new `renderer/shared/frames.js` loads
+    `assets/sprite/<face>/<face>_N.png`. `pet.js` `render()` draws the frames for `pet.face` (a shared file,
+    so ask first) and falls back to today's star for any face without art yet. The artists need these
+    folders, every frame on the same canvas size (suggest 128×128, with room above the head):
+    - `happy/` (plus a `blink` frame)
+    - `talking/`
+    - `mad/`
+    - `playful/`
+    - `dizzy/` (stars around the head are part of the art)
+    - `yawning/`
+    - `sleepy/` (zzz)
+    - `dragged/`
+    - optional `swat/`
+
+    Shop colors on the PNG art are a later slice.
 
 ---
 
