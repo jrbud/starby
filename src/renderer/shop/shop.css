@@ -1,0 +1,107 @@
+/* Plain, flat UI. Items are colored swatches / primitive shapes — no illustrated art. */
+:root {
+  --bg: #f6f4fb;
+  --panel: #ffffff;
+  --ink: #2b2b3a;
+  --muted: #77768a;
+  --accent: #6c5ce7;
+  --line: #e2dff0;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+#preview {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+h2 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 16px 0 8px;
+}
+
+.balance {
+  margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dust-icon {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #e6c84a;
+  transform: rotate(45deg);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+}
+
+.item {
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.item.equipped {
+  border-color: var(--accent);
+}
+
+.item canvas {
+  display: block;
+}
+
+.item button {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 0;
+  font: inherit;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+}
+
+.item button:disabled {
+  background: var(--line);
+  color: var(--muted);
+  cursor: default;
+}
+
+.message {
+  min-height: 1.2em;
+  color: var(--muted);
+  font-size: 13px;
+}

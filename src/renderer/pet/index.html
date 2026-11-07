@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>sprite.exe</title>
+    <link rel="stylesheet" href="pet.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <!-- Elements with class "hit" are clickable; everything else is click-through. -->
+      <div id="pet" class="hit">
+        <div id="bubble" class="bubble hidden"></div>
+        <canvas id="sprite" width="64" height="64"></canvas>
+      </div>
+    </div>
+    <script type="module" src="pet.js"></script>
+  </body>
+</html>

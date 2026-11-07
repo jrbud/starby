@@ -1,0 +1,13 @@
+{
+  "name": "sprite-exe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "sprite.exe — a tiny star desktop companion (hackathon build, Windows only)",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^45.2.3"
+  }
+}
