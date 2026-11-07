@@ -10,6 +10,14 @@
 //   prompt.hide();
 
 const GAP = 30; // px below the star (leaves room for the debug mood label)
+const SIDE_GAP = 14; // px beside the star, when there's no room below
+const EDGE = 8; // px kept clear of the screen edges
+
+// Bottom of the usable screen, in window coordinates.
+// WINDOWS QUIRK: the pet window covers the whole display, taskbar included, so innerHeight
+// reaches into the taskbar. screen.availHeight stops above it (same as groundY in pet.js),
+// which keeps the buttons where they can actually be clicked.
+const usableBottom = () => (window.screen && window.screen.availHeight) || window.innerHeight;
 
 function injectStyles() {
   if (document.getElementById('event-prompt-styles')) return;
@@ -72,14 +80,24 @@ export function createPrompt(stage) {
       el.style.display = 'block';
       size = { w: el.offsetWidth, h: el.offsetHeight };
     },
-    /** Keep it centered under the star (above it if there's no room), on screen. */
+    /**
+     * Keep it next to the star and fully inside the usable screen (above the taskbar):
+     * centered under him, or beside him (right, else left) when there's no room below, e.g.
+     * when he's standing on the taskbar line. Never above him: that's where his speech bubble is.
+     */
     place(pet) {
       if (!el || el.style.display === 'none') return;
+      const bottom = usableBottom() - EDGE;
+      const right = window.innerWidth - EDGE;
       let x = pet.x + pet.size / 2 - size.w / 2;
       let y = pet.y + pet.size + GAP;
-      if (y + size.h > window.innerHeight) y = pet.y - size.h - 40; // no room below: go above
-      x = Math.max(4, Math.min(window.innerWidth - size.w - 4, x));
-      y = Math.max(4, y);
+      if (y + size.h > bottom) {
+        y = pet.y + pet.size / 2 - size.h / 2; // level with him
+        x = pet.x + pet.size + SIDE_GAP; // right side...
+        if (x + size.w > right) x = pet.x - size.w - SIDE_GAP; // ...or left if he's near the right edge
+      }
+      x = Math.max(EDGE, Math.min(right - size.w, x));
+      y = Math.max(EDGE, Math.min(bottom - size.h, y));
       el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     },
     hide() {
