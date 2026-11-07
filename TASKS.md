@@ -57,9 +57,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
 
 ---
 
-## Person 2 — Stardust & Windows testing
+## Person 2 — Starbits & Windows testing
 
-**Owns:** `src/renderer/pet/behaviors/stardust.js`, `src/renderer/pet/pet.css`.
+**Owns:** `src/renderer/pet/behaviors/starbits.js`, `src/renderer/pet/pet.css`.
 Windows fixes only in: `src/main/windows/petWindow.js`, `src/renderer/pet/clickThrough.js` (tell the team
 before changing these — they're core).
 
@@ -73,7 +73,7 @@ before changing these — they're core).
   (CSS transition, plain text). Also show the total: e.g. a small plain-text badge near the star while the
   cursor is over it. Get the total from `ctx.api.getState()` / `ctx.api.onStateChanged`.
   Badge/float text must not have class `hit` (keep them click-through).
-- [ ] **P2-3 (Must) Old stardust fades.** Each drop gets a spawn time; after ~60s fade it out and remove it
+- [ ] **P2-3 (Must) Old starbits fade.** Each drop gets a spawn time; after ~60s fade it out and remove it
   from `drops`.
 - [ ] **P2-4 (Nice) Drop animation.** Spawn at the star's center and fall/bounce to its feet with a CSS
   transition or per-frame update before it becomes collectable.
@@ -135,11 +135,11 @@ before changing these — they're core).
 - [ ] **P4-1 (Must) Fill out and balance the catalog.** Add more colors and accessories in
   `shopCatalog.js` (the star has one shape, so no shape items); new accessories need a draw function in `sprite.js`. **Flat fills and simple
   primitives only — no gradients, glow, shading or images.** Price so the first purchase takes ~5 minutes
-  of play (drops are every 8–15s in `stardust.js`, so roughly 25 stardust).
+  of play (drops are every 8–15s in `starbits.js`, so roughly 25 starbits).
 - [x] **P4-2 (Must) Shop polish.** Make owned / equipped / can't-afford states obvious at a glance
   (e.g. lock label, dimmed card, "need N more"). Show a short confirmation after buying.
 - [ ] **P4-3 (Must) Demo shortcut.** A hidden key combo in the shop window (e.g. Ctrl+Shift+D) that adds
-  50 stardust via `window.sprite.collectStardust(50)`. Keep it simple and obvious in code so it can be
+  50 starbits via `window.sprite.collectStarbits(50)`. Keep it simple and obvious in code so it can be
   removed later.
 - [ ] **P4-4 (Nice) Another way into the shop.** Double-click on the star → `window.sprite.openShop()`.
   The listener lives in the pet renderer — put it in a new behavior file (e.g. `behaviors/shopOpener.js`)

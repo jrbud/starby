@@ -13,8 +13,8 @@ contextBridge.exposeInMainWorld('sprite', {
   getState: () => ipcRenderer.invoke('state:get'),
   onStateChanged: (cb) => subscribe('state:changed', cb),
 
-  // Stardust
-  collectStardust: (amount = 1) => ipcRenderer.invoke('stardust:collect', amount),
+  // Starbits
+  collectStarbits: (amount = 1) => ipcRenderer.invoke('starbits:collect', amount),
 
   // Shop
   getCatalog: () => ipcRenderer.invoke('shop:catalog'),

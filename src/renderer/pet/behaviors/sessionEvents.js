@@ -12,7 +12,7 @@ const MILESTONES = [
 ];
 
 const STREAK_CHECK_EVERY = 5 * 60; // seconds
-const STREAK_MIN = 5; // stardust picked up within one check window to count as a streak
+const STREAK_MIN = 5; // starbits picked up within one check window to count as a streak
 
 export default {
   name: 'session-events',
@@ -25,15 +25,15 @@ export default {
       }, `milestone ${seconds / 60}m`);
     }
 
-    // Every few minutes, look back through the log: did the user collect a lot of stardust?
+    // Every few minutes, look back through the log: did the user collect a lot of starbits?
     ctx.every(STREAK_CHECK_EVERY, () => {
       const collected = ctx.events
         .since(STREAK_CHECK_EVERY)
-        .filter((e) => e.type === 'stardust' && e.data.delta > 0)
+        .filter((e) => e.type === 'starbits' && e.data.delta > 0)
         .reduce((sum, e) => sum + e.data.delta, 0);
       if (collected >= STREAK_MIN && !ctx.isSpeaking()) {
-        ctx.say(`${collected} stardust in ${STREAK_CHECK_EVERY / 60} minutes, nice!`, 3000);
+        ctx.say(`${collected} starbits in ${STREAK_CHECK_EVERY / 60} minutes, nice!`, 3000);
       }
-    }, 'stardust streak check');
+    }, 'starbits streak check');
   },
 };

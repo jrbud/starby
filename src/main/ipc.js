@@ -11,10 +11,10 @@ function registerIpc() {
   // ---- State ----
   ipcMain.handle('state:get', () => store.get());
 
-  // ---- Stardust ----
-  ipcMain.handle('stardust:collect', (_e, amount = 1) => {
+  // ---- Starbits ----
+  ipcMain.handle('starbits:collect', (_e, amount = 1) => {
     const n = Math.max(0, Math.floor(Number(amount) || 0));
-    return store.update((s) => { s.stardust += n; });
+    return store.update((s) => { s.starbits += n; });
   });
 
   // ---- Shop ----
@@ -25,9 +25,9 @@ function registerIpc() {
     const s = store.get();
     if (!item) return { ok: false, reason: 'unknown item' };
     if (s.owned.includes(item.id)) return { ok: false, reason: 'already owned' };
-    if (s.stardust < item.price) return { ok: false, reason: 'not enough stardust' };
+    if (s.starbits < item.price) return { ok: false, reason: 'not enough starbits' };
     const state = store.update((st) => {
-      st.stardust -= item.price;
+      st.starbits -= item.price;
       st.owned.push(item.id);
     });
     return { ok: true, state };

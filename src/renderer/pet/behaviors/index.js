@@ -24,9 +24,9 @@ import walk from './walk.js';
 import drag from './drag.js';
 import cursorReact from './cursorReact.js';
 import speech from './speech.js';
-import stardust from './stardust.js';
+import starbits from './starbits.js';
 import systemReactions from './systemReactions.js';
 import sessionEvents from './sessionEvents.js';
 import shopOpener from './shopOpener.js';
 
-export const BEHAVIORS = [idle, walk, drag, cursorReact, speech, stardust, systemReactions, sessionEvents, shopOpener];
+export const BEHAVIORS = [idle, walk, drag, cursorReact, speech, starbits, systemReactions, sessionEvents, shopOpener];

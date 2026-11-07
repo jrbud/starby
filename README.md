@@ -26,7 +26,7 @@ src/
     main.js                 entry: wires everything together            [CORE: flag before editing]
     store.js                persisted state → %APPDATA%/sprite-exe/state.json
     settingsStore.js        user settings (sliders) → settings.json, separate from the state schema
-    ipc.js                  all ipcMain handlers (stardust, shop, click-through, context menu)
+    ipc.js                  all ipcMain handlers (starbits, shop, click-through, context menu)
     windows/
       petWindow.js          fullscreen transparent overlay + click-through   [CORE]
       shopWindow.js         normal shop window
@@ -47,7 +47,7 @@ src/
       clickThrough.js       toggles click-through when hovering `.hit` elements
       bubble.js             speech bubble UI (behaviors call ctx.say)
       behaviors/            one file per behavior, registered in behaviors/index.js
-        idle.js walk.js drag.js cursorReact.js speech.js stardust.js systemReactions.js
+        idle.js walk.js drag.js cursorReact.js speech.js starbits.js systemReactions.js
     shop/                   shop window UI
     settings/               settings window UI
 ```
@@ -55,7 +55,7 @@ src/
 ## How it fits together
 
 - **One overlay window.** The pet window covers the whole primary display, is transparent and click-through.
-  The sprite, bubble and stardust are DOM elements moving inside it. When the cursor is over the sprite
+  The sprite, bubble and starbits are DOM elements moving inside it. When the cursor is over the sprite
   (`.hit`), click-through turns off so you can click or drag it.
 - **Behaviors** are small modules with `init(ctx)`, `onTick(ctx, tick)` and `update(ctx, dt)`. They coordinate
   through `ctx.pet.mode` (`idle` | `walk` | `follow` | `flee` | `drag` | `toss`). To add one: create a file in `behaviors/` and add it to
@@ -64,13 +64,13 @@ src/
   decisions in `onTick` (start walking, hop, pause) and do smooth motion in `update`, which runs every frame.
   The clock follows real time, so it catches up after the PC sleeps.
 - **Timed events.** `ctx.after(seconds, fn, label)` and `ctx.every(seconds, fn, label)` run things on the
-  session clock (`core/scheduler.js`). Example: `behaviors/sessionEvents.js` (time-open milestones, stardust
+  session clock (`core/scheduler.js`). Example: `behaviors/sessionEvents.js` (time-open milestones, starbits
   streak).
 - **Event log.** `ctx.log(type, data)` records what happened and when; `ctx.events` answers questions like
   `last('say')`, `since(300)`, `count('click', 60)`, `total('walk')` (`core/eventLog.js`). It lives in memory
-  for the session only. pet.js logs speech, system events, stardust, purchases/equips and mode changes
+  for the session only. pet.js logs speech, system events, starbits, purchases/equips and mode changes
   automatically. To browse it, open DevTools on the pet window and run `starby.events.all()`.
-- **State** (stardust, owned items, equipped items) lives only in the main process. Renderers change it through
+- **State** (starbits, owned items, equipped items) lives only in the main process. Renderers change it through
   `window.sprite.*`, and every window gets `state:changed` after each update. That's how equipping in the shop
   changes the on-screen sprite right away.
 - **Shop items** are data in `shopCatalog.js`. A new color is a single entry. The star has one shape (no shape
@@ -82,7 +82,7 @@ src/
 |---|---|
 | Movement / idle / drag | `renderer/pet/behaviors/{idle,walk,drag}.js` |
 | Cursor + speech | `behaviors/{cursorReact,speech}.js`, `bubble.js` |
-| Stardust + shop | `behaviors/stardust.js`, `renderer/shop/*`, `shared/shopCatalog.js`, `renderer/shared/sprite.js` |
+| Starbits + shop | `behaviors/starbits.js`, `renderer/shop/*`, `shared/shopCatalog.js`, `renderer/shared/sprite.js` |
 | System reads | `main/systemReads/*`, `behaviors/systemReactions.js` |
 
 Core files (`main.js`, `windows/petWindow.js`, `shared/stateSchema.js`, `preload.js` channel names): flag before

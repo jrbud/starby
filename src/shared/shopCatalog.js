@@ -10,7 +10,7 @@
 // renderer/shared/sprite.js as a stand-in. The accessories below are the original
 // skeleton ones; new ones wait for art.
 //
-// BALANCE: stardust.js drops one every 8–15s (~11.5s average), so a player who collects most
+// BALANCE: starbits.js drops one every 8–15s (~11.5s average), so a player who collects most
 // drops earns ~5 per minute. Cheapest items cost 25 (~5 min of play, the first purchase).
 // Rough tiers: colors 25–60, accessories 50–100.
 // Buying everything costs 515 (~1.7 hours). For demos use the shop's demo shortcut (P4-3).
