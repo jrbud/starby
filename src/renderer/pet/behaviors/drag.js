@@ -1,14 +1,14 @@
-// Click / drag / right-click on the pet. After a drag the pet falls back to the ground.
+// Click / drag / right-click on the pet. The pet can live anywhere on screen, so after a
+// drag it stays where you let go (kept on screen) instead of falling back to the taskbar.
 // A click without moving emits a 'pet:clicked' DOM event that other behaviors can react to.
 
 const CLICK_SLOP = 4; // px of movement before a press counts as a drag
-const GRAVITY = 2200; // px/s^2
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 let pressing = false;
 let moved = false;
 let start = { x: 0, y: 0 };
 let grab = { x: 0, y: 0 };
-let vy = 0;
 
 export default {
   name: 'drag',
@@ -47,8 +47,11 @@ export default {
       ctx.setPinned(false);
       petEl.classList.remove('dragging');
       if (moved) {
-        vy = 0;
-        pet.mode = 'fall';
+        // Keep it fully on screen, give a little landing squish, and carry on from here.
+        pet.x = clamp(pet.x, 0, ctx.stageWidth() - pet.size);
+        pet.y = clamp(pet.y, 0, ctx.groundY());
+        pet.squash = 0.85;
+        pet.mode = 'idle';
       } else {
         petEl.dispatchEvent(new CustomEvent('pet:clicked'));
       }
@@ -58,18 +61,5 @@ export default {
       e.preventDefault();
       ctx.api.showContextMenu();
     });
-  },
-
-  update(ctx, dt) {
-    const { pet } = ctx;
-    if (pet.mode !== 'fall') return;
-    vy += GRAVITY * dt;
-    pet.y += vy * dt;
-    pet.squash = 1.1;
-    if (pet.y >= ctx.groundY()) {
-      pet.y = ctx.groundY();
-      pet.squash = 0.8; // landing squish; idle eases it back
-      pet.mode = 'idle';
-    }
   },
 };

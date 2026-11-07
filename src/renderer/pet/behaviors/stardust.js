@@ -14,7 +14,7 @@ function spawn(ctx) {
   if (drops.length >= MAX_ON_SCREEN) return;
   const { pet } = ctx;
   const x = pet.x + pet.size / 2 + rand(-40, 40);
-  const y = ctx.groundY() + pet.size - 10;
+  const y = pet.y + pet.size - 10 + rand(-6, 6); // at the star's feet, wherever it is
   const el = document.createElement('div');
   el.className = 'stardust';
   el.style.left = `${x - 4}px`;

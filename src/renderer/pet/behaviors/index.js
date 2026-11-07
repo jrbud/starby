@@ -8,7 +8,7 @@
 //
 // `ctx` is defined in ../pet.js: { api, pet, petEl, stage, cursor, catalog,
 //   groundY(), stageWidth(), say(text, ms), isSpeaking(), setPinned(bool) }.
-// Behaviors coordinate through `ctx.pet.mode` ('idle' | 'walk' | 'drag' | 'fall').
+// Behaviors coordinate through `ctx.pet.mode` ('idle' | 'walk' | 'drag').
 // Only change the mode for states you own, and respect 'drag' (the user is holding the pet).
 //
 // Order matters a little: later behaviors run after earlier ones each frame.

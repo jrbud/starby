@@ -50,7 +50,7 @@ src/
   The sprite, bubble and stardust are DOM elements moving inside it. When the cursor is over the sprite
   (`.hit`), click-through turns off so you can click or drag it.
 - **Behaviors** are small modules with `init(ctx)` / `update(ctx, dt)`. They coordinate through
-  `ctx.pet.mode` (`idle` | `walk` | `drag` | `fall`). To add one: create a file in `behaviors/` and add it to
+  `ctx.pet.mode` (`idle` | `walk` | `drag`). To add one: create a file in `behaviors/` and add it to
   `behaviors/index.js`.
 - **State** (stardust, owned items, equipped items) lives only in the main process. Renderers change it through
   `window.sprite.*`, and every window gets `state:changed` after each update. That's how equipping in the shop
