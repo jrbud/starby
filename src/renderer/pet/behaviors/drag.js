@@ -38,7 +38,7 @@ const STOP_DRAG = 90; // px/s² constant slow-down on top of friction, so slippe
 // Impact frames
 const IMPACT_MIN_SPEED = 700; // px/s into the wall; softer hits just bounce, no freeze
 const IMPACT_FULL_SPEED = 2500; // px/s into the wall for the full freeze
-const IMPACT_FREEZE_MAX = 0.25; // seconds — a quick hit-stop, not a long pause
+const IMPACT_FREEZE_MAX = 0.125; // seconds — a quick hit-stop, not a long pause
 const IMPACT_SQUASH = 0.62; // how flat it gets against the wall (lower = flatter)
 const UPRIGHT_STIFFNESS = 60; // spring pulling it back upright...
 const UPRIGHT_DAMPING = 9; // ...and how quickly the wobble settles
