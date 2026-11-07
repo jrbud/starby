@@ -10,8 +10,15 @@
 //
 // Cursor position comes from forwarded mousemove events (see clickThrough.js). Cursor speed
 // is measured once per tick (0.1s), which smooths out jittery per-frame mouse deltas.
+//
+// MOODS (hooked up by Person 3, P3-6; rules in ./moods.js):
+//   follow false   → no "oh! hi" and no following (mad, dizzy, yawning, asleep); a follow in
+//                    progress ends if the mood changes
+//   flee false     → no flinching (dizzy, yawning, asleep)
+//   lookAway true  → eyes avoid the cursor instead of following it (mad)
 import { rand, clamp, clampToScreen, startJump, cancelJump } from './motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
+import { rulesFor } from './moods.js';
 
 const NOTICE_RADIUS = 160;
 const NOTICE_COOLDOWN = 15; // seconds between "oh hi!" lines
@@ -130,6 +137,10 @@ function keepFollowing(ctx, cursorDist) {
     endFollow(ctx, 'too-far');
     return;
   }
+  if (!rulesFor(pet).follow) {
+    endFollow(ctx, 'mood'); // e.g. got poked mad mid-follow
+    return;
+  }
   setFollowTarget(ctx);
 }
 
@@ -190,9 +201,10 @@ export default {
     // ---- Notice (only calm approaches; a rushing cursor gets a flinch instead) ----
     // Only react while it's going about its business (not held, thrown, or already running).
     const free = pet.mode === 'idle' || pet.mode === 'walk' || pet.mode === 'follow';
+    const rules = rulesFor(pet);
     const isNear = dist < NOTICE_RADIUS;
     const calm = approach < MIN_RUSH_SPEED / 2;
-    if (isNear && !near && calm && free && pet.mode !== 'follow') {
+    if (isNear && !near && calm && free && pet.mode !== 'follow' && rules.follow) {
       if (noticeCooldown === 0) {
         ctx.say('oh! hi :)', 1500);
         noticeCooldown = NOTICE_COOLDOWN;
@@ -203,7 +215,7 @@ export default {
     near = isNear;
 
     // ---- Flinch ----
-    if (!free || !from) return;
+    if (!free || !from || !rules.flee) return;
     if (flinchCooldown > 0 || ctx.clock.seconds < braveUntil) return;
     // Impossibly fast = the cursor jumped (e.g. first mousemove after a while), not a flick.
     if (Math.hypot(vx, vy) > MAX_REAL_SPEED) return;
@@ -248,7 +260,9 @@ export default {
     const dx = cursor.x - c.x;
     if (Math.hypot(dx, cursor.y - c.y) < NOTICE_RADIUS) {
       // lookX is in screen space; pet.js compensates for the facing flip.
-      pet.lookX = clamp(dx / 60, -1, 1);
+      // Mad (lookAway): eyes dart the other way, pointedly not looking at you.
+      const look = clamp(dx / 60, -1, 1);
+      pet.lookX = rulesFor(pet).lookAway ? -look : look;
     } else {
       pet.lookX *= 0.9; // ease eyes back to center
     }
