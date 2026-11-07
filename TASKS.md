@@ -64,6 +64,11 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
   skips the question. Random: every 60s, 20% chance, 4-min cooldown, only when happy/playful, relaxed and the
   cursor moved in the last 10s. Tuning at the top of `events/tag.js`.
+- [x] **P1-7 (Nice) Ask Starby to play.** Clicking him also pops up a "Play tag?" button next to him for 4s
+  (`events/tag.js` + `events/prompt.js`). Pressing it starts the game right away (no question back). After a
+  game he needs a 60s rest (`GAME_REST`): asking via the button or the menu gets "give me a little, i'm
+  tired", then "still tired... give me Ns", then "i'm tired! ask me in a bit"; the button shows "resting…
+  0:42". Mad / dizzy: he refuses. Asleep: no button. Sad: the click cheers him up, so he says yes.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors

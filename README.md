@@ -10,7 +10,8 @@ npm install
 npm start
 ```
 
-Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Quit**. Settings has the *Fling power* slider
+Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Quit**. Click him and a **Play tag?**
+button pops up too (he needs a minute's rest between games). Settings has the *Fling power* slider
 (how hard throws fly and how bouncy the screen edges are).
 
 > `npm start` runs `scripts/start.js`, which launches Electron with `ELECTRON_RUN_AS_NODE` removed.
