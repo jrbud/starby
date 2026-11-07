@@ -12,8 +12,10 @@ npm start
 
 Right-click the star → **Open shop** / **Quit**.
 
-> Troubleshooting: if `app` is `undefined` on launch, your shell has `ELECTRON_RUN_AS_NODE=1` set
-> (some editor-integrated terminals do this). Unset it and run again.
+> `npm start` runs `scripts/start.js`, which launches Electron with `ELECTRON_RUN_AS_NODE` removed.
+> VS Code (and terminals/tools started from it) can set that variable, which makes Electron run as
+> plain Node and crash with "Cannot read properties of undefined (reading 'requestSingleInstanceLock')".
+> If you run `electron .` directly instead of `npm start`, unset it first.
 
 ## Layout
 
