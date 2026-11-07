@@ -19,6 +19,8 @@
 //                             or the cursor within 120px.
 //   yawning → happy           any interaction
 //   yawning → sleepy          reached the top corner in pet.goal
+//   any → sad                 said no to a game (events/tag.js calls requestMood). Lasts 30s, or
+//                             one click cheers him up early. Then back to happy.
 //   sleepy → happy            ONLY picked up and shaken. Clicks, the cursor, throws don't wake him;
 //                             dropped or thrown asleep, he keeps sleeping where he lands.
 //
@@ -34,6 +36,7 @@ const MAD_FOR = 20; // seconds after the last poke
 const PLAYFUL_SPEED = 500; // px/s release speed that counts as a throw
 const PLAYFUL_FOR = 15; // seconds after the last throw
 const DIZZY_FOR = 5;
+const SAD_FOR = 30; // seconds; a click cheers him up sooner
 const DIZZY_TOSSES = 3; // throws...
 const DIZZY_TOSS_WINDOW = 20; // ...within this many seconds
 const CIRCLE_RADIUS = 200; // cursor must circle within this distance of his center...
@@ -61,6 +64,7 @@ const LINES = {
   wake: lineBag(["huh?! i'm up, i'm up!", 'whoa! good morning?', 'okay okay, no more naps']),
   roused: lineBag(["oh! hi, i'm awake", 'hm? oh, hi!', "i wasn't sleeping!"]),
   calmDown: lineBag(['hmph. fine.', "ok... i'm not mad anymore", 'we good.']),
+  cheerUp: lineBag(["ok, i'm feeling better!", 'cheered up ✦', 'maybe next time!']),
 };
 
 // ---- State ----
@@ -131,10 +135,22 @@ function enter(ctx, mood, reason) {
     endIn(ctx, DIZZY_FOR, () => enter(ctx, back, 'steady again'));
   } else if (mood === 'yawning' && changed) {
     chat(ctx, LINES.yawning(), 3000, { wait: 10 });
+  } else if (mood === 'sad') {
+    endIn(ctx, SAD_FOR, () => {
+      if (setMood(ctx, 'happy', 'cheered up')) chat(ctx, LINES.cheerUp(), 2500, { wait: 6 });
+    });
   } else if (mood === 'sleepy' && changed) {
     chat(ctx, LINES.sleepy(), 3000, { wait: 5, ignoreQuiet: true });
   }
   return changed;
+}
+
+/**
+ * For scripted events (../events/, e.g. tag): switch mood through the normal path, so it's
+ * logged and timed like any other change (playful still wears off by itself, etc.).
+ */
+export function requestMood(ctx, mood, reason) {
+  return enter(ctx, mood, reason);
 }
 
 function interacted(ctx, kind) {
@@ -155,7 +171,9 @@ function onEntry(ctx, e) {
   switch (e.type) {
     case 'click':
       interacted(ctx, 'click');
-      if (pet.mood === 'mad') enter(ctx, 'mad', 'poked again');
+      // A click cheers a sad star up (speech.js then answers it with a happy line).
+      if (pet.mood === 'sad') enter(ctx, 'happy', 'cheered up by a click');
+      else if (pet.mood === 'mad') enter(ctx, 'mad', 'poked again');
       else if (CAN_GET_MAD.includes(pet.mood) && ctx.events.count('click', MAD_WINDOW) >= MAD_CLICKS) {
         enter(ctx, 'mad', 'poked'); // speech.js answers this click with a mad line
       }
@@ -264,7 +282,7 @@ function faceFor(ctx) {
   const { pet } = ctx;
   if (pet.mood === 'sleepy') return 'sleepy';
   if (pet.mode === 'drag') return 'dragged';
-  if (pet.mood === 'dizzy' || pet.mood === 'yawning' || pet.mood === 'mad') return pet.mood;
+  if (pet.mood === 'dizzy' || pet.mood === 'yawning' || pet.mood === 'mad' || pet.mood === 'sad') return pet.mood;
   if (pet.mood === 'playful' || pet.mode === 'toss') return 'playful';
   if (ctx.isSpeaking()) return 'talking';
   return 'happy';

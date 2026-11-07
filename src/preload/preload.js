@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld('sprite', {
   // Pet window
   setIgnoreMouse: (ignore) => ipcRenderer.send('pet:set-ignore-mouse', ignore),
   showContextMenu: () => ipcRenderer.send('pet:context-menu'),
+  // Commands from the main process, e.g. { type: 'start-event', name: 'tag' } from the menu
+  onPetCommand: (cb) => subscribe('pet:command', cb),
 
   // Read-only system events: { type, ...payload }
   onSystemEvent: (cb) => subscribe('system:event', cb),

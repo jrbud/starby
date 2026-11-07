@@ -27,7 +27,7 @@ Each teammate is **Person 1–4**. Tell Claude Code who you are ("I'm person 2")
 ## Person 1 — Movement & cursor
 
 **Owns:** `src/renderer/pet/behaviors/idle.js`, `walk.js`, `drag.js`, `cursorReact.js`.
-Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss'`.
+Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss' | 'tag'`.
 
 - [x] **P1-1 (Must) Roam anywhere on screen.** The star walks to targets anywhere on the screen (not just
   edges or the taskbar), mostly short wanders nearby with occasional long trips. Kept between a top margin
@@ -54,6 +54,21 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   jerks and fast swipes spin it. On release (`'toss'` mode) it keeps its speed and spin, glides, bounces
   off screen edges and wobbles back upright. "wheee!" on fast spins, dizzy wobble after 3+ turns.
   `pet.rotation` is rendered by `pet.js` (canvas only, so the speech bubble stays upright).
+- [x] **P1-6 (Nice) Tag event.** First *event* (`src/renderer/pet/events/`, see below). He first **asks**: stops,
+  says "wanna play tag?" and shows a Yes / No popup next to him (`events/prompt.js`, a clickable `.hit` box).
+  **No** → new `sad` mood (`moods.js` / `mood.js`: half walk speed, no hops, looks away, no "oh! hi"; 30s, or a
+  click cheers him up) and he won't ask on his own again for 10 min. No answer in 12s → "maybe later", not sad.
+  **Yes** → he races to the cursor (~560px/s), tags it, then runs away (450–780px/s, jukes sideways at 1150px/s
+  when the cursor gets within 120px) while a 20s countdown runs top-right. Touch or grab him to win; survive
+  the timer and he wins. Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
+  stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
+  skips the question. Random: every 60s, 20% chance, 4-min cooldown, only when happy/playful, relaxed and the
+  cursor moved in the last 10s. Tuning at the top of `events/tag.js`.
+
+> **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
+> sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
+> stand down for modes they don't know), then hand it back. One at a time; pet.js runs the active event
+> after the behaviors. Add one in `events/index.js`; the module contract is documented there.
 
 ---
 
@@ -222,6 +237,7 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
 | `src/renderer/pet/behaviors/index.js` | One line per new behavior. Trivial conflicts. |
 | `src/renderer/pet/pet.js` | Shared render loop/`ctx`. Ask before changing. |
 | `src/renderer/pet/core/*` | Session clock, scheduler, event log. Shared; ask before changing. |
+| `src/renderer/pet/events/index.js` | Event runner + registry. Adding an event = one line; ask before changing the runner. |
 | `pet.mode` values | Person 1 owns. Ask before adding a mode. |
 | `src/shared/stateSchema.js` | Person 4 only. |
 | `src/main/main.js`, `src/main/windows/petWindow.js` | Core. Person 2 for Windows fixes; tell the team. |

@@ -55,6 +55,7 @@ const CLICK_BY_MOOD = lineBags({
   playful: ['again! again!', 'hehe, catch me!', 'wheee, more!', 'tag, you\'re it!', ':P'],
   dizzy: ['@_@', 'not now... still spinning', 'whoa, two of you?', 'ugh... wobbly'],
   yawning: ['*yawn* hm?', "i'm awake, i'm awake", 'sleepy...'],
+  sad: ['...', 'oh. hi.', '*sniff*'], // (a click cheers him up first, so these rarely show)
   // Clicks don't wake him (only picking him up and shaking does), so hint at that.
   sleepy: ['zzz...', '*snore*', 'mmm... five more minutes...', 'zzz... (he needs a good shake)'],
 });
@@ -65,6 +66,7 @@ const IDLE_BY_MOOD = lineBags({
   playful: ['throw me again!', 'that was fun!', 'hehe', 'wheee~ (remembering)', 'bet you can\'t throw me farther'],
   dizzy: ['the room is spinning...', '@_@', 'which way is up?'],
   yawning: ['*yaaawn*', 'so sleepy...', 'nap time soon...'],
+  sad: ['*sigh*', 'i just wanted to play...', '...', 'oh well.', '*kicks a pixel*'],
   sleepy: ['zzz...', '*snore*', 'zzz... mm... stardust...', '*mumbles in sleep*'],
 });
 

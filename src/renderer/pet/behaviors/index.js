@@ -15,7 +15,8 @@
 //     clock,                         // clock.tick, clock.seconds since app opened
 //     after(sec, fn, label), every(sec, fn, label), cancel(id),   // timed events
 //     log(type, data), events }      // session event log (see ../core/eventLog.js)
-// Behaviors coordinate through `ctx.pet.mode` ('idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss').
+// Behaviors coordinate through `ctx.pet.mode` ('idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss' | 'tag').
+// 'tag' (and any other mode a behavior doesn't know) belongs to a scripted event (../events/): stand down.
 // Only change the mode for states you own, and respect 'drag' (the user is holding the pet).
 // Emotions live in `ctx.pet.mood` (mood.js); read their rules with rulesFor() from ./moods.js.
 //
