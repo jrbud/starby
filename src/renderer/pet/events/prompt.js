@@ -6,18 +6,17 @@
 //
 //   const prompt = createPrompt(ctx.stage);
 //   prompt.show({ text: 'Play tag?', yes: 'Yes!', no: 'No', onYes, onNo });
-//   prompt.place(pet);   // every frame: keep it next to the star
+//   prompt.place(pet, ctx.area());   // every frame: keep it next to the star, off the taskbar
 //   prompt.hide();
 
 const GAP = 30; // px below the star (leaves room for the debug mood label)
 const SIDE_GAP = 14; // px beside the star, when there's no room below
 const EDGE = 8; // px kept clear of the screen edges
 
-// Bottom of the usable screen, in window coordinates.
-// WINDOWS QUIRK: the pet window covers the whole display, taskbar included, so innerHeight
-// reaches into the taskbar. screen.availHeight stops above it (same as groundY in pet.js),
-// which keeps the buttons where they can actually be clicked.
-const usableBottom = () => (window.screen && window.screen.availHeight) || window.innerHeight;
+// WINDOWS QUIRK: the pet window covers the whole display, taskbar included, so the popup must
+// be kept inside the usable area (ctx.area() from pet.js, passed to place()), wherever the
+// taskbar is, or its buttons can end up under the taskbar where they can't be clicked.
+const fullWindow = () => ({ left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight });
 
 function injectStyles() {
   if (document.getElementById('event-prompt-styles')) return;
@@ -85,10 +84,12 @@ export function createPrompt(stage) {
      * centered under him, or beside him (right, else left) when there's no room below, e.g.
      * when he's standing on the taskbar line. Never above him: that's where his speech bubble is.
      */
-    place(pet) {
+    place(pet, area = fullWindow()) {
       if (!el || el.style.display === 'none') return;
-      const bottom = usableBottom() - EDGE;
-      const right = window.innerWidth - EDGE;
+      const left = area.left + EDGE;
+      const top = area.top + EDGE;
+      const bottom = area.bottom - EDGE;
+      const right = area.right - EDGE;
       let x = pet.x + pet.size / 2 - size.w / 2;
       let y = pet.y + pet.size + GAP;
       if (y + size.h > bottom) {
@@ -96,8 +97,8 @@ export function createPrompt(stage) {
         x = pet.x + pet.size + SIDE_GAP; // right side...
         if (x + size.w > right) x = pet.x - size.w - SIDE_GAP; // ...or left if he's near the right edge
       }
-      x = Math.max(EDGE, Math.min(right - size.w, x));
-      y = Math.max(EDGE, Math.min(bottom - size.h, y));
+      x = Math.max(left, Math.min(right - size.w, x));
+      y = Math.max(top, Math.min(bottom - size.h, y));
       el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     },
     hide() {

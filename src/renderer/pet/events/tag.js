@@ -171,7 +171,7 @@ export default {
     wasClose = false;
     answer = null;
     target = { x: pet.x, y: pet.y }; // stay put while asking
-    countdown = countdown || createCountdown(ctx.stage);
+    countdown = countdown || createCountdown(ctx.stage, () => ctx.area ? ctx.area() : null);
     prompt = prompt || createPrompt(ctx.stage);
 
     pet.mode = 'tag'; // behaviors stand down
@@ -194,7 +194,7 @@ export default {
       onYes: () => { answer = 'yes'; },
       onNo: () => { answer = 'no'; },
     });
-    prompt.place(pet);
+    prompt.place(pet, ctx.area?.());
   },
 
   onTick(ctx) {
@@ -360,7 +360,7 @@ export default {
     const kept = clampToScreen(ctx, pet.x, pet.y);
     pet.x = kept.x;
     pet.y = kept.y;
-    prompt?.place(pet); // the yes/no popup follows him (only visible while asking)
+    prompt?.place(pet, ctx.area?.()); // the yes/no popup follows him (only visible while asking)
 
     // Quick scampering hop cycle (the jump owns bob/squash while a hop is in the air).
     if (!jumping) {

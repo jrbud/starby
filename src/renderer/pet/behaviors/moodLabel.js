@@ -73,9 +73,11 @@ export default {
       size = { w: el.offsetWidth, h: el.offsetHeight }; // measure only when the text changes
     }
 
-    // Centered under the star (ignoring hops, so it doesn't jiggle), kept on screen.
-    const x = Math.max(0, Math.min(window.innerWidth - size.w, pet.x + pet.size / 2 - size.w / 2));
-    const y = Math.max(0, Math.min(window.innerHeight - size.h, pet.y + pet.size + GAP));
+    // Centered under the star (ignoring hops, so it doesn't jiggle), kept inside the usable
+    // screen area (not under the taskbar, wherever it is).
+    const a = ctx.area ? ctx.area() : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+    const x = Math.max(a.left, Math.min(a.right - size.w, pet.x + pet.size / 2 - size.w / 2));
+    const y = Math.max(a.top, Math.min(a.bottom - size.h, pet.y + pet.size + GAP));
     el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
   },
 };
