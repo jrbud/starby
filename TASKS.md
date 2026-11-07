@@ -26,9 +26,11 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'drag'`.
 
 - [x] **P1-1 (Must) Roam anywhere on screen.** The star walks to targets anywhere on the screen (not just
   edges or the taskbar), mostly short wanders nearby with occasional long trips. Kept between a top margin
-  (room for the speech bubble) and the top of the taskbar. After a drag it stays where it's dropped.- [ ] **P1-2 (Must) Livelier wandering.** In `walk.js`/`idle.js`: random short pauses mid-walk, sometimes
-  turn around before reaching the target, vary speed slightly and walk distance (short shuffles vs. long
-  walks).
+  (room for the speech bubble) and the top of the taskbar. After a drag it stays where it's dropped.
+- [x] **P1-2 (Must) Livelier wandering.** Three kinds of walk (shuffle / wander / long trip) with their own
+  distances and speeds, easing in and out. Mid-walk pauses to look around, sometimes turning back partway,
+  random hops (crouch → arc → landing squish) while walking and idle, short/medium/long rests, looking
+  around and double blinks while idle. Shared helpers (jumps, clamping) live in `behaviors/motion.js`.
 - [ ] **P1-3 (Must) Flinch.** In `cursorReact.js`: track cursor speed from `ctx.cursor` between frames.
   If the cursor moves fast toward the star and gets within ~60px, do a quick hop away from it
   (bob + squash, nudge `x` away) and say something short with `ctx.say`. Cooldown so it doesn't loop.
