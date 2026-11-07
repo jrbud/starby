@@ -107,16 +107,18 @@ export default {
     const approach = (vx * awayX + vy * awayY) / dist;
 
     // ---- Notice (only calm approaches; a rushing cursor gets a flinch instead) ----
+    // Only react while it's going about its business (not held, thrown, or already running).
+    const free = pet.mode === 'idle' || pet.mode === 'walk';
     const isNear = dist < NOTICE_RADIUS;
     const calm = approach < MIN_RUSH_SPEED / 2;
-    if (isNear && !near && calm && noticeCooldown === 0 && pet.mode !== 'drag' && pet.mode !== 'flee') {
+    if (isNear && !near && calm && noticeCooldown === 0 && free) {
       ctx.say('oh! hi :)', 1500);
       noticeCooldown = NOTICE_COOLDOWN;
     }
     near = isNear;
 
     // ---- Flinch ----
-    if (pet.mode === 'drag' || pet.mode === 'flee') return;
+    if (!free) return;
     if (flinchCooldown > 0 || ctx.clock.seconds < braveUntil || dist > FLINCH_RADIUS) return;
 
     const fastEnough = approach > Math.max(MIN_RUSH_SPEED, (dist - HIT_RADIUS) / REACH_WITHIN);

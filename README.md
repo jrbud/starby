@@ -51,7 +51,7 @@ src/
   The sprite, bubble and stardust are DOM elements moving inside it. When the cursor is over the sprite
   (`.hit`), click-through turns off so you can click or drag it.
 - **Behaviors** are small modules with `init(ctx)`, `onTick(ctx, tick)` and `update(ctx, dt)`. They coordinate
-  through `ctx.pet.mode` (`idle` | `walk` | `flee` | `drag`). To add one: create a file in `behaviors/` and add it to
+  through `ctx.pet.mode` (`idle` | `walk` | `flee` | `drag` | `toss`). To add one: create a file in `behaviors/` and add it to
   `behaviors/index.js`.
 - **Ticks vs. frames.** A session clock ticks 10 times a second from app start (`core/clock.js`). Behaviors make
   decisions in `onTick` (start walking, hop, pause) and do smooth motion in `update`, which runs every frame.

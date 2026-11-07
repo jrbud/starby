@@ -27,7 +27,7 @@ Each teammate is **Person 1–4**. Tell Claude Code who you are ("I'm person 2")
 ## Person 1 — Movement & cursor
 
 **Owns:** `src/renderer/pet/behaviors/idle.js`, `walk.js`, `drag.js`, `cursorReact.js`.
-Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'flee' | 'drag'`.
+Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'flee' | 'drag' | 'toss'`.
 
 - [x] **P1-1 (Must) Roam anywhere on screen.** The star walks to targets anywhere on the screen (not just
   edges or the taskbar), mostly short wanders nearby with occasional long trips. Kept between a top margin
@@ -44,8 +44,11 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'flee' | '
   be caught. "oh! hi" now only fires for calm approaches.
 - [ ] **P1-4 (Nice) Follow briefly.** After noticing the cursor, walk a few steps toward it, then lose
   interest and go back to idle.
-- [ ] **P1-5 (Nice) Toss.** In `drag.js`: record velocity during drag and let the star glide and slow
-  down after release, bouncing off screen edges. (Dropping already clamps it on screen.)
+- [x] **P1-5 (Nice) Swing, spin & toss.** In `drag.js`: while held, the star hangs from the cursor at the
+  point you grabbed (pendulum with light gravity), so it swings until that point sits under the cursor;
+  jerks and fast swipes spin it. On release (`'toss'` mode) it keeps its speed and spin, glides, bounces
+  off screen edges and wobbles back upright. "wheee!" on fast spins, dizzy wobble after 3+ turns.
+  `pet.rotation` is rendered by `pet.js` (canvas only, so the speech bubble stays upright).
 
 ---
 
