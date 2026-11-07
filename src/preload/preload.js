@@ -22,6 +22,13 @@ contextBridge.exposeInMainWorld('sprite', {
   equip: (itemId) => ipcRenderer.invoke('shop:equip', itemId),
   openShop: () => ipcRenderer.send('shop:open'),
 
+  // Settings (sliders): { flingPower: 0–100 }
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
+  resetSettings: () => ipcRenderer.invoke('settings:reset'),
+  onSettingsChanged: (cb) => subscribe('settings:changed', cb),
+  openSettings: () => ipcRenderer.send('settings:open'),
+
   // Pet window
   setIgnoreMouse: (ignore) => ipcRenderer.send('pet:set-ignore-mouse', ignore),
   showContextMenu: () => ipcRenderer.send('pet:context-menu'),

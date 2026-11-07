@@ -4,6 +4,8 @@ const { ipcMain, BrowserWindow, Menu, app } = require('electron');
 const store = require('./store');
 const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
 const { openShopWindow } = require('./windows/shopWindow');
+const { openSettingsWindow } = require('./windows/settingsWindow');
+const settingsStore = require('./settingsStore');
 
 function registerIpc() {
   // ---- State ----
@@ -42,6 +44,12 @@ function registerIpc() {
 
   ipcMain.on('shop:open', () => openShopWindow());
 
+  // ---- Settings (sliders) ----
+  ipcMain.handle('settings:get', () => settingsStore.get());
+  ipcMain.handle('settings:set', (_e, patch) => settingsStore.set(patch));
+  ipcMain.handle('settings:reset', () => settingsStore.reset());
+  ipcMain.on('settings:open', () => openSettingsWindow());
+
   // ---- Pet window ----
   // Renderer toggles click-through depending on whether the cursor is over the sprite.
   ipcMain.on('pet:set-ignore-mouse', (e, ignore) => {
@@ -57,6 +65,7 @@ function registerIpc() {
     const win = BrowserWindow.fromWebContents(e.sender);
     Menu.buildFromTemplate([
       { label: 'Open shop', click: () => openShopWindow() },
+      { label: 'Settings…', click: () => openSettingsWindow() },
       { type: 'separator' },
       { label: 'Quit sprite.exe', click: () => app.quit() },
     ]).popup({ window: win });

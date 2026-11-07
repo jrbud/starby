@@ -7,6 +7,11 @@
 //
 // THROWING ('toss' mode): on release it keeps the speed and spin it had, glides and slows
 // down, bounces off screen edges, then wobbles back upright and goes idle.
+// The "Fling power" slider (Settings window, see ../../shared/flingTuning.js) scales how fast
+// throws fly, how far they glide and how bouncy the screen edges are.
+//
+// IMPACT FRAMES: a hard hit on a screen edge freezes the star flattened against it for up to
+// a second (harder hit = longer), then it launches off the wall.
 //
 // Spin hard enough and it gets dizzy for a few seconds after landing.
 //
@@ -14,6 +19,7 @@
 // A click without moving emits a 'pet:clicked' DOM event that other behaviors can react to.
 import { approach, clamp, TOP_MARGIN } from './motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
+import { flingTuning, DEFAULT_FLING_POWER } from '../../shared/flingTuning.js';
 
 const CLICK_SLOP = 4; // px of movement before a press counts as a drag
 
@@ -25,11 +31,15 @@ const MAX_SPIN = 30; // rad/s
 const MAX_PIVOT_ACCEL = 25000; // px/s², caps wild mouse spikes
 const SUBSTEPS = 4; // physics steps per frame, keeps fast spins stable
 
-// Throwing
-const MAX_TOSS_SPEED = 2500; // px/s
-const GLIDE_FRICTION = 2.4; // per second (a max-speed throw glides ~1000px)
+// Throwing (speed, glide friction and wall bounce come from the Fling power slider)
 const SPIN_FRICTION = 1.4; // per second
-const BOUNCE = 0.6; // fraction of speed kept when hitting a screen edge
+const STOP_DRAG = 90; // px/s² constant slow-down on top of friction, so slippery throws don't drift for ages
+
+// Impact frames
+const IMPACT_MIN_SPEED = 700; // px/s into the wall; softer hits just bounce, no freeze
+const IMPACT_FULL_SPEED = 2500; // px/s into the wall for the full freeze
+const IMPACT_FREEZE_MAX = 0.125; // seconds — a quick hit-stop, not a long pause
+const IMPACT_SQUASH = 0.62; // how flat it gets against the wall (lower = flatter)
 const UPRIGHT_STIFFNESS = 60; // spring pulling it back upright...
 const UPRIGHT_DAMPING = 9; // ...and how quickly the wobble settles
 
@@ -39,7 +49,11 @@ const WHEE_COOLDOWN = 5; // seconds
 const DIZZY_TURNS = 3; // full turns in one grab/throw
 const DIZZY_SECONDS = 4;
 
+const OOF_SPEED = 1800; // px/s into the wall to say something
+const OOF_COOLDOWN = 4; // seconds
+
 const WHEE_LINES = ['wheee!', 'weee~', 'spinnn', 'whoaaa'];
+const OOF_LINES = ['oof!', 'bonk!', 'ow!', 'splat!'];
 const DIZZY_LINES = ['@_@ so dizzy...', 'the room is spinning', 'whoa... wobbly'];
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
@@ -65,8 +79,14 @@ let lastCenter = null;
 let turns = 0; // total radians spun since this grab started
 let uprighting = false;
 
+let tuning = flingTuning(DEFAULT_FLING_POWER); // updated live from the settings slider
+let freezeLeft = 0; // seconds left in an impact freeze
+let freezeSquash = 1; // squash held during the freeze (side wall = tall, top/bottom = flat)
+
 // Reaction state
 let wheeCooldown = 0;
+let oofCooldown = 0;
+let impactPending = null; // { side, speed } for onTick to react to
 let landedPending = false;
 let dizzyUntil = 0;
 let t = 0;
@@ -127,11 +147,47 @@ function holdStep(ctx, dt) {
 }
 
 // ---- Throwing ----
+// Hit a screen edge: bounce (keeping tuning.bounce of the speed) and, if it was a hard hit,
+// freeze for an impact frame. `side` = which edge; `into` = speed straight into the wall.
+function hitWall(ctx, side, into) {
+  const { pet } = ctx;
+  omega *= 0.8;
+  const strength = clamp((into - IMPACT_MIN_SPEED) / (IMPACT_FULL_SPEED - IMPACT_MIN_SPEED), 0, 1);
+  if (strength <= 0) {
+    pet.squash = 0.85; // soft bump
+    return;
+  }
+  // Flatten against the wall: tall and thin on the sides, short and wide on top/bottom.
+  // (pet.js squash is vertical, with width compensating, so >1 reads as squeezed sideways.)
+  const flat = 1 - (1 - IMPACT_SQUASH) * strength;
+  freezeSquash = side === 'left' || side === 'right' ? 1 / flat : flat;
+  pet.squash = freezeSquash;
+  freezeLeft = Math.max(freezeLeft, IMPACT_FREEZE_MAX * strength);
+  impactPending = { side, speed: Math.round(into) };
+  ctx.log('impact', { side, speed: Math.round(into), freeze: Math.round(freezeLeft * 100) / 100 });
+}
+
 function tossStep(ctx, dt) {
   const { pet } = ctx;
-  const decay = Math.exp(-GLIDE_FRICTION * dt);
+
+  // Impact frame: hold still, flattened against the wall, then launch off it.
+  // (The bounce velocity was already set on impact, so it flies off when the freeze ends.)
+  if (freezeLeft > 0) {
+    freezeLeft -= dt;
+    pet.squash = freezeSquash;
+    pet.bob = 0;
+    return;
+  }
+
+  const decay = Math.exp(-tuning.friction * dt);
   vel.x *= decay;
   vel.y *= decay;
+  const v = Math.hypot(vel.x, vel.y);
+  if (v > 0) {
+    const slower = Math.max(0, v - STOP_DRAG * dt) / v;
+    vel.x *= slower;
+    vel.y *= slower;
+  }
 
   // Glide and bounce off the screen edges.
   pet.x += vel.x * dt;
@@ -139,17 +195,20 @@ function tossStep(ctx, dt) {
   const maxX = ctx.stageWidth() - pet.size;
   const maxY = ctx.groundY();
   if (pet.x < 0 || pet.x > maxX) {
+    const side = pet.x < 0 ? 'left' : 'right';
     pet.x = clamp(pet.x, 0, maxX);
-    vel.x = -vel.x * BOUNCE;
-    omega *= 0.8;
-    pet.squash = 0.85;
+    const into = Math.abs(vel.x);
+    vel.x = -vel.x * tuning.bounce;
+    hitWall(ctx, side, into);
   }
   if (pet.y < TOP_MARGIN || pet.y > maxY) {
+    const side = pet.y < TOP_MARGIN ? 'top' : 'bottom';
     pet.y = clamp(pet.y, TOP_MARGIN, maxY);
-    vel.y = -vel.y * BOUNCE;
-    omega *= 0.8;
-    pet.squash = 0.85;
+    const into = Math.abs(vel.y);
+    vel.y = -vel.y * tuning.bounce;
+    hitWall(ctx, side, into);
   }
+  if (freezeLeft > 0) return; // just hit hard: start the impact frame next frame
   pet.squash = approach(pet.squash, 1, dt, 8);
   pet.bob = 0;
 
@@ -184,6 +243,11 @@ export default {
   init(ctx) {
     const { pet, petEl } = ctx;
 
+    // Fling power slider (Settings window). Applies live while you drag the slider.
+    const applySettings = (settings) => { tuning = flingTuning(settings?.flingPower); };
+    ctx.api.getSettings?.().then(applySettings);
+    ctx.api.onSettingsChanged?.(applySettings);
+
     petEl.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
       pressing = true;
@@ -209,6 +273,7 @@ export default {
           omega = (Math.random() - 0.5) * 0.6;
           turns = 0;
         }
+        freezeLeft = 0; // grabbed mid impact-frame: let go of the wall
         pivot = null;
         pivotVel = { x: 0, y: 0 };
         lastCenter = null;
@@ -225,14 +290,18 @@ export default {
       ctx.setPinned(false);
       petEl.classList.remove('dragging');
       if (moved) {
+        // Fling power: scale the throw, then cap it.
+        vel.x *= tuning.speedMul;
+        vel.y *= tuning.speedMul;
         const speed = Math.hypot(vel.x, vel.y);
-        if (speed > MAX_TOSS_SPEED) {
-          vel.x *= MAX_TOSS_SPEED / speed;
-          vel.y *= MAX_TOSS_SPEED / speed;
+        if (speed > tuning.maxSpeed) {
+          vel.x *= tuning.maxSpeed / speed;
+          vel.y *= tuning.maxSpeed / speed;
         }
         uprighting = false;
+        freezeLeft = 0;
         pet.mode = 'toss';
-        ctx.log('toss', { speed: Math.round(Math.min(speed, MAX_TOSS_SPEED)), spin: Math.round(omega * 10) / 10 });
+        ctx.log('toss', { speed: Math.round(Math.min(speed, tuning.maxSpeed)), spin: Math.round(omega * 10) / 10 });
       } else {
         ctx.log('click', {});
         petEl.dispatchEvent(new CustomEvent('pet:clicked'));
@@ -248,6 +317,15 @@ export default {
   onTick(ctx) {
     const { pet } = ctx;
     wheeCooldown = Math.max(0, wheeCooldown - TICK_SECONDS);
+    oofCooldown = Math.max(0, oofCooldown - TICK_SECONDS);
+
+    if (impactPending) {
+      if (impactPending.speed >= OOF_SPEED && oofCooldown === 0) {
+        oofCooldown = OOF_COOLDOWN;
+        ctx.say(pick(OOF_LINES), 1000);
+      }
+      impactPending = null;
+    }
 
     const flying = pet.mode === 'drag' || pet.mode === 'toss';
     if (flying && Math.abs(omega) > WHEE_SPIN && wheeCooldown === 0) {
