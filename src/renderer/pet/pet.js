@@ -19,7 +19,7 @@ const SIZE = 64;
 
 /**
  * Shared pet state. Behaviors read and write this; pet.js renders it every frame.
- * mode: 'idle' | 'walk' | 'drag'  (add more as needed, e.g. 'sleep')
+ * mode: 'idle' | 'walk' | 'flee' | 'drag'  (add more as needed, e.g. 'sleep')
  */
 const pet = {
   x: 200,

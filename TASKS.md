@@ -27,7 +27,7 @@ Each teammate is **Person 1–4**. Tell Claude Code who you are ("I'm person 2")
 ## Person 1 — Movement & cursor
 
 **Owns:** `src/renderer/pet/behaviors/idle.js`, `walk.js`, `drag.js`, `cursorReact.js`.
-Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'drag'`.
+Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'flee' | 'drag'`.
 
 - [x] **P1-1 (Must) Roam anywhere on screen.** The star walks to targets anywhere on the screen (not just
   edges or the taskbar), mostly short wanders nearby with occasional long trips. Kept between a top margin
@@ -36,9 +36,12 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'drag'`.
   distances and speeds, easing in and out. Mid-walk pauses to look around, sometimes turning back partway,
   random hops (crouch → arc → landing squish) while walking and idle, short/medium/long rests, looking
   around and double blinks while idle. Shared helpers (jumps, clamping) live in `behaviors/motion.js`.
-- [ ] **P1-3 (Must) Flinch.** In `cursorReact.js`: track cursor speed from `ctx.cursor` between frames.
-  If the cursor moves fast toward the star and gets within ~60px, do a quick hop away from it
-  (bob + squash, nudge `x` away) and say something short with `ctx.say`. Cooldown so it doesn't loop.
+- [x] **P1-3 (Must) Flinch & run.** `cursorReact.js` measures cursor velocity each tick. If the cursor is
+  within 220px, heading at the star fast (≥650px/s, or fast enough to reach it within 0.3s) and on a path
+  passing within 90px, the star does a startle hop, says something, and switches to a new `'flee'` mode
+  (run by `walk.js`: fast, no pauses/turn-backs) to a spot away from the cursor, angling off if cornered.
+  2.5s cooldown. After 3 flinches in 30s it gives up for 20s (checked via the event log) so it can still
+  be caught. "oh! hi" now only fires for calm approaches.
 - [ ] **P1-4 (Nice) Follow briefly.** After noticing the cursor, walk a few steps toward it, then lose
   interest and go back to idle.
 - [ ] **P1-5 (Nice) Toss.** In `drag.js`: record velocity during drag and let the star glide and slow
