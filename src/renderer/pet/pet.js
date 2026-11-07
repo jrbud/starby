@@ -1,6 +1,7 @@
 // Pet renderer entry: builds the shared `ctx`, starts every behavior, runs the frame loop.
 // SHARED FILE — to add a behavior, create a file in ./behaviors and register it in
-// ./behaviors/index.js. You shouldn't need to edit this file for that.
+// ./behaviors/index.js; to add an event (a scripted sequence like tag), add it to
+// ./events/index.js. You shouldn't need to edit this file for either.
 import { drawSprite } from '../shared/sprite.js';
 import { createBubble } from './bubble.js';
 import { initClickThrough, setPinned } from './clickThrough.js';
@@ -8,6 +9,7 @@ import { BEHAVIORS } from './behaviors/index.js';
 import { createClock } from './core/clock.js';
 import { createScheduler } from './core/scheduler.js';
 import { createEventLog } from './core/eventLog.js';
+import { createEventRunner } from './events/index.js';
 
 const api = window.sprite;
 const petEl = document.getElementById('pet');
@@ -19,7 +21,8 @@ const SIZE = 64;
 
 /**
  * Shared pet state. Behaviors read and write this; pet.js renders it every frame.
- * mode: 'idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss'  (add more as needed, e.g. 'sleep')
+ * mode: 'idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss' | 'tag'  (add more as needed)
+ *   'tag' is set by the tag event (./events/tag.js) while it runs.
  */
 const pet = {
   x: 200,
@@ -68,10 +71,20 @@ const ctx = {
   // Event log
   log, // log(type, data)
   events, // events.last(type), .since(seconds), .count(type, withinSeconds), .all(), .onEntry(fn)
+  // Scripted events (./events/) — not to be confused with the event *log* above
+  startEvent: (name, reason) => eventRunner.start(name, reason), // → true if it started
+  stopEvent: (result) => eventRunner.stop(result),
+  activeEvent: () => eventRunner.active(), // → name or null
 };
 
-// Open DevTools on the pet window and inspect these, e.g. starby.events.all()
-window.starby = { clock, scheduler, events, pet };
+const eventRunner = createEventRunner(ctx);
+
+// Open DevTools on the pet window and inspect these, e.g. starby.events.all(), starby.startEvent('tag')
+window.starby = {
+  clock, scheduler, events, pet,
+  startEvent: (name = 'tag') => eventRunner.start(name, 'devtools'),
+  stopEvent: () => eventRunner.stop('devtools'),
+};
 
 // ---- Look (equipped shop items → what we draw) ----
 let prevState = null;
@@ -136,6 +149,11 @@ async function boot() {
   // Every read-only system event (clipboard, idle, power, time of day) goes in the log.
   api.onSystemEvent((evt) => log('system', evt));
 
+  // Commands from the main process, e.g. the right-click menu's "Play tag".
+  api.onPetCommand?.((cmd) => {
+    if (cmd && cmd.type === 'start-event') eventRunner.start(cmd.name, 'menu');
+  });
+
   log('app-start', { at: new Date(clock.startedAt).toISOString() });
   for (const b of BEHAVIORS) b.init?.(ctx);
 
@@ -144,6 +162,7 @@ async function boot() {
   const onTick = (tick) => {
     scheduler.run(tick); // timed events first
     for (const b of BEHAVIORS) b.onTick?.(ctx, tick); // then behavior decisions
+    eventRunner.onTick(tick); // then the active event, which gets the final say
   };
 
   const frame = (now) => {
@@ -154,6 +173,7 @@ async function boot() {
     clock.advance(realDt, onTick);
     const dt = Math.min(0.05, realDt);
     for (const b of BEHAVIORS) b.update?.(ctx, dt);
+    eventRunner.update(dt);
 
     if (pet.mode !== lastMode) {
       // Skip routine idle↔walk switches (walks are logged as 'walk' already) to keep the log useful.

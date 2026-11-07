@@ -137,6 +137,14 @@ function enter(ctx, mood, reason) {
   return changed;
 }
 
+/**
+ * For scripted events (../events/, e.g. tag): switch mood through the normal path, so it's
+ * logged and timed like any other change (playful still wears off by itself, etc.).
+ */
+export function requestMood(ctx, mood, reason) {
+  return enter(ctx, mood, reason);
+}
+
 function interacted(ctx, kind) {
   lastInteraction = ctx.clock.seconds;
   if (ctx.pet.mood === 'yawning' && setMood(ctx, 'happy', `woke: ${kind}`)) {

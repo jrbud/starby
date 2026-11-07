@@ -10,7 +10,7 @@ npm install
 npm start
 ```
 
-Right-click the star → **Open shop** / **Settings…** / **Quit**. Settings has the *Fling power* slider
+Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Quit**. Settings has the *Fling power* slider
 (how hard throws fly and how bouncy the screen edges are).
 
 > `npm start` runs `scripts/start.js`, which launches Electron with `ELECTRON_RUN_AS_NODE` removed.
@@ -44,6 +44,7 @@ src/
     pet/
       pet.js                builds `ctx`, runs the frame + tick loop, renders
       core/                 clock.js (10 ticks/s), scheduler.js (after/every), eventLog.js
+      events/               scripted sequences that take over the star (index.js = runner; tag.js)
       clickThrough.js       toggles click-through when hovering `.hit` elements
       bubble.js             speech bubble UI (behaviors call ctx.say)
       behaviors/            one file per behavior, registered in behaviors/index.js
@@ -58,8 +59,12 @@ src/
   The sprite, bubble and stardust are DOM elements moving inside it. When the cursor is over the sprite
   (`.hit`), click-through turns off so you can click or drag it.
 - **Behaviors** are small modules with `init(ctx)`, `onTick(ctx, tick)` and `update(ctx, dt)`. They coordinate
-  through `ctx.pet.mode` (`idle` | `walk` | `follow` | `flee` | `drag` | `toss`). To add one: create a file in `behaviors/` and add it to
+  through `ctx.pet.mode` (`idle` | `walk` | `follow` | `flee` | `drag` | `toss` | `tag`). To add one: create a file in `behaviors/` and add it to
   `behaviors/index.js`.
+- **Events** (`events/`) are scripted sequences, like *tag*, that take over the star at high priority: they set
+  their own `pet.mode` (behaviors stand down for modes they don't know), play out, then hand control back. One
+  runs at a time, after the behaviors each tick/frame. Start one with `ctx.startEvent('tag')` or, in DevTools,
+  `starby.startEvent('tag')`. Not to be confused with the event *log* below.
 - **Ticks vs. frames.** A session clock ticks 10 times a second from app start (`core/clock.js`). Behaviors make
   decisions in `onTick` (start walking, hop, pause) and do smooth motion in `update`, which runs every frame.
   The clock follows real time, so it catches up after the PC sleeps.
