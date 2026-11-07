@@ -4,7 +4,9 @@
 const { powerMonitor } = require('electron');
 
 function start(emit) {
-  emit('power', { onBattery: powerMonitor.isOnBatteryPower() });
+  // `initial` marks the state at startup, so reactions can tell "this is how it is" from
+  // "this just changed" (the pet only comments on changes).
+  emit('power', { onBattery: powerMonitor.isOnBatteryPower(), initial: true });
   powerMonitor.on('on-battery', () => emit('power', { onBattery: true }));
   powerMonitor.on('on-ac', () => emit('power', { onBattery: false }));
 }

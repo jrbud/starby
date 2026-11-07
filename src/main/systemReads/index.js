@@ -8,6 +8,7 @@ const timeOfDay = require('./timeOfDay');
 const activeWindow = require('./activeWindow');
 
 const READERS = [clipboard, idle, power, timeOfDay, activeWindow];
+const START_DELAY_MS = 2000;
 
 function startSystemReads(petWindow) {
   const emit = (type, payload = {}) => {
@@ -17,8 +18,13 @@ function startSystemReads(petWindow) {
   };
 
   // Wait for the renderer to be ready so early events (e.g. time of day) aren't dropped.
+  // 'did-finish-load' alone isn't enough: pet.js only subscribes to system events after its
+  // async boot() (two IPC round-trips), and ipcRenderer silently drops messages nobody is
+  // listening for yet. A short delay covers that, and the greeting lands after the star appears.
   petWindow.webContents.once('did-finish-load', () => {
-    for (const reader of READERS) reader.start(emit);
+    setTimeout(() => {
+      for (const reader of READERS) reader.start(emit);
+    }, START_DELAY_MS);
   });
 }
 
