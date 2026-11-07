@@ -58,7 +58,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   says "wanna play tag?" and shows a Yes / No popup next to him (`events/prompt.js`, a clickable `.hit` box).
   **No** → new `sad` mood (`moods.js` / `mood.js`: half walk speed, no hops, looks away, no "oh! hi"; 30s, or a
   click cheers him up) and he won't ask on his own again for 10 min. No answer in 12s → "maybe later", not sad.
-  **Yes** → he races to the cursor (~560px/s), tags it, then runs away (450–780px/s, jukes sideways at 1150px/s
+  **Yes** → he counts down in his bubble ("3...", "2...", "1...", "GO!", one per second, standing still) so
+  you can get ready, then races to the cursor (~560px/s), tags it, then runs away (450–780px/s, jukes sideways at 1150px/s
   when the cursor gets within 120px) while a 20s countdown runs top-right. Touch or grab him to win; survive
   the timer and he wins. Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
   stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
