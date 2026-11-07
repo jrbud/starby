@@ -11,11 +11,16 @@ Each teammate is **Person 1–4**. Tell Claude Code who you are ("I'm person 2")
   shared file (see "Shared files" at the bottom), **stop and flag it** instead of editing it.
 - Before starting, read the files listed for the task. After finishing, mark the task `[x]` here
   (that's the only edit to this file allowed outside your section).
-- All rules in `claude.md` still apply: placeholder shapes only, read-only system access, Windows target,
-  and never commit — the human commits.
-- Behavior contract (see `src/renderer/pet/behaviors/index.js`): `init(ctx)` once, `update(ctx, dt)` every
-  frame. `ctx` = `{ api, pet, petEl, stage, cursor, catalog, groundY(), stageWidth(), say(text, ms),
-  isSpeaking(), setPinned(bool) }`.
+- All rules in `claude.md` still apply: Claude never creates or edits art assets, read-only system
+  access, Windows target, and never commit — the human commits.
+- Behavior contract (see `src/renderer/pet/behaviors/index.js`): `init(ctx)` once, optional
+  `onTick(ctx, tick)` 10x/second for decisions and random rolls, optional `update(ctx, dt)` every frame
+  for motion/visuals. `ctx` = `{ api, pet, petEl, stage, cursor, catalog, groundY(), stageWidth(),
+  say(text, ms), isSpeaking(), setPinned(bool), clock, after(sec, fn, label), every(sec, fn, label),
+  cancel(id), log(type, data), events }`.
+- Timed events: use `ctx.after` / `ctx.every` (session clock), not `setTimeout`/`setInterval`.
+  Log anything notable with `ctx.log(type, data)`; read history with `ctx.events` (see
+  `src/renderer/pet/core/eventLog.js`).
 
 ---
 
@@ -118,6 +123,7 @@ before changing these — they're core).
 | `src/preload/preload.js`, `src/main/ipc.js` | Add new channels freely. Never rename or remove existing ones. |
 | `src/renderer/pet/behaviors/index.js` | One line per new behavior. Trivial conflicts. |
 | `src/renderer/pet/pet.js` | Shared render loop/`ctx`. Ask before changing. |
+| `src/renderer/pet/core/*` | Session clock, scheduler, event log. Shared; ask before changing. |
 | `pet.mode` values | Person 1 owns. Ask before adding a mode. |
 | `src/shared/stateSchema.js` | Person 4 only. |
 | `src/main/main.js`, `src/main/windows/petWindow.js` | Core. Person 2 for Windows fixes; tell the team. |

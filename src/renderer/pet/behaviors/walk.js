@@ -4,7 +4,12 @@
 //   - stops for short pauses to look around
 //   - sometimes changes its mind and turns back partway
 //   - hops over nothing now and then
-import { rand, chance, approach, clampToScreen, startJump, updateJump } from './motion.js';
+//
+// Split between ticks and frames:
+//   onTick (10/s)  → decisions: pause, turn back, hop, pause countdown
+//   update (every frame) → smooth motion: moving, easing, hop cycle, jump arc
+import { rand, chance, approach, clampToScreen, startJump, updateJump, isJumping } from './motion.js';
+import { TICK_SECONDS } from '../core/clock.js';
 
 const DEFAULT_SPEED = 70; // px/s, if idle.js didn't set one
 const PAUSE_PER_SEC = 0.25; // chance per second of a mid-walk pause
@@ -39,12 +44,13 @@ function turnBack(ctx) {
   pet.facing *= -1;
   pauseLeft = rand(0.3, 0.7);
   speedNow = 0;
+  ctx.log('turn-back', {});
 }
 
 export default {
   name: 'walk',
 
-  update(ctx, dt) {
+  onTick(ctx) {
     const { pet } = ctx;
     if (pet.mode !== 'walk') {
       wasWalking = false;
@@ -55,22 +61,16 @@ export default {
       startWalk();
     }
 
-    const jumping = updateJump(pet, dt);
-
-    // ---- Paused: stand still, breathe, maybe glance around ----
+    // ---- Paused: count down, maybe glance around ----
     if (pauseLeft > 0) {
-      pauseLeft -= dt;
-      if (!jumping) {
-        pet.bob = approach(pet.bob, 0, dt, 10);
-        pet.squash = approach(pet.squash, 1, dt, 10);
-        if (chance(0.8, dt)) pet.facing *= -1;
-      }
+      pauseLeft -= TICK_SECONDS;
+      if (!isJumping() && chance(0.8, TICK_SECONDS)) pet.facing *= -1;
       // Face the way we're about to go once the pause ends.
       if (pauseLeft <= 0) pet.facing = pet.targetX >= pet.x ? 1 : -1;
       return;
     }
 
-    walkedFor += dt;
+    walkedFor += TICK_SECONDS;
 
     // ---- Random events ----
     if (willTurnBackAt !== null && walkedFor >= willTurnBackAt) {
@@ -78,14 +78,33 @@ export default {
       turnBack(ctx);
       return;
     }
-    if (walkedFor > 0.5 && !jumping && chance(PAUSE_PER_SEC, dt)) {
+    if (walkedFor > 0.5 && !isJumping() && chance(PAUSE_PER_SEC, TICK_SECONDS)) {
       pauseLeft = rand(0.4, 1.6);
       speedNow = 0;
+      ctx.log('pause', { seconds: Math.round(pauseLeft * 10) / 10 });
       return;
     }
-    if (!jumping && chance(JUMP_PER_SEC, dt)) startJump();
+    if (!isJumping() && chance(JUMP_PER_SEC, TICK_SECONDS)) {
+      startJump();
+      ctx.log('jump', { while: 'walk' });
+    }
+  },
 
-    // ---- Move ----
+  update(ctx, dt) {
+    const { pet } = ctx;
+    if (pet.mode !== 'walk') return;
+
+    const jumping = updateJump(pet, dt);
+
+    // Paused: stand still and settle.
+    if (pauseLeft > 0) {
+      if (!jumping) {
+        pet.bob = approach(pet.bob, 0, dt, 10);
+        pet.squash = approach(pet.squash, 1, dt, 10);
+      }
+      return;
+    }
+
     const dx = pet.targetX - pet.x;
     const dy = (pet.targetY ?? pet.y) - pet.y;
     const dist = Math.hypot(dx, dy);
