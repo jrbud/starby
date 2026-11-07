@@ -59,9 +59,12 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   **No** → new `sad` mood (`moods.js` / `mood.js`: half walk speed, no hops, looks away, no "oh! hi"; 30s, or a
   click cheers him up) and he won't ask on his own again for 10 min. No answer in 12s → "maybe later", not sad.
   **Yes** → he counts down in his bubble ("3...", "2...", "1...", "GO!", one per second, standing still) so
-  you can get ready, then races to the cursor (~560px/s), tags it, then runs away (450–780px/s, jukes sideways at 1150px/s
-  when the cursor gets within 120px) while a 20s countdown runs top-right. Touch or grab him to win; survive
-  the timer and he wins. Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
+  you can get ready. Then real tag on a **15s clock** (top-right box, shows who's it): Starby starts as it and
+  chases the cursor (700–900px/s, pounces at 1350px/s within 160px); touching you = you're it, and he runs
+  (450–780px/s, jukes at 1150px/s within 120px). Touch him = he's it again: he stands still 1s, then chases. No
+  tag-backs for 1.2s after he tags you. **Whoever is it when time runs out loses.** Touches are spotted every
+  frame (fast moves can pass between ticks) and acted on at the tick. Grabbing him mid-game = foul, game over.
+  Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
   stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
   skips the question. Random: every 60s, 20% chance, 4-min cooldown, only when happy/playful, relaxed and the
   cursor moved in the last 10s. Tuning at the top of `events/tag.js`.

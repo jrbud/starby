@@ -1,6 +1,6 @@
-// TAG — a high-priority event. The star asks if you want to play; if you do, he gets playful,
-// zooms over and tags your cursor, then runs away much faster than normal while a countdown
-// runs in the top-right corner.
+// TAG — a high-priority event. The star asks if you want to play; if you do, he counts down and
+// you play real tag against a 15s clock (top-right): tags go back and forth, and whoever is
+// "it" when time runs out loses. He moves much faster than normal the whole time.
 //
 //   0. invite    he stops and asks: a Yes / No popup next to him (./prompt.js), up to INVITE_FOR s
 //                Yes → the game starts. No → he gets sad (mood.js 'sad') and won't ask again for
@@ -14,12 +14,15 @@
 //                shows the time left ("resting… 0:42"). Mad or dizzy: he says no. Asleep: no button.
 //   ½. ready     once a game is agreed he stays put, faces you and counts down in his bubble:
 //                "3...", "2...", "1...", "GO!" (one per second), so you can get ready
-//   1. approach  he races to the cursor (up to APPROACH_FOR seconds; gives up if you dodge)
-//   2. tagged    touching the cursor: "tag! you're it!", the countdown starts
-//   3. run       he dodges away from the cursor at high speed, taunting from a distance; when
-//                the cursor gets really close he jukes: a quick sideways dash
-//   end          you touch him or grab him → you win ('caught')
-//                the countdown runs out → he wins ('star-won')
+//   1. play      "GO!" starts the GAME_SECONDS clock. Starby starts as "it".
+//                Starby is it: he chases the cursor (aiming a little ahead of it) and pounces
+//                when he gets close. Touching it = tag: now you're it, and you can't tag
+//                straight back for HEAD_START seconds.
+//                You're it: he runs, dodging and juking (quick sideways dashes) when you get
+//                close. Touch him = tag: now he's it; he stands still for TAGGED_FREEZE seconds
+//                ("aw! my turn"), then chases you.
+//   end          clock runs out: whoever is it loses ('star-won' if you're it, 'user-won' if he is)
+//                grabbing him during the game is cheating: game over ('foul')
 //                something else takes over (made dizzy, etc.) → ends quietly
 //
 // Throughout, his mood flips between playful and happy every couple of seconds (through
@@ -40,12 +43,18 @@ const INVITE_FOR = 12; // seconds to answer the popup
 const GAME_REST = 60; // seconds after a game before he'll play again when asked
 const CHIP_FOR = 4; // seconds the "Play tag?" button stays up after clicking him
 const DECLINED_COOLDOWN = 600; // after a "no", don't ask again on his own for this long (seconds)
-const TAG_SECONDS = 20; // countdown length
+const GAME_SECONDS = 15; // the game clock, from "GO!"
 const READY_FROM = 3; // "3...", "2...", "1...", then "GO!"
 const READY_STEP = 1; // seconds between counts
 const READY_PAUSE = 1.2; // seconds to show "yay, let's play!" before the count starts
-const APPROACH_FOR = 6; // seconds to reach the cursor before giving up
-const APPROACH_SPEED = 560; // px/s (his fastest normal walk is ~160)
+const CHASE_SPEED = [700, 900]; // px/s while he's it: close ... far (his fastest normal walk is ~160)
+const CHASE_LEAD = 0.12; // seconds: aims where the cursor is heading, not where it is
+const POUNCE_RADIUS = 160; // cursor this close while he's it → pounce
+const POUNCE_SPEED = 1350; // px/s lunge
+const POUNCE_FOR = 0.25; // seconds
+const POUNCE_LEAD = 0.25; // seconds: lunges at where the cursor will be
+const POUNCE_COOLDOWN = 0.8; // seconds between pounces
+const TAGGED_FREEZE = 1.0; // seconds he stands still after you tag him (fair head start for you)
 const RUN_SPEED = [450, 780]; // px/s: cruising ... sprinting away from a close cursor
 const JUKE_RADIUS = 120; // cursor this close → juke
 const JUKE_SPEED = 1150; // px/s burst
@@ -53,7 +62,7 @@ const JUKE_FOR = 0.3; // seconds
 const JUKE_COOLDOWN = 0.9; // seconds between jukes
 const TAG_TOUCH = 30; // px, star center to cursor: he tagged you
 const CATCH_RADIUS = 30; // px, star center to cursor: you caught him
-const HEAD_START = 1.2; // seconds after tagging when touching him doesn't count yet
+const HEAD_START = 1.2; // seconds after he tags you when touching him doesn't count yet (no tag-backs)
 const DODGE_RADIUS = 240; // cursor closer than this → sprint directly away
 const KEEP_AWAY = [260, 460]; // px from the cursor he likes to hang around at while it's far
 const MOOD_SWAP = [1.5, 3]; // seconds between playful ↔ happy
@@ -75,21 +84,27 @@ const LINES = {
   notNow: lineBag(['too dizzy right now @_@', 'wait... the room is spinning']),
   ignored: lineBag(['...maybe later then', 'oh, you\'re busy. ok!']),
   tag: lineBag(["tag! you're it!", 'tag! ✦ catch me!', "you're it! bye!"]),
+  tagged: lineBag(["aw! you got me... my turn!", "no fair! ok, i'm it", "hey! ok... here i come!"]),
+  chase: lineBag(["i'm gonna get you!", 'here i come!', 'you can\'t hide!']),
+  userWon: lineBag(["aw, i'm still it... you win!", "nooo, time's up! you win", 'you win! rematch later?']),
+  foul: lineBag(['hey! no grabbing in tag!', "grabbing's cheating! game over", 'no fair! no grabbing!']),
   taunt: lineBag(['nyah nyah~', 'too slow!', 'over here!', "can't catch me!", 'catch me if you can ✦']),
   close: lineBag(['eep!', 'nope!', 'whoa, close!']),
-  caught: lineBag(['aw, you got me!', 'no fair! ...ok, fair', "caught! you're good at this"]),
-  grabbed: lineBag(['hey! caught red-handed', 'oof, got me!', 'no grabbing! ...fine, you win']),
-  starWon: lineBag(["time's up! i win ✦", 'too fast for you!', "you're still it! hehe"]),
-  missed: lineBag(['hey, hold still!', 'aw, you dodged me', "fine, you're too quick"]),
+  starWon: lineBag(["time's up! you're it, i win ✦", "hehe, you're still it! i win", 'too slow! i win ✦']),
   dizzy: lineBag(['too dizzy to play...', '@_@ game over...']),
 };
 
 // ---- State (reset every start) ----
 let endGame = null;
-let phase = 'approach';
+let phase = 'play';
+let it = 'star'; // who's it: 'star' | 'user'
 let timeLeft = 0;
-let approachLeft = 0;
 let headStart = 0;
+let freezeLeft = 0;
+let pounceLeft = 0;
+let pounceCooldown = 0;
+let touched = false; // star and cursor touched on some frame since the last tick (see update)
+let prevCursor = null; // for the cursor's velocity (chase lead)
 let moodSwapIn = 0;
 let target = { x: 0, y: 0 }; // top-left position to head for
 let speedTarget = 0;
@@ -226,14 +241,54 @@ function beginGame(ctx, line = LINES.start) {
   ctx.log('tag-ready', {});
 }
 
-// "GO!": race to the cursor.
-function startApproach(ctx) {
-  phase = 'approach';
-  approachLeft = APPROACH_FOR;
-  speedTarget = APPROACH_SPEED;
+// "GO!": start the clock. Starby is it first.
+function startPlay(ctx) {
+  phase = 'play';
+  it = 'star';
+  timeLeft = GAME_SECONDS;
+  headStart = 0;
+  freezeLeft = 0;
+  pounceLeft = 0;
+  pounceCooldown = 0;
+  touched = false;
+  prevCursor = null;
+  speedTarget = CHASE_SPEED[0];
+  accel = 10;
   cancelJump();
   startJump({ height: rand(16, 24), air: 0.3 });
   ctx.say('GO!', 900);
+  countdown.show('TAG', timeLeft, "Starby's it, run!");
+  ctx.log('tag-go', { seconds: GAME_SECONDS });
+}
+
+// He touched the cursor: you're it, he runs.
+function starTagsUser(ctx) {
+  it = 'user';
+  headStart = HEAD_START;
+  target = awayFrom(ctx, ctx.cursor, rand(...KEEP_AWAY));
+  speedTarget = RUN_SPEED[1];
+  accel = 14;
+  cancelJump();
+  startJump({ height: rand(16, 24), air: 0.28 });
+  ctx.say(LINES.tag(), 1500);
+  countdown.show('TAG', timeLeft, "you're it! tag Starby back");
+  ctx.log('tag-it', { it: 'user', timeLeft: Math.round(timeLeft * 10) / 10 });
+}
+
+// You touched him: he's it. He stands still for a moment, then chases.
+function userTagsStar(ctx) {
+  const { pet } = ctx;
+  it = 'star';
+  freezeLeft = TAGGED_FREEZE;
+  jukeLeft = 0;
+  pounceLeft = 0;
+  target = { x: pet.x, y: pet.y };
+  speedTarget = 0;
+  cancelJump();
+  startJump({ height: rand(8, 12), air: 0.22 });
+  ctx.say(LINES.tagged(), 1500);
+  countdown.show('TAG', timeLeft, "Starby's it, run!");
+  ctx.log('tag-it', { it: 'star', timeLeft: Math.round(timeLeft * 10) / 10 });
 }
 
 function finish(result) {
@@ -285,7 +340,7 @@ export default {
   start(ctx, end, reason) {
     const { pet } = ctx;
     endGame = end;
-    timeLeft = TAG_SECONDS;
+    timeLeft = GAME_SECONDS;
     headStart = 0;
     speedNow = 0;
     speedTarget = 0;
@@ -327,9 +382,9 @@ export default {
 
     // Something else took over.
     if (pet.mode !== 'tag') {
-      if (pet.mode === 'drag' && phase === 'run') {
-        ctx.say(LINES.grabbed(), 2000);
-        finish('caught');
+      if (pet.mode === 'drag' && phase === 'play') {
+        ctx.say(LINES.foul(), 2200); // grabbing isn't tagging
+        finish('foul');
       } else {
         finish(`interrupted:${pet.mode}`);
       }
@@ -379,7 +434,7 @@ export default {
         if (!isJumping()) startJump({ height: rand(6, 10), air: 0.22 }); // little bounce per count
         readyCount--;
       } else {
-        startApproach(ctx);
+        startPlay(ctx);
       }
       return;
     }
@@ -391,89 +446,110 @@ export default {
       requestMood(ctx, pet.mood === 'playful' ? 'happy' : 'playful', 'tag');
     }
 
+    // ---- 1. Play ----
+    timeLeft -= TICK_SECONDS;
+    headStart -= TICK_SECONDS;
+    freezeLeft -= TICK_SECONDS;
+    jukeLeft -= TICK_SECONDS;
+    jukeCooldown -= TICK_SECONDS;
+    pounceLeft -= TICK_SECONDS;
+    pounceCooldown -= TICK_SECONDS;
+    countdown.set(timeLeft);
+    // Touches are spotted every frame (fast moves can pass each other between ticks) and
+    // acted on here, at the tick.
+    const touchedSinceLastTick = touched;
+    touched = false;
+
+    if (timeLeft <= 0) {
+      // Whoever is it when the clock runs out loses.
+      if (it === 'user') {
+        ctx.say(LINES.starWon(), 2500);
+        finish('star-won');
+      } else {
+        ctx.say(LINES.userWon(), 2500);
+        finish('user-won');
+      }
+      return;
+    }
+
     if (cursor.x < -1000) return;
     const c = centerOf(pet);
     const dist = Math.hypot(cursor.x - c.x, cursor.y - c.y);
+    const vel = prevCursor
+      ? { x: (cursor.x - prevCursor.x) / TICK_SECONDS, y: (cursor.y - prevCursor.y) / TICK_SECONDS }
+      : { x: 0, y: 0 };
+    prevCursor = { x: cursor.x, y: cursor.y };
 
-    // ---- 1. Race to the cursor ----
-    if (phase === 'approach') {
-      approachLeft -= TICK_SECONDS;
-      const spot = toTopLeft(pet, cursor);
-      target = clampToScreen(ctx, spot.x, spot.y);
-      if (dist <= TAG_TOUCH) {
-        phase = 'run';
-        headStart = HEAD_START;
-        timeLeft = TAG_SECONDS;
+    if (it === 'star') {
+      // ---- Starby is it: chase ----
+      if (freezeLeft > 0) return; // just got tagged: standing still for a moment
+      if (dist <= TAG_TOUCH || touchedSinceLastTick) {
+        starTagsUser(ctx);
+        return;
+      }
+      if (pounceLeft > 0) {
+        // Mid-pounce: keep lunging where the pounce pointed.
+      } else if (dist < POUNCE_RADIUS && pounceCooldown <= 0) {
+        // Close: pounce at where the cursor is about to be.
+        const aim = toTopLeft(pet, { x: cursor.x + vel.x * POUNCE_LEAD, y: cursor.y + vel.y * POUNCE_LEAD });
+        target = clampToScreen(ctx, aim.x, aim.y);
+        speedTarget = POUNCE_SPEED;
+        accel = 22;
+        pounceLeft = POUNCE_FOR;
+        pounceCooldown = POUNCE_COOLDOWN;
+      } else {
+        // Aim a little ahead of where the cursor is heading.
+        const aim = toTopLeft(pet, { x: cursor.x + vel.x * CHASE_LEAD, y: cursor.y + vel.y * CHASE_LEAD });
+        target = clampToScreen(ctx, aim.x, aim.y);
+        speedTarget = dist > 300 ? CHASE_SPEED[1] : CHASE_SPEED[0];
+        accel = 12;
+      }
+      if (dist > 250) chat(ctx, LINES.chase(), 1100, { gap: TAUNT_GAP });
+    } else {
+      // ---- You're it: run ----
+      if (headStart <= 0 && (dist <= CATCH_RADIUS || touchedSinceLastTick)) {
+        userTagsStar(ctx);
+        return;
+      }
+      if (jukeLeft > 0) {
+        // Mid-juke: keep dashing where the juke pointed.
+      } else if (dist < JUKE_RADIUS && jukeCooldown <= 0) {
+        // Really close: juke — a quick dash off to one side instead of straight away, which a
+        // chasing cursor overshoots.
+        const away = Math.atan2(c.y - cursor.y, c.x - cursor.x);
+        const side = Math.random() < 0.5 ? 1 : -1;
+        const a = away + side * rand(1.0, 1.4); // ~60-80° off the straight-away line
+        const spot = toTopLeft(pet, { x: c.x + Math.cos(a) * 240, y: c.y + Math.sin(a) * 240 });
+        target = clampToScreen(ctx, spot.x, spot.y);
+        if (Math.hypot(target.x - pet.x, target.y - pet.y) < 80) target = awayFrom(ctx, cursor, 240); // wall in the way
+        speedTarget = JUKE_SPEED;
+        accel = 20;
+        jukeLeft = JUKE_FOR;
+        jukeCooldown = JUKE_COOLDOWN;
+        wasClose = true;
+      } else if (dist < DODGE_RADIUS) {
+        // Too close: sprint straight away (angling off if cornered).
         target = awayFrom(ctx, cursor, rand(...KEEP_AWAY));
         speedTarget = RUN_SPEED[1];
-        cancelJump();
-        startJump({ height: rand(16, 24), air: 0.28 });
-        ctx.say(LINES.tag(), 1500);
-        countdown.show('TAG', timeLeft, "you're it! catch the star");
-        ctx.log('tag-it', {});
-      } else if (approachLeft <= 0) {
-        ctx.say(LINES.missed(), 2000);
-        finish('missed');
+        accel = 14;
+        if (!wasClose && Math.random() < 0.35) chat(ctx, LINES.close(), 900, { gap: 1.5 });
+        wasClose = true;
+      } else {
+        wasClose = false;
+        // Far enough: hang around at a teasing distance, re-picking a spot once he gets there.
+        const tc = centerOf({ ...pet, ...target });
+        const arrived = Math.hypot(pet.x - target.x, pet.y - target.y) < 12;
+        const targetGap = Math.hypot(tc.x - cursor.x, tc.y - cursor.y);
+        if (arrived || targetGap < KEEP_AWAY[0] * 0.8) {
+          const angle = rand(0, Math.PI * 2);
+          const d = rand(...KEEP_AWAY);
+          const spot = toTopLeft(pet, { x: cursor.x + Math.cos(angle) * d, y: cursor.y + Math.sin(angle) * d });
+          target = clampToScreen(ctx, spot.x, spot.y);
+          speedTarget = RUN_SPEED[0];
+          accel = 8;
+        }
+        if (dist > KEEP_AWAY[0]) chat(ctx, LINES.taunt(), 1200, { gap: TAUNT_GAP });
       }
-      return;
-    }
-
-    // ---- 3. Run! ----
-    timeLeft -= TICK_SECONDS;
-    headStart -= TICK_SECONDS;
-    jukeLeft -= TICK_SECONDS;
-    jukeCooldown -= TICK_SECONDS;
-    countdown.set(timeLeft);
-
-    if (timeLeft <= 0) {
-      ctx.say(LINES.starWon(), 2500);
-      finish('star-won');
-      return;
-    }
-    if (headStart <= 0 && dist <= CATCH_RADIUS) {
-      ctx.say(LINES.caught(), 2500);
-      finish('caught');
-      return;
-    }
-
-    if (jukeLeft > 0) {
-      // Mid-juke: keep dashing where the juke pointed.
-    } else if (dist < JUKE_RADIUS && jukeCooldown <= 0) {
-      // Really close: juke — a quick dash off to one side instead of straight away, which a
-      // chasing cursor overshoots.
-      const away = Math.atan2(c.y - cursor.y, c.x - cursor.x);
-      const side = Math.random() < 0.5 ? 1 : -1;
-      const a = away + side * rand(1.0, 1.4); // ~60-80° off the straight-away line
-      const spot = toTopLeft(pet, { x: c.x + Math.cos(a) * 240, y: c.y + Math.sin(a) * 240 });
-      target = clampToScreen(ctx, spot.x, spot.y);
-      if (Math.hypot(target.x - pet.x, target.y - pet.y) < 80) target = awayFrom(ctx, cursor, 240); // wall in the way
-      speedTarget = JUKE_SPEED;
-      accel = 20;
-      jukeLeft = JUKE_FOR;
-      jukeCooldown = JUKE_COOLDOWN;
-      wasClose = true;
-    } else if (dist < DODGE_RADIUS) {
-      // Too close: sprint straight away (angling off if cornered).
-      target = awayFrom(ctx, cursor, rand(...KEEP_AWAY));
-      speedTarget = RUN_SPEED[1];
-      accel = 14;
-      if (!wasClose && Math.random() < 0.35) chat(ctx, LINES.close(), 900, { gap: 1.5 });
-      wasClose = true;
-    } else {
-      wasClose = false;
-      // Far enough: hang around at a teasing distance, re-picking a spot once he gets there.
-      const tc = centerOf({ ...pet, ...target });
-      const arrived = Math.hypot(pet.x - target.x, pet.y - target.y) < 12;
-      const targetGap = Math.hypot(tc.x - cursor.x, tc.y - cursor.y);
-      if (arrived || targetGap < KEEP_AWAY[0] * 0.8) {
-        const angle = rand(0, Math.PI * 2);
-        const d = rand(...KEEP_AWAY);
-        const spot = toTopLeft(pet, { x: cursor.x + Math.cos(angle) * d, y: cursor.y + Math.sin(angle) * d });
-        target = clampToScreen(ctx, spot.x, spot.y);
-        speedTarget = RUN_SPEED[0];
-        accel = 8;
-      }
-      if (dist > KEEP_AWAY[0]) chat(ctx, LINES.taunt(), 1200, { gap: TAUNT_GAP });
     }
     if (!isJumping() && chance(HOP_PER_SEC, TICK_SECONDS)) startJump({ height: rand(10, 18), air: 0.25 });
   },
@@ -503,6 +579,13 @@ export default {
     pet.y = kept.y;
     prompt?.place(pet, ctx.area?.()); // the yes/no popup follows him (only visible while asking)
 
+    // Spot touches every frame; onTick turns them into tags (with the head-start rules).
+    if (phase === 'play' && ctx.cursor.x > -1000) {
+      const cx = pet.x + pet.size / 2;
+      const cy = pet.y + pet.size / 2;
+      if (Math.hypot(ctx.cursor.x - cx, ctx.cursor.y - cy) <= Math.max(TAG_TOUCH, CATCH_RADIUS)) touched = true;
+    }
+
     // Quick scampering hop cycle (the jump owns bob/squash while a hop is in the air).
     if (!jumping) {
       hopT += dt * clamp(speedNow / 70, 0, 3) * 8;
@@ -521,7 +604,7 @@ export default {
     if (pet.mode === 'tag') pet.mode = 'idle'; // hand him back (grabbed → stays 'drag')
     // After an actual game he stays playful for a bit (not after a "no" or no answer), and
     // needs a rest before the next one.
-    const played = phase === 'approach' || phase === 'run'; // got past "GO!" (not a "no", or grabbed mid-count)
+    const played = phase === 'play'; // got past "GO!" (not a "no", or grabbed mid-count)
     if (played) lastPlayedEndAt = ctx.clock.seconds;
     if (played && (pet.mood === 'happy' || pet.mood === 'playful')) requestMood(ctx, 'playful', 'tag over');
   },
