@@ -5,8 +5,10 @@
 //   - sometimes changes its mind and turns back partway
 //   - hops over nothing now and then
 //
-// Also runs 'flee' mode (set by cursorReact.js when the cursor rushes at the star):
-// same movement, but fast, with a quick start and none of the random pauses/turn-backs.
+// Also runs two modes set by cursorReact.js, with the same movement but none of the random
+// pauses/turn-backs/hops:
+//   'flee'   — the cursor rushed at the star: fast, with a quick start
+//   'follow' — a few curious steps toward the cursor; cursorReact re-aims the target every tick
 //
 // Split between ticks and frames:
 //   onTick (10/s)  → decisions: pause, turn back, hop, pause countdown
@@ -14,7 +16,7 @@
 import { rand, chance, approach, clampToScreen, startJump, updateJump, isJumping } from './motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
 
-const MOVING_MODES = ['walk', 'flee'];
+const MOVING_MODES = ['walk', 'flee', 'follow'];
 
 const DEFAULT_SPEED = 70; // px/s, if idle.js didn't set one
 const PAUSE_PER_SEC = 0.25; // chance per second of a mid-walk pause
@@ -26,7 +28,7 @@ let walkedFor = 0;
 let speedNow = 0;
 let pauseLeft = 0;
 let willTurnBackAt = null; // seconds into the walk, or null
-let movingMode = null; // which moving mode we last set up for ('walk' | 'flee' | null)
+let movingMode = null; // which moving mode we last set up for ('walk' | 'flee' | 'follow' | null)
 
 function startWalk(pet) {
   walkedFor = 0;
@@ -80,7 +82,7 @@ export default {
   onTick(ctx) {
     const { pet } = ctx;
     if (!syncMode(pet)) return;
-    if (pet.mode === 'flee') return; // no random events while running away
+    if (pet.mode !== 'walk') return; // random events only on ordinary walks
 
     // ---- Paused: count down, maybe glance around ----
     if (pauseLeft > 0) {
