@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>sprite.exe — settings</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <h1>Settings</h1>
+
+    <section class="setting">
+      <div class="label-row">
+        <label for="fling-power">Fling power</label>
+        <output id="fling-power-value" for="fling-power">50</output>
+      </div>
+      <input id="fling-power" type="range" min="0" max="100" step="1" value="50" />
+      <div class="ends"><span>Gentle</span><span>Extra</span></div>
+      <p id="fling-power-detail" class="detail">How hard throws fly and how much it bounces off the screen edges.</p>
+    </section>
+
+    <button id="reset" type="button">Reset to default</button>
+
+    <script type="module" src="settings.js"></script>
+  </body>
+</html>

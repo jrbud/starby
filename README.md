@@ -10,7 +10,8 @@ npm install
 npm start
 ```
 
-Right-click the star → **Open shop** / **Quit**.
+Right-click the star → **Open shop** / **Settings…** / **Quit**. Settings has the *Fling power* slider
+(how hard throws fly and how bouncy the screen edges are).
 
 > Troubleshooting: if `app` is `undefined` on launch, your shell has `ELECTRON_RUN_AS_NODE=1` set
 > (some editor-integrated terminals do this). Unset it and run again.
@@ -22,10 +23,12 @@ src/
   main/                     Electron main process (Node)
     main.js                 entry: wires everything together            [CORE: flag before editing]
     store.js                persisted state → %APPDATA%/sprite-exe/state.json
+    settingsStore.js        user settings (sliders) → settings.json, separate from the state schema
     ipc.js                  all ipcMain handlers (stardust, shop, click-through, context menu)
     windows/
       petWindow.js          fullscreen transparent overlay + click-through   [CORE]
       shopWindow.js         normal shop window
+      settingsWindow.js     small settings window (Fling power slider)
     systemReads/            READ-ONLY system reads → 'system:event' to the pet
       clipboard.js idle.js power.js timeOfDay.js
       activeWindow.js       TODO (needs a native module or similar)
@@ -35,6 +38,7 @@ src/
     shopCatalog.js          shop items (colors / shapes / accessories)
   renderer/
     shared/sprite.js        draws the star with canvas primitives (used by pet + shop)
+    shared/flingTuning.js   Fling power slider (0–100) → throw speed, glide friction, wall bounce
     pet/
       pet.js                builds `ctx`, runs the frame + tick loop, renders
       core/                 clock.js (10 ticks/s), scheduler.js (after/every), eventLog.js
@@ -43,6 +47,7 @@ src/
       behaviors/            one file per behavior, registered in behaviors/index.js
         idle.js walk.js drag.js cursorReact.js speech.js stardust.js systemReactions.js
     shop/                   shop window UI
+    settings/               settings window UI
 ```
 
 ## How it fits together
