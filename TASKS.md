@@ -143,19 +143,36 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - **speech:** `speech.js` has click and idle lines for each mood. `chat()` drops unprompted lines while
       he's asleep (the `quiet` rule), except low battery.
     - Two lines added to the shared `behaviors/index.js` to register `mood.js`.
-  - [ ] **Phase 2: hook behaviors up to the rules** (small PRs by each owner):
-    - **Person 1, `idle.js`:** no walks when `!wander`; when `wander === 'corner'`, walk to `pet.goal`
-      instead of a random spot; breathing speed from `bobSpeed`; no hops when `!hop`.
-    - **Person 1, `walk.js`:** no turn-backs on corner walks.
-    - **Person 1, `cursorReact.js`:** skip follow and flee according to the rules; optionally face away
-      from the cursor while mad.
-    - **Person 1, `drag.js`:** `ctx.log('bounce', { x, y, speed })` on each edge hit during a throw, and
-      a **swat** instead of a grab when `!grabbable` (mad): the grab fails, he recoils, hops out from under
-      the cursor and says something like "hands off!". He never moves the real cursor: that would be a
-      system write, out of scope.
-    - **Person 2, `stardust.js`:** divide the drop timer by the `stardust` rate (0 = no drops). Drop 1–3
-      stardust at each `bounce`, but only for hits above a minimum speed and with a ~2s cooldown, so
-      throwing can't farm stardust (agree the numbers with Person 4 for balance).
+  - [x] **Phase 2: hook behaviors up to the rules.** Done by Person 3 in Persons 1 and 2's files, with
+    them informed. Each file's header has a "MOODS" note listing exactly what was added.
+    - [x] **`idle.js`:**
+      - no walks or looking around when `!wander` (dizzy, asleep);
+      - when `wander === 'corner'`, the next walk goes to `pet.goal` at a slow plod with short rests;
+      - breathing speed from `bobSpeed`, and no hops when `!hop`;
+      - eyes stay shut while asleep (`eyesShut`, using the existing blink drawing).
+    - [x] **`walk.js`:**
+      - getting dizzy mid-walk stops him on the spot;
+      - starting to yawn mid-walk sends him to the corner right away;
+      - corner walks never turn back, and there are no random hops when `!hop`.
+    - [x] **`motion.js`:** `CORNER_WALK_SPEED` and a `hasGoalToReach()` helper.
+    - [x] **`cursorReact.js`:**
+      - no "oh! hi" and no following when `!follow`, and a follow in progress ends if the mood changes;
+      - no flinching when `!flee`;
+      - eyes look away from the cursor while mad (`lookAway`).
+    - [x] **`drag.js` (done by Person 3, with Person 1 informed):** edge hits are logged as `impact`
+      `{ side, speed }`, and `mood.js` listens for them. **Swat:** when `!grabbable` (mad), pressing and
+      dragging him cancels the grab. He recoils about 200px away from the cursor with a little spin, using
+      the normal throw physics, glares back and says something like "hands off!". It's logged as `swat`,
+      and `mood.js` counts it as another poke. A plain click on a mad star is still a poke. The real
+      cursor is never moved: that would be a system write, out of scope.
+    - [x] **`stardust.js`:**
+      - the drop timer runs at the `stardust` rate: playful drops about twice as fast (50 vs 25 in a
+        5-minute test), and rate 0 drops nothing;
+      - a mad star says "no stardust for you!" once per mad spell (`refuses`);
+      - hard wall hits (`impact` ≥900px/s) drop 1–3 stardust just off the wall, with a 2s cooldown, and
+        nothing while mad or asleep. **Person 4: please check these numbers against shop prices.**
+    - **New rules in `moods.js`:** `refuses`, `lookAway`, `eyesShut`. The table now builds every mood from
+      shared defaults, so each mood only lists what differs from happy.
   - [ ] **Phase 3: faces (Person 4 + artists).** A new `renderer/shared/frames.js` loads
     `assets/sprite/<face>/<face>_N.png`. `pet.js` `render()` draws the frames for `pet.face` (a shared file,
     so ask first) and falls back to today's star for any face without art yet. The artists need these

@@ -15,11 +15,18 @@
 //
 // Spin hard enough and it gets dizzy for a few seconds after landing.
 //
+// SWAT (added by Person 3 for emotions, P3-6): a mad star can't be picked up (mood rule
+// `grabbable: false`, see ./moods.js). Pressing and dragging him cancels the grab, and he knocks
+// your hand away instead: recoils off the cursor with a little spin and glides to a stop using
+// the normal throw physics. Logged as 'swat'; mood.js treats it as another poke. The real cursor
+// is never moved (that would be a system write, out of scope). A plain click is still a poke.
+//
 // Physics runs every frame (smooth); reactions ("wheee!", dizzy) are decided on ticks.
 // A click without moving emits a 'pet:clicked' DOM event that other behaviors can react to.
 import { approach, clamp, TOP_MARGIN } from './motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { flingTuning, DEFAULT_FLING_POWER } from '../../shared/flingTuning.js';
+import { rulesFor } from './moods.js';
 
 const CLICK_SLOP = 4; // px of movement before a press counts as a drag
 
@@ -52,7 +59,13 @@ const DIZZY_SECONDS = 4;
 const OOF_SPEED = 1800; // px/s into the wall to say something
 const OOF_COOLDOWN = 4; // seconds
 
+// Swat (mad)
+const SWAT_SPEED = 420; // px/s recoil away from the cursor (~200px slide at the default Fling power)
+const SWAT_SPIN = 7; // rad/s lean-away spin (below WHEE_SPIN, so no "wheee!")
+const SWAT_SQUASH = 0.7; // recoil squish
+
 const WHEE_LINES = ['wheee!', 'weee~', 'spinnn', 'whoaaa'];
+const SWAT_LINES = ['hands off!', 'hey! no touching!', '*swat*', 'nope!', "don't even try"];
 const OOF_LINES = ['oof!', 'bonk!', 'ow!', 'splat!'];
 const DIZZY_LINES = ['@_@ so dizzy...', 'the room is spinning', 'whoa... wobbly'];
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -237,6 +250,39 @@ function tossStep(ctx, dt) {
   }
 }
 
+// ---- Swat (mad: can't be picked up) ----
+function swat(ctx, e) {
+  const { pet } = ctx;
+  // Cancel the press: no grab, and the coming mouseup won't count as a click.
+  pressing = false;
+  moved = false;
+  ctx.setPinned(false);
+
+  // Recoil straight away from the cursor (pick a side if it's dead center).
+  const c = center(pet);
+  let ax = c.x - e.clientX;
+  let ay = c.y - e.clientY;
+  const len = Math.hypot(ax, ay);
+  if (len < 1) {
+    ax = Math.random() < 0.5 ? -1 : 1;
+    ay = 0;
+  } else {
+    ax /= len;
+    ay /= len;
+  }
+  vel = { x: ax * SWAT_SPEED, y: ay * SWAT_SPEED };
+  omega = (ax >= 0 ? 1 : -1) * SWAT_SPIN;
+  turns = 0;
+  uprighting = false;
+  freezeLeft = 0;
+  pet.squash = SWAT_SQUASH;
+  pet.facing = ax >= 0 ? -1 : 1; // glare back at the hand he just swatted
+  pet.mode = 'toss'; // tossStep glides, bounces off edges, wobbles upright, then 'idle'
+
+  ctx.say(pick(SWAT_LINES), 1200);
+  ctx.log('swat', { speed: SWAT_SPEED });
+}
+
 export default {
   name: 'drag',
 
@@ -265,6 +311,11 @@ export default {
       if (!pressing) return;
       mouse = { x: e.clientX, y: e.clientY };
       if (!moved && Math.hypot(e.clientX - start.x, e.clientY - start.y) > CLICK_SLOP) {
+        // Mad: no picking him up, he swats your hand away instead (see swat()).
+        if (!rulesFor(pet).grabbable) {
+          swat(ctx, e);
+          return;
+        }
         moved = true;
         // Caught mid-throw: keep its spin. Otherwise start a fresh grab.
         if (pet.mode !== 'toss') {

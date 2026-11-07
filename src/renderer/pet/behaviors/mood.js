@@ -65,6 +65,7 @@ const LINES = {
 
 // ---- State ----
 let moodTimer = null; // scheduler id: when the current timed mood ends
+let moodEndsAt = null; // session seconds when that timer fires (for moodStatus / the debug label)
 let lastInteraction = 0; // session seconds
 let isNight = false;
 const circle = { prevAngle: null, steps: [] }; // steps: { t, d } angle swept per tick
@@ -86,6 +87,7 @@ function setMood(ctx, mood, reason) {
   pet.mood = mood;
   ctx.cancel(moodTimer);
   moodTimer = null;
+  moodEndsAt = null;
   pet.goal = mood === 'yawning' ? nearestTopCorner(ctx) : null;
   ctx.log('mood', { from, to: mood, reason });
   return true;
@@ -93,10 +95,25 @@ function setMood(ctx, mood, reason) {
 
 function endIn(ctx, seconds, fn) {
   ctx.cancel(moodTimer);
+  moodEndsAt = ctx.clock.seconds + seconds;
   moodTimer = ctx.after(seconds, () => {
     moodTimer = null;
+    moodEndsAt = null;
     fn();
   }, `mood: ${ctx.pet.mood} ends`);
+}
+
+/**
+ * What's coming next, for the debug label: { endsIn } seconds for timed moods (mad, playful,
+ * dizzy), { yawnIn } seconds while happy, or {} for moods that end on an action.
+ */
+export function moodStatus(ctx) {
+  const now = ctx.clock.seconds;
+  if (moodEndsAt !== null) return { endsIn: Math.max(0, moodEndsAt - now) };
+  if (ctx.pet.mood === 'happy') {
+    return { yawnIn: Math.max(0, (isNight ? YAWN_AFTER_NIGHT : YAWN_AFTER) - (now - lastInteraction)) };
+  }
+  return {};
 }
 
 /** Enter a mood and arm its timer. Re-entering mad/playful restarts the timer. */
@@ -146,12 +163,16 @@ function onEntry(ctx, e) {
     case 'grab':
       interacted(ctx, 'grab'); // a sleeping star stays asleep until shaken (see trackShake)
       break;
+    case 'swat': // drag.js: tried to pick up a mad star; counts as another poke
+      interacted(ctx, 'swat');
+      if (pet.mood === 'mad') enter(ctx, 'mad', 'swatted');
+      break;
     case 'toss':
       interacted(ctx, 'toss');
       if (CAN_GET_PLAYFUL.includes(pet.mood) && e.data.speed >= PLAYFUL_SPEED) enter(ctx, 'playful', 'thrown');
       break;
-    case 'bounce': // edge hit during a throw (drag.js logs it once Person 1 adds it, Phase 2)
-      interacted(ctx, 'bounce');
+    case 'impact': // drag.js: hit a screen edge during a throw { side, speed }
+      interacted(ctx, 'impact');
       if (pet.mood === 'playful') enter(ctx, 'playful', 'hit the edge');
       break;
     case 'land':
