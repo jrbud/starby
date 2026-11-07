@@ -77,20 +77,41 @@ before changing these — they're core).
 ## Person 3 — Speech & system reads
 
 **Owns:** `src/renderer/pet/behaviors/speech.js`, `src/renderer/pet/bubble.js`,
-`src/renderer/pet/behaviors/systemReactions.js`, `src/main/systemReads/*`.
+`src/renderer/pet/behaviors/systemReactions.js`, `src/renderer/pet/behaviors/chatter.js`,
+`src/main/systemReads/*`.
+
+> **Speech convention (for everyone):** lines that answer the user (click, flinch, drag) use plain
+> `ctx.say()` so they show instantly. Lines that come out of nowhere (idle chatter, system reactions,
+> timed events) use `chat(ctx, text, ms, { gap, wait })` from `behaviors/chatter.js`, which only speaks
+> when nothing was said in the last `gap` seconds (default 5) and otherwise queues the line for up to
+> `wait` seconds or drops it. Dropped lines never reach `ctx.say`, so they aren't in the event log.
+> `lineBag(lines)` in the same file picks lines without repeating one twice in a row.
+> `sessionEvents.js` milestones still use `ctx.say` directly; switching them to `chat()` is a two-line
+> change (not done, since that file isn't Person 3's).
 
 - [ ] **P3-1 (Must) Active window.** Implement `src/main/systemReads/activeWindow.js`: poll the focused
-  window every ~2s and `emit('active-window', { title, app })` when it changes. Easiest route: the
-  `get-windows` npm package (read-only). **Adding a package changes `package.json` — flag it to the team.**
-  Then in `systemReactions.js`, react to a few app types (browser, code editor, game, music) with
-  matching lines. Never interact with or modify the other app.
-- [ ] **P3-2 (Must) More to say, less spam.** In `speech.js`: bigger line pools (idle, click), never the
-  same line twice in a row. Add a global rate limit (e.g. in `bubble.js` or a small helper) so system
-  reactions + idle chatter can't stack up — drop or queue a line if one was shown in the last few seconds.
+  window every ~2s and `emit('active-window', { app, category })` when it changes, with `category` one of
+  `'browser' | 'editor' | 'game' | 'music' | 'other'`, worked out in the main process. **Don't send the
+  window title:** titles often contain email subjects and file names, and every system event ends up in
+  the session event log. Easiest route: the `get-windows` npm package (read-only). It is ESM-only
+  (load it with `await import('get-windows')` from our CommonJS main process), needs Node ≥ 22, and may need
+  a rebuild for Electron, so test it on Windows early. Fallback: a read-only PowerShell call.
+  **Adding a package changes `package.json` — flag it to the team.** Ignore our own process (the shop
+  window can take focus). Then in `systemReactions.js`, react to each category with matching lines via
+  `chat()`. Never interact with or modify the other app.
+- [x] **P3-2 (Must) More to say, less spam.** Done: `speech.js` has bigger line pools (20 idle, 14 click)
+  drawn from shuffle bags (never the same line twice in a row). Idle chatter runs on `ctx.after`
+  and is skipped unless it's been quiet for 10s. The global rate limit is `chat()` in `behaviors/chatter.js`
+  (see the speech convention above), not in `bubble.js`, so clicks and flinches stay instant.
+  System reads now start 2s after the pet page loads (`systemReads/index.js`), because events sent before
+  `pet.js` finishes its async boot were being dropped. `power` sends `initial: true` for the startup state,
+  and the star only comments on changes, so startup is one greeting instead of several lines at once.
 - [ ] **P3-3 (Must) Battery level.** In `systemReactions.js`, use `navigator.getBattery()` (renderer-side)
   to react once when battery drops below ~20% while on battery, and again when charging starts.
-- [ ] **P3-4 (Nice) Smarter clipboard reactions.** Use the `preview` from the `'clipboard'` event to tell
-  apart a URL, a number, and long text, each with its own lines. Never log or store clipboard content.
+- [x] **P3-4 (Nice) Smarter clipboard reactions.** Done, a little differently than planned: the
+  `'clipboard'` event no longer has a `preview`. `systemReads/clipboard.js` classifies the text in the main
+  process and sends only `{ length, kind }`, with `kind` one of `'url' | 'number' | 'long' | 'text'`, so the
+  copied text never reaches the renderer, the event log or DevTools. `systemReactions.js` has lines per kind.
 - [ ] **P3-5 (Nice) Sleepy at night.** Late `time-of-day` or long `'idle'` puts the star to sleep (closed
   eyes, slow bob, "zzz"). Needs a new `'sleep'` mode — **agree with Person 1 first.**
 
