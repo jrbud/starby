@@ -6,10 +6,28 @@ import { drawSprite } from '../shared/sprite.js';
 const api = window.sprite;
 const SLOT_TITLES = { color: 'Colors', accessory: 'Accessories' };
 
+const TOAST_MS = 2200;
+const JUST_BOUGHT_MS = 1200;
+
 let catalog = [];
 let state = null;
+let justBoughtId = null; // card to flash after a purchase (render() rebuilds the DOM)
+let toastTimer = null;
 
 const $ = (id) => document.getElementById(id);
+
+// Each card is in exactly one state. Plain-text labels only (no icons, per the art rule).
+//   equipped: owned and worn right now
+//   owned:    bought, not worn → "Equip"
+//   buyable:  not owned, enough stardust → "Buy · N"
+//   locked:   not owned, not enough → dimmed, "Need N more"
+function cardState(item) {
+  if (state.equipped[item.slot] === item.id) return 'equipped';
+  if (state.owned.includes(item.id)) return 'owned';
+  return state.stardust >= item.price ? 'buyable' : 'locked';
+}
+
+const TAG_TEXT = { equipped: 'Wearing', owned: 'Owned', buyable: '', locked: 'Locked' };
 
 function equippedLook(overrides = {}) {
   const value = (slot) => catalog.find((i) => i.id === state.equipped[slot])?.value;
@@ -17,11 +35,15 @@ function equippedLook(overrides = {}) {
 }
 
 function itemCard(item) {
-  const owned = state.owned.includes(item.id);
-  const equipped = state.equipped[item.slot] === item.id;
+  const status = cardState(item);
 
   const card = document.createElement('div');
-  card.className = `item${equipped ? ' equipped' : ''}`;
+  card.className = `item ${status}${item.id === justBoughtId ? ' just-bought' : ''}`;
+
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.textContent = TAG_TEXT[status];
+  if (!tag.textContent) tag.hidden = true;
 
   // Preview: the current sprite with just this item swapped in.
   const thumb = document.createElement('canvas');
@@ -33,25 +55,55 @@ function itemCard(item) {
   name.textContent = item.name;
 
   const btn = document.createElement('button');
-  if (equipped) {
+  if (status === 'equipped') {
     btn.textContent = 'Equipped';
     btn.disabled = true;
-  } else if (owned) {
+  } else if (status === 'owned') {
     btn.textContent = 'Equip';
-    btn.onclick = () => act(api.equip(item.id));
-  } else {
+    btn.className = 'secondary';
+    btn.onclick = () => equip(item);
+  } else if (status === 'buyable') {
     btn.textContent = `Buy · ${item.price}`;
-    btn.disabled = state.stardust < item.price;
-    btn.onclick = () => act(api.buy(item.id), `Bought ${item.name}!`);
+    btn.onclick = () => buy(item);
+  } else {
+    btn.textContent = `Need ${item.price - state.stardust} more`;
+    btn.title = `Costs ${item.price} stardust`;
+    btn.disabled = true;
   }
 
-  card.append(thumb, name, btn);
+  card.append(tag, thumb, name, btn);
   return card;
 }
 
-async function act(promise, successMsg = '') {
-  const res = await promise;
-  $('message').textContent = res.ok ? successMsg : `Can't do that: ${res.reason}`;
+function toast(text, kind = 'ok') {
+  const el = $('toast');
+  el.textContent = text;
+  el.className = `toast show ${kind}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), TOAST_MS);
+}
+
+async function buy(item) {
+  // Set before the call: the main process broadcasts 'state:changed' (→ render) before
+  // the invoke resolves, so the flash class has to be ready by then.
+  justBoughtId = item.id;
+  const res = await api.buy(item.id);
+  if (!res.ok) {
+    justBoughtId = null;
+    toast(`Can't buy that: ${res.reason}`, 'error');
+    return;
+  }
+  toast(`Bought ${item.name}! Hit Equip to wear it.`);
+  setTimeout(() => {
+    if (justBoughtId !== item.id) return;
+    justBoughtId = null;
+    document.querySelector('.item.just-bought')?.classList.remove('just-bought');
+  }, JUST_BOUGHT_MS);
+}
+
+async function equip(item) {
+  const res = await api.equip(item.id);
+  if (!res.ok) toast(`Can't equip that: ${res.reason}`, 'error');
   // UI refresh happens via onStateChanged.
 }
 

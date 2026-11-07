@@ -136,7 +136,7 @@ before changing these — they're core).
   `shopCatalog.js` (the star has one shape, so no shape items); new accessories need a draw function in `sprite.js`. **Flat fills and simple
   primitives only — no gradients, glow, shading or images.** Price so the first purchase takes ~5 minutes
   of play (drops are every 8–15s in `stardust.js`, so roughly 25 stardust).
-- [ ] **P4-2 (Must) Shop polish.** Make owned / equipped / can't-afford states obvious at a glance
+- [x] **P4-2 (Must) Shop polish.** Make owned / equipped / can't-afford states obvious at a glance
   (e.g. lock label, dimmed card, "need N more"). Show a short confirmation after buying.
 - [ ] **P4-3 (Must) Demo shortcut.** A hidden key combo in the shop window (e.g. Ctrl+Shift+D) that adds
   50 stardust via `window.sprite.collectStardust(50)`. Keep it simple and obvious in code so it can be
