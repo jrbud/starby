@@ -110,8 +110,11 @@ before changing these — they're core).
   System reads now start 2s after the pet page loads (`systemReads/index.js`), because events sent before
   `pet.js` finishes its async boot were being dropped. `power` sends `initial: true` for the startup state,
   and the star only comments on changes, so startup is one greeting instead of several lines at once.
-- [ ] **P3-3 (Must) Battery level.** In `systemReactions.js`, use `navigator.getBattery()` (renderer-side)
-  to react once when battery drops below ~20% while on battery, and again when charging starts.
+- [x] **P3-3 (Must) Battery level.** Done in `systemReactions.js` with `navigator.getBattery()`: warns
+  once at ≤20% while on battery (logged as `battery-low`), and only warns again after charging back above
+  25%, so a quick plug/unplug doesn't nag. Plugging in after a warning gets a relieved line instead of the
+  usual one. Main's `'power'` event and the battery API both report plug-ins, so they share one handler
+  that says at most one line per change. Desktops without a battery never trigger it.
 - [x] **P3-4 (Nice) Smarter clipboard reactions.** Done, a little differently than planned: the
   `'clipboard'` event no longer has a `preview`. `systemReads/clipboard.js` classifies the text in the main
   process and sends only `{ length, kind }`, with `kind` one of `'url' | 'number' | 'long' | 'text'`, so the
