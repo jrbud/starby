@@ -23,7 +23,7 @@
 //
 // Physics runs every frame (smooth); reactions ("wheee!", dizzy) are decided on ticks.
 // A click without moving emits a 'pet:clicked' DOM event that other behaviors can react to.
-import { approach, clamp, TOP_MARGIN } from './motion.js';
+import { approach, clamp, petBounds } from './motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { flingTuning, DEFAULT_FLING_POWER } from '../../shared/flingTuning.js';
 import { rulesFor } from './moods.js';
@@ -205,18 +205,18 @@ function tossStep(ctx, dt) {
   // Glide and bounce off the screen edges.
   pet.x += vel.x * dt;
   pet.y += vel.y * dt;
-  const maxX = ctx.stageWidth() - pet.size;
-  const maxY = ctx.groundY();
-  if (pet.x < 0 || pet.x > maxX) {
-    const side = pet.x < 0 ? 'left' : 'right';
-    pet.x = clamp(pet.x, 0, maxX);
+  // Walls = edges of the usable screen (a taskbar on any side counts as a wall).
+  const { minX, maxX, minY, maxY } = petBounds(ctx);
+  if (pet.x < minX || pet.x > maxX) {
+    const side = pet.x < minX ? 'left' : 'right';
+    pet.x = clamp(pet.x, minX, maxX);
     const into = Math.abs(vel.x);
     vel.x = -vel.x * tuning.bounce;
     hitWall(ctx, side, into);
   }
-  if (pet.y < TOP_MARGIN || pet.y > maxY) {
-    const side = pet.y < TOP_MARGIN ? 'top' : 'bottom';
-    pet.y = clamp(pet.y, TOP_MARGIN, maxY);
+  if (pet.y < minY || pet.y > maxY) {
+    const side = pet.y < minY ? 'top' : 'bottom';
+    pet.y = clamp(pet.y, minY, maxY);
     const into = Math.abs(vel.y);
     vel.y = -vel.y * tuning.bounce;
     hitWall(ctx, side, into);

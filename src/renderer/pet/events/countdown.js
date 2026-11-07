@@ -1,4 +1,5 @@
-// A countdown box in the top-right corner of the screen, for events (tag uses it).
+// A countdown box in the top-right corner of the usable screen area, for events (tag uses it).
+// Pass getArea (ctx.area from pet.js) so it sits below a top taskbar / left of a right one.
 //
 // Plain text on a plain box: UI chrome, not character art. Not a `.hit` element, so it stays
 // click-through and never blocks the desktop.
@@ -10,7 +11,9 @@ const mmss = (s) => {
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 };
 
-export function createCountdown(stage) {
+const INSET = 20; // px from the usable area's top-right corner
+
+export function createCountdown(stage, getArea = null) {
   let el = null;
   let titleEl = null;
   let timeEl = null;
@@ -22,8 +25,8 @@ export function createCountdown(stage) {
     el.className = 'event-countdown';
     Object.assign(el.style, {
       position: 'absolute',
-      top: '20px',
-      right: '20px',
+      top: `${INSET}px`,
+      right: `${INSET}px`,
       pointerEvents: 'none',
       font: '600 14px "Segoe UI", system-ui, sans-serif',
       color: '#2b2b3a',
@@ -55,6 +58,12 @@ export function createCountdown(stage) {
     },
     set(seconds) {
       if (!el) return;
+      const a = getArea && getArea();
+      if (a) {
+        // Recomputed each update, in case the taskbar moves mid-game.
+        el.style.top = `${a.top + INSET}px`;
+        el.style.right = `${window.innerWidth - a.right + INSET}px`;
+      }
       const s = Math.max(0, seconds);
       const text = mmss(s);
       if (text === lastShown) return;

@@ -12,7 +12,7 @@
 //   bobSpeed      → breathing speed (slow while asleep)
 //   eyesShut      → eyes stay closed (the existing blink drawing) while asleep
 import {
-  rand, chance, approach, clampToScreen, startJump, updateJump, cancelJump, isJumping,
+  rand, chance, approach, clampToScreen, petBounds, startJump, updateJump, cancelJump, isJumping,
   CORNER_WALK_SPEED, hasGoalToReach,
 } from './motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
@@ -58,7 +58,8 @@ function planWalk(ctx) {
     const dist = rand(...kind.dist);
     target = clampToScreen(ctx, pet.x + Math.cos(angle) * dist, pet.y + Math.sin(angle) * dist);
   } else {
-    target = clampToScreen(ctx, rand(0, ctx.stageWidth()), rand(0, ctx.groundY()));
+    const b = petBounds(ctx); // anywhere in the usable screen area
+    target = { x: rand(b.minX, b.maxX), y: rand(b.minY, b.maxY) };
   }
   pet.targetX = target.x;
   pet.targetY = target.y;

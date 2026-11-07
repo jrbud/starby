@@ -27,7 +27,7 @@
 // Everything is logged as 'mood' { from, to, reason }. In DevTools: starby.setMood('sleepy').
 import { chat, lineBag } from './chatter.js';
 import { MOODS } from './moods.js';
-import { TOP_MARGIN } from './motion.js';
+import { petBounds } from './motion.js';
 
 // ---- Tuning ----
 const MAD_CLICKS = 4; // clicks...
@@ -77,10 +77,12 @@ const shake = { t: 0, prev: null, lastDir: null, reversals: [] };
 
 const center = (pet) => ({ x: pet.x + pet.size / 2, y: pet.y + pet.size / 2 });
 
+// Top corners of the usable screen area (below a top taskbar, beside a side one).
 function nearestTopCorner(ctx) {
   const { pet } = ctx;
-  const left = center(pet).x < ctx.stageWidth() / 2;
-  return { x: left ? 0 : ctx.stageWidth() - pet.size, y: TOP_MARGIN };
+  const b = petBounds(ctx);
+  const left = center(pet).x < (b.minX + b.maxX + pet.size) / 2;
+  return { x: left ? b.minX : b.maxX, y: b.minY };
 }
 
 /** Switch mood. Returns false if it's already that mood (or not a real one). */

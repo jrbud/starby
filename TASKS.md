@@ -81,7 +81,8 @@ before changing these — they're core).
 - [ ] **P2-1 (Must, do first) Windows test.** Run `npm install && npm start` on Windows and check:
   1. Clicks pass through everywhere except on the star (and work on the star: click, drag, right-click).
   2. The star stays visible above the taskbar (`setAlwaysOnTop(true, 'screen-saver')`).
-  3. The "ground" sits right on top of the taskbar (`groundY()` uses `screen.availHeight`).
+  3. He never walks, lands or gets thrown under the taskbar, wherever it is: drag the taskbar to the top,
+     left and right and check (`ctx.area()` in `pet.js` = the usable area; `starby.area()` in DevTools).
   4. Works at 125% and 150% display scaling.
   Fix what's broken (comment any Windows quirk you find), or report it to the team.
 - [ ] **P2-2 (Must) Show the count.** On pickup, spawn a small "+1" text element that floats up and fades

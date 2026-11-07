@@ -10,6 +10,7 @@ import { createClock } from './core/clock.js';
 import { createScheduler } from './core/scheduler.js';
 import { createEventLog } from './core/eventLog.js';
 import { createEventRunner } from './events/index.js';
+import { clampToScreen } from './behaviors/motion.js';
 
 const api = window.sprite;
 const petEl = document.getElementById('pet');
@@ -38,10 +39,28 @@ const pet = {
   look: { color: '#ffd84a', accessory: 'none' },
 };
 
-// "Ground" = just above the taskbar. screen.availHeight excludes the taskbar on Windows.
-// (Assumes the taskbar is at the bottom of the primary display.)
-const groundY = () => window.screen.availHeight - SIZE;
-const stageWidth = () => window.innerWidth;
+// Usable screen area: the whole display minus the taskbar, wherever the taskbar is (bottom,
+// top, left or right), in this window's coordinates: { left, top, right, bottom }.
+// WINDOWS QUIRK: the pet window covers the whole display, taskbar included, so its own size
+// says nothing about the taskbar. Chromium reports the work area as screen.availLeft/availTop/
+// availWidth/availHeight in screen coordinates; the window sits at the display's top-left, so
+// subtracting window.screenX/Y converts. Read live, so moving the taskbar while running is
+// picked up on the next call.
+function workArea() {
+  const s = window.screen;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const within = (v, max) => Math.max(0, Math.min(max, v));
+  const left = within(Number.isFinite(s.availLeft) ? s.availLeft - window.screenX : 0, W);
+  const top = within(Number.isFinite(s.availTop) ? s.availTop - window.screenY : 0, H);
+  const right = Math.min(W, left + (s.availWidth || W));
+  const bottom = Math.min(H, top + (s.availHeight || H));
+  return { left, top, right, bottom };
+}
+// Kept for existing code: "ground" = lowest y for the star's top-left (just above a bottom
+// taskbar), and the usable area's right edge. New code should prefer ctx.area() / petBounds().
+const groundY = () => workArea().bottom - SIZE;
+const stageWidth = () => workArea().right;
 
 // Session clock, timed events and event log (see ./core/). Session only: reset every launch.
 const clock = createClock();
@@ -57,6 +76,7 @@ const ctx = {
   catalog: [],
   groundY,
   stageWidth,
+  area: workArea, // usable screen area { left, top, right, bottom } (taskbar on any side)
   say: (text, ms) => {
     bubble.say(text, ms);
     log('say', { text });
@@ -82,6 +102,7 @@ const eventRunner = createEventRunner(ctx);
 // Open DevTools on the pet window and inspect these, e.g. starby.events.all(), starby.startEvent('tag')
 window.starby = {
   clock, scheduler, events, pet,
+  area: workArea, // usable screen area right now (taskbar excluded)
   startEvent: (name = 'tag') => eventRunner.start(name, 'devtools'),
   stopEvent: () => eventRunner.stop('devtools'),
 };
@@ -139,6 +160,7 @@ async function boot() {
   applyState(await api.getState());
   api.onStateChanged(applyState);
 
+  pet.x = workArea().left + 200;
   pet.y = groundY();
   initClickThrough();
   window.addEventListener('mousemove', (e) => {
@@ -174,6 +196,12 @@ async function boot() {
     const dt = Math.min(0.05, realDt);
     for (const b of BEHAVIORS) b.update?.(ctx, dt);
     eventRunner.update(dt);
+    // Taskbar moved (or the screen changed) while he was sitting still: step out from under it.
+    if (pet.mode === 'idle') {
+      const kept = clampToScreen(ctx, pet.x, pet.y);
+      pet.x = kept.x;
+      pet.y = kept.y;
+    }
 
     if (pet.mode !== lastMode) {
       // Skip routine idle↔walk switches (walks are logged as 'walk' already) to keep the log useful.

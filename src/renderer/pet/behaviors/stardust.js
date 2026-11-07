@@ -62,9 +62,11 @@ function impactDrops(ctx, impact) {
   const cx = pet.x + pet.size / 2;
   const cy = pet.y + pet.size / 2;
   let made = 0;
+  // Keep them in the usable screen area (not under the taskbar, wherever it is).
+  const a = ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + pet.size };
   for (let i = 0; i < n; i++) {
-    const x = clamp(cx + away[0] * rand(10, 40) + rand(-30, 30), 6, ctx.stageWidth() - 6);
-    const y = clamp(cy + away[1] * rand(10, 40) + rand(-30, 30), 6, ctx.groundY() + pet.size - 6);
+    const x = clamp(cx + away[0] * rand(10, 40) + rand(-30, 30), a.left + 6, a.right - 6);
+    const y = clamp(cy + away[1] * rand(10, 40) + rand(-30, 30), a.top + 6, a.bottom - 6);
     if (spawnAt(ctx, x, y)) made++;
   }
   ctx.log('impact-drops', { count: made, side: impact.side });
