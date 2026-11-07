@@ -34,7 +34,7 @@ src/
   preload/preload.js        the `window.sprite` API that renderers use
   shared/                   used by main process
     stateSchema.js          persisted-state shape + migration           [CORE]
-    shopCatalog.js          shop items (colors / shapes / accessories)
+    shopCatalog.js          shop items (colors / accessories)        
   renderer/
     shared/sprite.js        draws the star with canvas primitives (used by pet + shop)
     pet/
@@ -68,8 +68,8 @@ src/
 - **State** (stardust, owned items, equipped items) lives only in the main process. Renderers change it through
   `window.sprite.*`, and every window gets `state:changed` after each update. That's how equipping in the shop
   changes the on-screen sprite right away.
-- **Shop items** are data in `shopCatalog.js`. A new color is a single entry. A new shape or accessory also needs
-  a drawing function in `renderer/shared/sprite.js`, using flat primitives only.
+- **Shop items** are data in `shopCatalog.js`. A new color is a single entry. The star has one shape (no shape
+  items). A new accessory needs hand-drawn PNG art from the team (see claude.md).
 
 ## Suggested ownership (to avoid merge conflicts)
 

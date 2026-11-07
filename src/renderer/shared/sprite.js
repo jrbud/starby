@@ -16,27 +16,8 @@ function starPath(c, cx, cy, points, outer, inner) {
   c.closePath();
 }
 
-// Shape ids must match `value` of shape items in src/shared/shopCatalog.js.
-const SHAPES = {
-  star4: (c, cx, cy, r) => starPath(c, cx, cy, 4, r, r * 0.38),
-  star5: (c, cx, cy, r) => starPath(c, cx, cy, 5, r, r * 0.45),
-  diamond: (c, cx, cy, r) => {
-    c.moveTo(cx, cy - r);
-    c.lineTo(cx + r * 0.7, cy);
-    c.lineTo(cx, cy + r);
-    c.lineTo(cx - r * 0.7, cy);
-    c.closePath();
-  },
-  plus: (c, cx, cy, r) => {
-    const t = r * 0.4; // half arm thickness
-    const pts = [
-      [-t, -r], [t, -r], [t, -t], [r, -t], [r, t], [t, t],
-      [t, r], [-t, r], [-t, t], [-r, t], [-r, -t], [-t, -t],
-    ];
-    pts.forEach(([x, y], i) => (i === 0 ? c.moveTo(cx + x, cy + y) : c.lineTo(cx + x, cy + y)));
-    c.closePath();
-  },
-};
+// The star's one body shape: a 4-point twinkle.
+const drawBody = (c, cx, cy, r) => starPath(c, cx, cy, 4, r, r * 0.38);
 
 // Accessory ids must match `value` of accessory items in src/shared/shopCatalog.js.
 const ACCESSORIES = {
@@ -67,10 +48,10 @@ const ACCESSORIES = {
 
 /**
  * @param {HTMLCanvasElement} canvas
- * @param {{ color: string, shape: string, accessory: string, lookX?: number, blink?: boolean }} look
+ * @param {{ color: string, accessory: string, lookX?: number, blink?: boolean }} look
  *   lookX: -1..1, shifts the eyes left/right (cursor awareness). blink: draw closed eyes.
  */
-export function drawSprite(canvas, { color, shape, accessory, lookX = 0, blink = false }) {
+export function drawSprite(canvas, { color, accessory, lookX = 0, blink = false }) {
   const c = canvas.getContext('2d');
   const w = canvas.width;
   const h = canvas.height;
@@ -83,7 +64,7 @@ export function drawSprite(canvas, { color, shape, accessory, lookX = 0, blink =
 
   c.fillStyle = color;
   c.beginPath();
-  (SHAPES[shape] || SHAPES.star4)(c, cx, cy, r);
+  drawBody(c, cx, cy, r);
   c.fill();
 
   // Eyes: two dots (or two short lines when blinking).

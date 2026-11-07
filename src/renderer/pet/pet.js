@@ -32,7 +32,7 @@ const pet = {
   rotation: 0, // radians, clockwise, around the star's center (drag/toss spin)
   lookX: 0, // -1..1 eye direction
   blink: false,
-  look: { color: '#ffd84a', shape: 'star4', accessory: 'none' },
+  look: { color: '#ffd84a', accessory: 'none' },
 };
 
 // "Ground" = just above the taskbar. screen.availHeight excludes the taskbar on Windows.
@@ -95,7 +95,6 @@ function applyState(state) {
   const byId = (id) => ctx.catalog.find((item) => item.id === id);
   pet.look = {
     color: byId(state.equipped.color)?.value ?? pet.look.color,
-    shape: byId(state.equipped.shape)?.value ?? pet.look.shape,
     accessory: byId(state.equipped.accessory)?.value ?? pet.look.accessory,
   };
 }
@@ -114,7 +113,7 @@ function render() {
     `scale(${(1 / Math.sqrt(squash)) * facing}, ${squash})`;
 
   // Only redraw the canvas when something visual changed.
-  const key = `${look.color}|${look.shape}|${look.accessory}|${lookX.toFixed(1)}|${blink}`;
+  const key = `${look.color}|${look.accessory}|${lookX.toFixed(1)}|${blink}`;
   if (key !== lastDrawKey) {
     lastDrawKey = key;
     drawSprite(canvas, { ...look, lookX: lookX * facing, blink });
