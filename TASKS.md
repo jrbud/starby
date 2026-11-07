@@ -36,10 +36,11 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'flee' | '
   distances and speeds, easing in and out. Mid-walk pauses to look around, sometimes turning back partway,
   random hops (crouch → arc → landing squish) while walking and idle, short/medium/long rests, looking
   around and double blinks while idle. Shared helpers (jumps, clamping) live in `behaviors/motion.js`.
-- [x] **P1-3 (Must) Flinch & run.** `cursorReact.js` measures cursor velocity each tick. If the cursor is
-  within 220px, heading at the star fast (≥650px/s, or fast enough to reach it within 0.3s) and on a path
-  passing within 90px, the star does a startle hop, says something, and switches to a new `'flee'` mode
-  (run by `walk.js`: fast, no pauses/turn-backs) to a spot away from the cursor, angling off if cornered.
+- [x] **P1-3 (Must) Flinch & run.** `cursorReact.js` checks the path the cursor took since the last tick.
+  If that path comes within 180px of the star, was heading at it at ≥1300px/s (a quick flick, not a normal
+  move) and was aimed within 70px of its center, the star does a startle hop, says something, and switches
+  to a new `'flee'` mode (run by `walk.js`: fast, no pauses/turn-backs) away from the cursor's path
+  (sideways on a dead-on hit), angling off if cornered. Cursor jumps (>8000px/s) are ignored.
   2.5s cooldown. After 3 flinches in 30s it gives up for 20s (checked via the event log) so it can still
   be caught. "oh! hi" now only fires for calm approaches.
 - [ ] **P1-4 (Nice) Follow briefly.** After noticing the cursor, walk a few steps toward it, then lose
