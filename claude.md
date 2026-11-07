@@ -151,3 +151,11 @@ and ask rather than implementing it.
 - Comment non-obvious platform-specific quirks (click-through, always-on-top
   behavior differs across OSes) since those are the parts most likely to
   break silently
+
+## Task assignments
+
+Work is split between Person 1–4 in `TASKS.md`. When a teammate says who they are
+("I'm person 2", "user 3") or names a task id ("P1-3"), read `TASKS.md` and follow
+its "How Claude Code should use this file" section: do that person's tasks in order,
+stay inside the files they own, and flag anything that touches another person's or a
+shared file. Never commit; the human commits.
