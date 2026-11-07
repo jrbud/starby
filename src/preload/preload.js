@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('sprite', {
   // Pet window
   setIgnoreMouse: (ignore) => ipcRenderer.send('pet:set-ignore-mouse', ignore),
   showContextMenu: () => ipcRenderer.send('pet:context-menu'),
+  // Polled cursor position { x, y } relative to the pet window (see petWindow.js).
+  onCursor: (cb) => subscribe('pet:cursor', cb),
 
   // Read-only system events: { type, ...payload }
   onSystemEvent: (cb) => subscribe('system:event', cb),
