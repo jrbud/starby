@@ -93,16 +93,15 @@ before changing these — they're core).
 > `sessionEvents.js` milestones still use `ctx.say` directly; switching them to `chat()` is a two-line
 > change (not done, since that file isn't Person 3's).
 
-- [ ] **P3-1 (Must) Active window.** Implement `src/main/systemReads/activeWindow.js`: poll the focused
-  window every ~2s and `emit('active-window', { app, category })` when it changes, with `category` one of
-  `'browser' | 'editor' | 'game' | 'music' | 'other'`, worked out in the main process. **Don't send the
-  window title:** titles often contain email subjects and file names, and every system event ends up in
-  the session event log. Easiest route: the `get-windows` npm package (read-only). It is ESM-only
-  (load it with `await import('get-windows')` from our CommonJS main process), needs Node ≥ 22, and may need
-  a rebuild for Electron, so test it on Windows early. Fallback: a read-only PowerShell call.
-  **Adding a package changes `package.json` — flag it to the team.** Ignore our own process (the shop
-  window can take focus). Then in `systemReactions.js`, react to each category with matching lines via
-  `chat()`. Never interact with or modify the other app.
+- [x] **P3-1 (Must) Active window.** Done. `src/main/systemReads/activeWindow.js` polls every 2s with the
+  `get-windows` package (**new dependency in `package.json`, announce before pushing**) and emits
+  `{ app, category }` (`'browser' | 'editor' | 'game' | 'music' | 'other'`) once an app has stayed focused
+  for 2 polls, so alt-tabbing past windows doesn't trigger anything. The window title never leaves the
+  main process. Categories come from the exe name, plus game install folders (e.g. `steamapps\common`).
+  Our own shop window is ignored. Checked on Windows: the prebuilt Node-API addon loads in Electron 45
+  without a rebuild, and each poll takes about 1ms after the first. If it ever fails to load, the reader
+  logs a warning and turns itself off instead of crashing. `systemReactions.js` comments when you
+  switch to a different *kind* of app, at most once per kind every 5 minutes.
 - [x] **P3-2 (Must) More to say, less spam.** Done: `speech.js` has bigger line pools (20 idle, 14 click)
   drawn from shuffle bags (never the same line twice in a row). Idle chatter runs on `ctx.after`
   and is skipped unless it's been quiet for 10s. The global rate limit is `chat()` in `behaviors/chatter.js`

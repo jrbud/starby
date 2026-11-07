@@ -6,7 +6,8 @@
 //   { type: 'idle', seconds } | { type: 'idle-return' }
 //   { type: 'power', onBattery, initial? }     initial: true for the state at startup
 //   { type: 'time-of-day', hour, part }
-//   { type: 'active-window', app, category }   TODO (P3-1)
+//   { type: 'active-window', app, category }   category: 'browser' | 'editor' | 'game' | 'music'
+//                                              | 'other' (title stays in the main process)
 //
 // Battery level isn't available in the main process, so it's read here with
 // navigator.getBattery() (read-only Battery Status API, built into Chromium/Electron).
@@ -46,6 +47,29 @@ const POWER = lineBags({
   plugged: ['plugged in, yay', 'mmm, power'],
   relief: ['phew, thank you!', "ahh, that's better", 'charging up ✦'], // plugged in after a low warning
 });
+
+// 'other' apps get no line.
+const APP_LINES = lineBags({
+  browser: ['browsing time!', 'ooh, what are we looking up?', "don't open too many tabs~"],
+  editor: ['ooh, code! you got this', 'coding time? go go go!', "i'll be quiet while you work... mostly"],
+  game: ['game time!! good luck', 'ooh, are we gaming?', "i'll cheer from up here ✦"],
+  music: ['ooh, music! ♪', 'what are we listening to?', '*bops along*'],
+});
+const APP_COOLDOWN = 5 * 60; // seconds before commenting on the same kind of app again
+
+let lastCategory = null;
+const lastAppLineAt = {}; // category → session seconds
+
+// Comment when the user moves to a different *kind* of app (Chrome → Firefox is not news),
+// at most once per APP_COOLDOWN per kind, so alt-tabbing all day doesn't get chatty.
+function appChanged(ctx, category) {
+  const prev = lastCategory;
+  lastCategory = category;
+  if (!APP_LINES[category] || category === prev) return;
+  const now = ctx.clock.seconds;
+  if (now - (lastAppLineAt[category] ?? -Infinity) < APP_COOLDOWN) return;
+  if (chat(ctx, APP_LINES[category](), 2500, { wait: 6 }) !== 'dropped') lastAppLineAt[category] = now;
+}
 
 // Set when we warn; cleared once the battery charges back above LOW_RESET, so a quick
 // plug-in/unplug at 15% doesn't nag again, but the next real discharge does.
@@ -114,6 +138,9 @@ export default {
           break;
         case 'time-of-day':
           if (GREETINGS[evt.part]) chat(ctx, GREETINGS[evt.part](), 3000, { wait: 15 });
+          break;
+        case 'active-window':
+          appChanged(ctx, evt.category);
           break;
         default:
           break;
