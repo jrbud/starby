@@ -91,8 +91,10 @@ sequence can.
 ## Scope for this build
 
 In scope now:
-- **Idle + walk**: wanders along screen edges / taskbar area, simple
-  idle-vs-walking state
+- **Idle + walk**: roams freely anywhere on the screen (not limited to
+  screen edges or the taskbar), with a simple idle-vs-walking state. Stays
+  on screen, below a small top margin so its speech bubble isn't clipped and
+  above the taskbar. When dragged and dropped, it stays where it's let go.
 - **Cursor awareness**: reacts in some simple way to cursor proximity (e.g.
   "notices" you, follows briefly, flinches)
 - **Speech bubbles / idle commentary**: pops up short text occasionally or on

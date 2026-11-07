@@ -22,15 +22,11 @@ Each teammate is **Person 1–4**. Tell Claude Code who you are ("I'm person 2")
 ## Person 1 — Movement & cursor
 
 **Owns:** `src/renderer/pet/behaviors/idle.js`, `walk.js`, `drag.js`, `cursorReact.js`.
-Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'drag' | 'fall'`.
+Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'drag'`.
 
-- [ ] **P1-1 (Must) Climb screen edges.** Add a `'climb'` mode. When a walk ends at the left or right
-  edge (`x <= 0` or `x >= stageWidth() - size`), sometimes climb up that edge to a random height, pause,
-  then climb or drop back down (`'fall'` already exists in `drag.js`). Rotate the canvas 90° while
-  climbing via `pet` state that `pet.js` renders — if `pet.js` needs a new field (e.g. `pet.rotation`),
-  flag it: `pet.js` is shared.
-  *Done when:* the star reaches both side edges and climbs them without getting stuck.
-- [ ] **P1-2 (Must) Livelier wandering.** In `walk.js`/`idle.js`: random short pauses mid-walk, sometimes
+- [x] **P1-1 (Must) Roam anywhere on screen.** The star walks to targets anywhere on the screen (not just
+  edges or the taskbar), mostly short wanders nearby with occasional long trips. Kept between a top margin
+  (room for the speech bubble) and the top of the taskbar. After a drag it stays where it's dropped.- [ ] **P1-2 (Must) Livelier wandering.** In `walk.js`/`idle.js`: random short pauses mid-walk, sometimes
   turn around before reaching the target, vary speed slightly and walk distance (short shuffles vs. long
   walks).
 - [ ] **P1-3 (Must) Flinch.** In `cursorReact.js`: track cursor speed from `ctx.cursor` between frames.
@@ -38,9 +34,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'drag' | '
   (bob + squash, nudge `x` away) and say something short with `ctx.say`. Cooldown so it doesn't loop.
 - [ ] **P1-4 (Nice) Follow briefly.** After noticing the cursor, walk a few steps toward it, then lose
   interest and go back to idle.
-- [ ] **P1-5 (Nice) Toss + keep on screen.** In `drag.js`: record velocity during drag, keep horizontal
-  velocity on release while falling, bounce/clamp at screen edges so the star can't be dragged or thrown
-  off screen.
+- [ ] **P1-5 (Nice) Toss.** In `drag.js`: record velocity during drag and let the star glide and slow
+  down after release, bouncing off screen edges. (Dropping already clamps it on screen.)
 
 ---
 
@@ -62,7 +57,7 @@ before changing these — they're core).
   Badge/float text must not have class `hit` (keep them click-through).
 - [ ] **P2-3 (Must) Old stardust fades.** Each drop gets a spawn time; after ~60s fade it out and remove it
   from `drops`.
-- [ ] **P2-4 (Nice) Drop animation.** Spawn at the star's center and fall/bounce to the ground with a CSS
+- [ ] **P2-4 (Nice) Drop animation.** Spawn at the star's center and fall/bounce to its feet with a CSS
   transition or per-frame update before it becomes collectable.
 - [ ] **P2-5 (Nice) Multiple monitors.** Decide: primary-only (current) or support others. Document the
   decision in a comment in `petWindow.js`. If supporting, flag it — it changes the window design.
