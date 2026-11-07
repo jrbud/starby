@@ -18,13 +18,33 @@ function classify(text) {
   return 'text';
 }
 
-function start(emit) {
-  let last = clipboard.readText();
-  setInterval(() => {
-    const text = clipboard.readText();
-    if (text && text !== last) {
-      last = text;
-      emit('clipboard', { length: text.length, kind: classify(text) });
+// PLATFORM QUIRK: on macOS (Electron 45 here), clipboard.readText() returns a Promise, not a
+// string; on Windows it returns a string. Awaiting handles both. Without this, a Promise
+// (truthy, and a new object every poll) looked like "the clipboard changed" every 1.5s and
+// crashed the main process on text.slice/text.trim ("... is not a function").
+async function readClipboardText() {
+  try {
+    const text = await clipboard.readText();
+    return typeof text === 'string' ? text : '';
+  } catch {
+    return ''; // can't read it right now (e.g. OS privacy prompt): just skip this poll
+  }
+}
+
+async function start(emit) {
+  let last = await readClipboardText();
+  let busy = false; // don't start a new read while the last one is still pending
+  setInterval(async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      const text = await readClipboardText();
+      if (text && text !== last) {
+        last = text;
+        emit('clipboard', { length: text.length, kind: classify(text) });
+      }
+    } finally {
+      busy = false;
     }
   }, POLL_MS);
 }
