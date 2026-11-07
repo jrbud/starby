@@ -15,7 +15,7 @@
 //     clock,                         // clock.tick, clock.seconds since app opened
 //     after(sec, fn, label), every(sec, fn, label), cancel(id),   // timed events
 //     log(type, data), events }      // session event log (see ../core/eventLog.js)
-// Behaviors coordinate through `ctx.pet.mode` ('idle' | 'walk' | 'drag').
+// Behaviors coordinate through `ctx.pet.mode` ('idle' | 'walk' | 'flee' | 'drag').
 // Only change the mode for states you own, and respect 'drag' (the user is holding the pet).
 //
 // Order matters a little: within a tick and within a frame, behaviors run in this order.
