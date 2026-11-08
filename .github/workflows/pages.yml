@@ -1,0 +1,51 @@
+# Publishes the Starby website to GitHub Pages at https://jrbud.github.io/starby/ (no /website).
+#
+# The site lives in website/ and loads the team's art from ../assets/ (so it also works locally
+# when the repo root is served). For Pages we build a copy where website/ is the root and assets/
+# sits next to it, rewrite "../assets" to "assets", and publish that. The repo layout is unchanged.
+#
+# One-time setup: repo Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# Runs on every push to main (and can be run by hand from the Actions tab).
+name: Deploy website to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push replaces a deploy that's still waiting.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the site (website/ as the root, assets/ beside it)
+        run: |
+          mkdir _site
+          cp -r website/. _site/
+          rm -f _site/*.exe            # never publish a local build of the app
+          cp -r assets _site/assets
+          sed -i 's#\.\./assets#assets#g' _site/index.html _site/style.css _site/main.js
+          touch _site/.nojekyll        # serve files as-is (no Jekyll processing)
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
