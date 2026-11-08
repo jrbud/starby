@@ -5,10 +5,50 @@
   "description": "sprite.exe — a tiny star desktop companion (hackathon build, Windows only)",
   "main": "src/main/main.js",
   "scripts": {
-    "start": "node scripts/start.js"
+    "start": "node scripts/start.js",
+    "dist": "electron-builder --win portable --x64",
+    "pack": "electron-builder --win dir --x64"
+  },
+  "build": {
+    "appId": "com.starby.desktop",
+    "productName": "starby",
+    "extraMetadata": {
+      "productName": "starby",
+      "description": "starby"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/get-windows/**/*.node"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon/winkICON.png",
+      "executableName": "starby"
+    },
+    "portable": {
+      "artifactName": "starby.exe",
+      "requestExecutionLevel": "user"
+    }
   },
   "devDependencies": {
-    "electron": "45.2.3"
+    "electron": "45.2.3",
+    "electron-builder": "26.17.0"
   },
   "dependencies": {
     "get-windows": "10.0.0"
