@@ -10,6 +10,7 @@
 //
 //   export default {
 //     name: 'tag',
+//     category: 'games',                 // which category it belongs to (see CATEGORIES below)
 //     priority: 10,                      // a higher-priority event may interrupt a lower one
 //     canStart(ctx, reason) {},          // optional: false = not now
 //     auto: { every, chance, cooldown }, // optional: roll `chance` every `every` seconds, at most
@@ -27,7 +28,18 @@
 //   };
 //
 // Start one from code with ctx.startEvent('tag'), from DevTools with starby.startEvent('tag'),
-// or from the right-click menu (see src/main/ipc.js). Logged as 'event-start' / 'event-end'.
+// from the right-click dialogue (../dialogue/), or the tray icon's menu (src/main/tray.js). Logged as 'event-start' / 'event-end'.
+//
+// CATEGORIES — each has its own way of starting, so they don't share a timer:
+//   category  events                              starts from                         priority
+//   sky       star-shower, shooting-star          sky timer, 20–50 min (happenings.js)  14
+//   games     tag, pong, hide-seek, catch,        dialogue / tray menu / games timer   10 (invite 5)
+//             constellation, copycat, starby-says, hoop-shot, invite
+//             (games.js: every 60s, 20%, 4 min cooldown; hide-seek and copycat start silently)
+//   dance     dance                               music playing, 1 min cooldown (dance.js)  2
+//   system    intro (100), shop (20), focus (16), launch / the shop window / the dialogue's
+//             hush (15)                           "I gotta focus" / a call or fullscreen app
+// A sky event interrupts a dance; the sky timer waits for games, invites, the shop, hush and the intro.
 import intro from './intro.js';
 import tag from './tag.js';
 import pong from './pong.js';
@@ -35,23 +47,38 @@ import invite from './invite.js';
 import starShower from './starShower.js';
 import shootingStar from './shootingStar.js';
 import hideSeek from './hideSeek.js';
+import catchGame from './catchGame.js';
 import shop from './shop.js';
 import dance from './dance.js';
+import hush from './hush.js';
+import constellation from './constellation.js';
+import copycat from './copycat.js';
+import starbySays from './starbySays.js';
+import hoopShot from './hoopShot.js';
+import focus from './focus.js';
 import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
+import { dialogue } from '../dialogue/dialogue.js';
 
-// invite = Starby asking you to play one of the games (picks from GAMES in games.js).
-// star-shower, shooting-star = happenings, started by the happenings timer (happenings.js).
-// hide-seek = a game (buttons) and a happening (he hides on his own); never in invites.
+// invite = Starby asking you to play one of the games (the games timer in games.js starts it).
+// star-shower, shooting-star = sky events, started by the sky timer (happenings.js).
+// hide-seek = a game; the games timer starts it silently (he hides on his own); never in invites.
 // shop = parks him in the shop window's display box while it's open (shop.js).
 // intro = the launch animation (title slam, Starby flies in, greeting); starts itself at launch.
-// dance = dances in bursts while a song plays in Spotify (dance.js); lowest priority.
-export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, shop, dance];
+// catch = a game: he throws himself across the screen, catch him in the box (catchGame.js).
+// dance = its own category: dances while a song plays in Spotify, 1 min apart (dance.js).
+// hush = quiet and still during video calls / fullscreen apps (hush.js); above the games.
+// constellation = a game: he draws a constellation out of starbits, you guess it (constellation.js).
+// copycat = a game: he copies your cursor's movement for 30s, starts silently (copycat.js).
+// starby-says = a game: do what he says only if he says "starby says" first, 15s (starbySays.js).
+// hoop-shot = a game: right-drag slingshot him into a hoop, with gravity, 15s (hoopShot.js).
+// focus = "Sorry, I gotta focus": parked bottom-left, silent, until you click/grab him (focus.js).
+export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance, hush, constellation, copycat, starbySays, hoopShot, focus];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
-// watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js);
-// happenings = the 20–50 minute timer that starts a random happening (happenings.js).
-const HELPERS = [gamesMenu, happenings];
+// watchFrame hooks. gamesMenu = the rest between games, requestGame and the games timer (games.js);
+// dialogue = the right-click dialogue box (../dialogue/dialogue.js); happenings = the 20–50 minute sky timer that starts a sky event (happenings.js).
+const HELPERS = [gamesMenu, happenings, dialogue];
 const WITH_HOOKS = [...EVENTS, ...HELPERS];
 
 export function createEventRunner(ctx) {

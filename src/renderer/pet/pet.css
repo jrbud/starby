@@ -116,21 +116,33 @@ body {
   opacity: 0.55;
 }
 
+/* Sour Gummy, the shop's font (same file and fallbacks as src/renderer/shop/shop.css). */
+@font-face {
+  font-family: 'Sour Gummy';
+  src: local('Sour Gummy'), url('../../../assets/fonts/SourGummy.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 /* Starbits notification card (top right of the usable screen). Slides in from the right edge
    when a starbit is picked up and back out a couple of seconds after the last one lands.
-   Plain box + text, no icons or art. NOT a .hit element, so it stays click-through.
-   starbits.js sets right/bottom. */
+   Styled like the shop: team-drawn card art (assets/backgrounds/starCardBg.png, stretched to
+   the card), the starbit cluster icon, Sour Gummy in the shop's yellow. NOT a .hit element,
+   so it stays click-through. starbits.js sets right/top. */
 .starbits-toast {
+  --toast-yellow: #ffe8a3; /* shop.css --yellow */
   position: absolute;
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgba(43, 43, 58, 0.88);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  align-items: center;
+  gap: 7px;
+  height: 58px;
+  min-width: 150px;
+  /* The art's thick hand-drawn border is ~6% of its width / ~15% of its height. */
+  padding: 0 22px 2px;
+  background: url('../../../assets/backgrounds/starCardBg.png') center / 100% 100% no-repeat;
+  color: var(--toast-yellow);
+  font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3)); /* follows the art's wobbly edge */
   white-space: nowrap;
   pointer-events: none;
   /* Hidden: parked just off the right edge. Slide out = ease-in (speeds up as it leaves). */
@@ -146,16 +158,26 @@ body {
   transition: transform 380ms cubic-bezier(0.2, 1.4, 0.4, 1), opacity 160ms ease-out;
 }
 
+.starbits-toast-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: none;
+}
+
 .starbits-toast-count {
   display: inline-block; /* so the pulse can scale it */
   min-width: 1ch;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
   font-variant-numeric: tabular-nums; /* digits don't jiggle as the number changes */
   transform-origin: 50% 60%;
 }
 
 .starbits-toast-label {
-  font-size: 13px;
-  opacity: 0.8;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.85;
 }

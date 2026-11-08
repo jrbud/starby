@@ -10,16 +10,15 @@ npm install
 npm start
 ```
 
-Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Play pong** / **Play hide & seek** /
+Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Play pong** / **Play hide & seek** / **Play catch** /
 **Developer** / **Quit**.
 
 **Developer** (for testing and demos): *Open pet DevTools* (console with the `starby.*` debug helpers), *Start
-star shower now*, *Start shooting star now*, *Hide & seek behind a real window* (says why if it can't see any windows), *Hide & seek behind a
-fake test window* (a dashed outline shows the pretend window; never uses real windows), *Starby invites
+star shower now*, *Start shooting star now*, *Starby invites
 you to a game*, *Skip game rest*, *Stop current event*. Dev triggers end whatever event is running first.
 
 Click him and
-**Play a game? [Tag] [Pong] [Hide & Seek]** pops up too (he needs a minute's rest between games). Settings has the *Fling power* slider
+**Play a game? [Tag] [Pong] [Hide & Seek] [Catch]** pops up too (he needs a minute's rest between games). Settings has the *Fling power* slider
 (how hard throws fly and how bouncy the screen edges are).
 
 > `npm start` runs `scripts/start.js`, which launches Electron with `ELECTRON_RUN_AS_NODE` removed.
@@ -55,9 +54,14 @@ src/
       core/                 clock.js (10 ticks/s), scheduler.js (after/every), eventLog.js
       events/               scripted sequences that take over the star (index.js = runner; tag.js;
                             pong.js; invite.js = he asks you to play a random game;
-                            happenings.js = 20–50 min timer for random happenings (starShower.js, shootingStar.js);
-                            hideSeek.js = hide and seek (a game and a happening);
-                            games.js = list of games, game buttons, rest between games, 3-2-1-GO;
+                            categories: sky / games / dance (table at the top of index.js);
+                            happenings.js = 20–50 min sky timer (starShower.js, shootingStar.js);
+                            hideSeek.js = hide and seek; catchGame.js = catch; dance.js = dancing to music;
+                            constellation.js = constellation quiz (shapes in constellations.js);
+                            copycat.js = he copies your cursor's movement;
+                            starbySays.js = Starby Says (do it only if he says "starby says");
+                            hoopShot.js = slingshot him into a hoop (right-drag, gravity);
+                            games.js = list of games, game buttons, rest, games timer, 3-2-1-GO;
                             prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements
       bubble.js             speech bubble UI (behaviors call ctx.say)

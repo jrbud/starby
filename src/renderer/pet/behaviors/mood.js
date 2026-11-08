@@ -10,7 +10,7 @@
 //
 // Transitions (all numbers are tuning knobs, below):
 //   happy/playful → mad       4 clicks within 8s. Every further click restarts the 20s timer.
-//   happy/playful → playful   thrown (released at ≥500px/s). Each throw / edge hit restarts the 15s timer.
+//   happy/playful → playful   thrown (released at ≥500px/s). Each throw / edge hit restarts the 7s timer.
 //   happy/playful/mad → dizzy spun 3+ turns (drag.js logs 'dizzy'), 3 throws within 20s, or the
 //                             cursor circling him 3 times within 6s. Lasts 5s, then back to
 //                             playful (if he was playful) or happy.
@@ -23,8 +23,9 @@
 //                             one click cheers him up early. Then back to happy.
 //   happy → playful           the cursor rests on him for HOVER_FOR seconds; staying there keeps
 //                             him playful.
-//   sleepy → happy            ONLY picked up and shaken. Clicks, the cursor, throws don't wake him;
-//                             dropped or thrown asleep, he keeps sleeping where he lands.
+//   sleepy → happy            picked up and shaken, or THROWN (released at ≥WAKE_THROW_SPEED; a
+//                             real throw then also makes him playful). Clicks, the cursor or just
+//                             setting him down don't wake him; he keeps sleeping where he lands.
 //
 // Everything is logged as 'mood' { from, to, reason }. In DevTools: starby.setMood('sleepy').
 import { chat, lineBag } from './chatter.js';
@@ -36,7 +37,8 @@ const MAD_CLICKS = 4; // clicks...
 const MAD_WINDOW = 8; // ...within this many seconds
 const MAD_FOR = 20; // seconds after the last poke
 const PLAYFUL_SPEED = 500; // px/s release speed that counts as a throw
-const PLAYFUL_FOR = 15; // seconds after the last throw
+const WAKE_THROW_SPEED = 300; // px/s: a throw at least this fast wakes a sleeping star (not a gentle drop)
+const PLAYFUL_FOR = 7; // seconds after the last throw (shown as a countdown on the mood label)
 const DIZZY_FOR = 5;
 const SAD_FOR = 5; // seconds; a click cheers him up sooner
 const HOVER_FOR = 0.8; // seconds the cursor rests on a happy star before he turns playful
@@ -191,6 +193,11 @@ function onEntry(ctx, e) {
       if (pet.mood === 'mad') enter(ctx, 'mad', 'swatted');
       break;
     case 'toss':
+      // Thrown while asleep: wakes him up (then the throw counts like any other, so a real
+      // throw also makes him playful).
+      if (pet.mood === 'sleepy' && e.data.speed >= WAKE_THROW_SPEED && setMood(ctx, 'happy', 'thrown awake')) {
+        ctx.say(LINES.wake(), 2500);
+      }
       interacted(ctx, 'toss');
       if (CAN_GET_PLAYFUL.includes(pet.mood) && e.data.speed >= PLAYFUL_SPEED) enter(ctx, 'playful', 'thrown');
       break;
@@ -215,7 +222,10 @@ function onEntry(ctx, e) {
       break;
     case 'system':
       if (e.data.type === 'time-of-day') isNight = e.data.part === 'night';
-      if (e.data.type === 'idle' && pet.mood === 'happy') enter(ctx, 'yawning', 'user away');
+      // (Not in focus mode, events/focus.js: he stays happy and still while you work.)
+      if (e.data.type === 'idle' && pet.mood === 'happy' && pet.mode !== 'focus') enter(ctx, 'yawning', 'user away');
+      // You're back (unlocked, or the PC woke up): wakes a yawning star.
+      if (e.data.type === 'unlock' || e.data.type === 'wake') interacted(ctx, e.data.type);
       break;
     default:
       break;
@@ -242,7 +252,7 @@ function trackHover(ctx, now) {
     enter(ctx, 'playful', 'hovered');
     hoverRefreshedAt = now;
   } else if (pet.mood === 'playful' && now - hoverRefreshedAt >= 1) {
-    enter(ctx, 'playful', 'still hovered'); // restarts the 15s playful timer
+    enter(ctx, 'playful', 'still hovered'); // restarts the playful timer
     hoverRefreshedAt = now;
   }
 }
@@ -330,6 +340,17 @@ let lastX = null;
 let moveVX = 0; // smoothed sideways speed while walking, px/s
 let flourish = null; // { face, until } for a random glistening/wink moment
 let nextFlourishAt = 0;
+let pose = null; // { face, until }: a deliberate pose (e.g. a wink for a screenshot), see strikePose
+
+/**
+ * Strike a pose: show `face` (a frames.js face, e.g. 'wink') for `seconds`, over talking,
+ * looking and walking faces (moods like mad/asleep/dizzy still win). For reactions like
+ * "say cheese!" when you take a screenshot.
+ */
+export function strikePose(ctx, face, seconds) {
+  pose = { face, until: ctx.clock.seconds + seconds };
+  ctx.log('pose', { face });
+}
 
 function cursorAboveOrBelow(ctx) {
   const { pet, cursor } = ctx;
@@ -354,7 +375,10 @@ function faceFor(ctx) {
   const { pet } = ctx;
   if (pet.mood === 'sleepy') return 'sleepy';
   if (pet.mode === 'drag') return 'dragged';
+  // An event can ask for a specific face for a moment (e.g. catch: 'left' while he walks back).
+  if (pet.faceOverride) return pet.faceOverride;
   if (pet.mood === 'dizzy' || pet.mood === 'yawning' || pet.mood === 'mad' || pet.mood === 'sad') return pet.mood;
+  if (pose && ctx.clock.seconds < pose.until) return pose.face; // strikePose (e.g. screenshot wink)
   if (pet.mode === 'dance') return 'dancing'; // events/dance.js (only runs while happy/playful)
   if (pet.mood === 'playful' || pet.mode === 'toss' || pet.mode === 'tag') return 'playful';
   if (pet.lookUp) return 'up';

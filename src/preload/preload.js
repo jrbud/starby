@@ -47,13 +47,13 @@ contextBridge.exposeInMainWorld('sprite', {
 
   // Pet window
   setIgnoreMouse: (ignore) => ipcRenderer.send('pet:set-ignore-mouse', ignore),
-  showContextMenu: () => ipcRenderer.send('pet:context-menu'),
+  showContextMenu: () => ipcRenderer.send('pet:context-menu'), // old native menu (now on the tray)
+  // Dialogue box (right-click Starby): Settings → Quit / Developer stuff → DevTools.
+  quitApp: () => ipcRenderer.send('app:quit'),
+  openPetDevTools: () => ipcRenderer.send('pet:devtools'),
   // Commands from the main process, e.g. { type: 'start-event', name: 'tag' } from the menu
   onPetCommand: (cb) => subscribe('pet:command', cb),
 
   // Read-only system events: { type, ...payload }
   onSystemEvent: (cb) => subscribe('system:event', cb),
-  // Read-only: rectangles of the open windows, front to back: [{ x, y, width, height }]
-  // (screen coordinates, DIPs). No titles or app names. [] if unavailable.
-  getOpenWindows: () => ipcRenderer.invoke('system:open-windows'),
 });

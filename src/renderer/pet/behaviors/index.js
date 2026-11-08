@@ -32,6 +32,6 @@ import speech from './speech.js';
 import starbits from './starbits.js';
 import systemReactions from './systemReactions.js';
 import sessionEvents from './sessionEvents.js';
-import shopOpener from './shopOpener.js';
+import fx from './fx.js'; // hand-drawn effects: wall hits, swats, star bursts
 
-export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, shopOpener];
+export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, fx];

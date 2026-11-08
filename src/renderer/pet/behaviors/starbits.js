@@ -32,7 +32,10 @@
 //   shootStarbit(ctx, side, y, speed, drift)  one starbit shoots across the screen with a trail
 //                           (shooting star happening): catch it before it reaches the other side
 //   reclaimStarbits(ctx)    every starbit on screen spins and flies back into him and disappears
-//                           (not added to the count)
+//                           (not added to the count); reclaimStarbits(ctx, list) = only those
+//   placeStarbit(ctx, x, y) he throws one starbit to (x, y) and it STAYS there, held: no drift, no
+//                           magnet, no pickup, no fading (constellation quiz, ../events/constellation.js)
+//   releaseStarbits(ctx, list)  held starbits become normal floating ones you can collect
 import { rulesFor } from './moods.js';
 import { chat, lineBag } from './chatter.js';
 
@@ -212,17 +215,98 @@ export function burstStarbits(ctx, count = 7) {
   return n;
 }
 
-/** Take back every starbit on screen: they fly into him and vanish (not added to the count). */
-export function reclaimStarbits(ctx) {
+/**
+ * Take back every starbit on screen (or only the ones in `only`): they fly into him and vanish
+ * (not added to the count).
+ */
+export function reclaimStarbits(ctx, only = null) {
   let n = 0;
   for (const d of drops) {
+    if (only && !only.includes(d)) continue;
     if (!d.reclaiming) {
+      d.held = null; // a held one flies home too
       d.reclaiming = true;
       n++;
     }
   }
   ctx.log('starbits-reclaimed', { count: n });
   return n;
+}
+
+// ---- Held starbits (constellation quiz) ----
+// Thrown from his center to an exact spot over HELD_FLY seconds (eased, with a little arc), then held
+// there with a faint twinkle: no drift, no magnet, can't be picked up, never fades. They don't count
+// against tuning.maxOnScreen. releaseStarbits() turns them into normal floating starbits;
+// reclaimStarbits(ctx, list) sends them back into him.
+const HELD_FLY = 0.55; // s from him to its spot
+const HELD_ARC = 40; // px the flight bows sideways
+const HELD_TWINKLE = 1.2; // px of wobble while held
+const HELD_SPIN = 30; // deg/s max slow spin while held
+
+/** Throw one starbit to (x, y) and hold it there. Returns its handle, or null (spawning is off). */
+export function placeStarbit(ctx, x, y) {
+  if (!switches.spawning) return null; // Settings → Starbits → Spawning is off
+  const { pet } = ctx;
+  const sx = pet.x + pet.size / 2;
+  const sy = pet.y + pet.size / 2;
+  const el = document.createElement('img');
+  el.className = 'starbits';
+  el.src = randomStarbitImage();
+  el.alt = '';
+  el.draggable = false;
+  sizeElement(el, sx, sy);
+  ctx.stage.appendChild(el);
+  const d = {
+    el, spawnX: sx, spawnY: sy, px: sx, py: sy, x: sx, y: sy, vx: 0, vy: 0,
+    held: { fromX: sx, fromY: sy, toX: x, toY: y, t: 0, arc: rand(-HELD_ARC, HELD_ARC), phase: rand(0, 6.28) },
+    thrown: false, attracted: false, age: 0, fading: false, reclaiming: false,
+    pickableAt: Infinity, anchorX: x, anchorY: y,
+    angle: rand(0, 360), spin: rand(-HELD_SPIN, HELD_SPIN), spinTarget: rand(-SPIN_MAX, SPIN_MAX), retargetIn: rand(2, 6),
+    bob: {
+      t: 0, amp: 0,
+      fx1: rand(0.5, 0.9), fx2: rand(1.1, 1.7), px1: rand(0, 6.28), px2: rand(0, 6.28),
+      fy1: rand(0.4, 0.8), fy2: rand(1.0, 1.6), py1: rand(0, 6.28), py2: rand(0, 6.28),
+    },
+  };
+  drops.push(d);
+  return d;
+}
+
+/** Held starbits (from placeStarbit) become normal floating starbits, ready to collect. */
+export function releaseStarbits(ctx, list) {
+  let n = 0;
+  for (const d of list) {
+    if (!d || !d.held || d.reclaiming || !drops.includes(d)) continue;
+    d.held = null;
+    d.px = d.anchorX = d.x;
+    d.py = d.anchorY = d.y;
+    d.vx = 0;
+    d.vy = 0;
+    d.age = 0; // full lifetime from now
+    d.pickableAt = ctx.clock.seconds;
+    n++;
+  }
+  ctx.log('starbits-released', { count: n });
+  return n;
+}
+
+// One frame of a held starbit: fly in, then sit still with a faint twinkle.
+function heldStep(ctx, d, dt) {
+  const h = d.held;
+  h.t += dt;
+  const k = Math.min(1, h.t / HELD_FLY);
+  const e = 1 - (1 - k) ** 3; // ease out
+  const dx = h.toX - h.fromX;
+  const dy = h.toY - h.fromY;
+  const len = Math.hypot(dx, dy) || 1;
+  const bow = Math.sin(Math.PI * e) * h.arc;
+  const tw = k < 1 ? 0 : HELD_TWINKLE;
+  d.px = h.fromX + dx * e + (-dy / len) * bow;
+  d.py = h.fromY + dy * e + (dx / len) * bow;
+  d.x = d.px + tw * Math.sin(h.t * 2.1 + h.phase);
+  d.y = d.py + tw * Math.sin(h.t * 1.7 + h.phase * 2);
+  d.angle = (d.angle + (k < 1 ? 600 : d.spin) * dt) % 360;
+  d.el.style.transform = `translate(${d.x - d.spawnX}px, ${d.y - d.spawnY}px) rotate(${d.angle}deg)`;
 }
 
 // ---- Flying starbits: rain (falls from the top) and shooting stars (fly across) ----
@@ -354,8 +438,8 @@ function impactDrops(ctx, impact) {
 // pickupDelay = seconds before the magnet/pickup notice it.
 function spawn(ctx, deg, { ignoreCap = false, past, pickupDelay = 0 } = {}) {
   if (!switches.spawning) return; // Settings → Starbits → Spawning is off (no drops of any kind)
-  // Falling (star shower) starbits don't count against the cap.
-  if (!ignoreCap && drops.filter((d) => !d.falling).length >= tuning.maxOnScreen) return;
+  // Falling (star shower) and held (constellation) starbits don't count against the cap.
+  if (!ignoreCap && drops.filter((d) => !d.falling && !d.held).length >= tuning.maxOnScreen) return;
   const { pet } = ctx;
   // Out of the star's center, wherever it is.
   const x = pet.x + pet.size / 2;
@@ -557,16 +641,20 @@ const shownCount = () => Math.max(0, (total ?? 0) - zipping.reduce((sum, z) => s
 
 function ensureToast(ctx) {
   if (toast) return toast;
-  // Plain box + text (UI chrome, like the speech bubble); NOT a .hit element, so it stays
+  // Shop-style card (pet.css: starCardBg.png art, Sour Gummy); NOT a .hit element, so it stays
   // click-through.
   const el = document.createElement('div');
   el.className = 'starbits-toast';
+  const icon = document.createElement('img');
+  icon.className = 'starbits-toast-icon';
+  icon.src = '../../../assets/starbits/cluster.png'; // same icon as the shop's wallet
+  icon.alt = '';
   const countEl = document.createElement('span');
   countEl.className = 'starbits-toast-count';
   const label = document.createElement('span');
   label.className = 'starbits-toast-label';
   label.textContent = 'starbits';
-  el.append(countEl, label);
+  el.append(icon, countEl, label);
   ctx.stage.appendChild(el);
   toast = { el, countEl };
   return toast;
@@ -603,10 +691,11 @@ function pulseCount(t) {
   // Web Animations API so it restarts cleanly on every arrival, even mid-pulse.
   t.countEl.animate(
     [
-      { transform: 'scale(1)', color: '#ffffff' },
-      { transform: `scale(${PULSE_SCALE})`, color: '#ffe680', offset: 0.35 },
+      // Shop yellow at rest, flashes white at the peak of the pop.
+      { transform: 'scale(1)', color: '#ffe8a3' },
+      { transform: `scale(${PULSE_SCALE})`, color: '#ffffff', offset: 0.35 },
       { transform: 'scale(0.92)', offset: 0.7 },
-      { transform: 'scale(1)', color: '#ffffff' },
+      { transform: 'scale(1)', color: '#ffe8a3' },
     ],
     { duration: PULSE_MS, easing: 'ease-out' },
   );
@@ -761,7 +850,9 @@ export default {
   update(ctx, dt) {
     for (let i = drops.length - 1; i >= 0; i--) {
       const d = drops[i];
-      if (d.falling && !d.reclaiming) {
+      if (d.held && !d.reclaiming) {
+        heldStep(ctx, d, dt); // constellation quiz
+      } else if (d.falling && !d.reclaiming) {
         fallStep(ctx, d, dt); // rain (star shower)
       } else if (!d.reclaiming) {
         animate(ctx, d, dt);
@@ -786,7 +877,7 @@ export default {
     for (let i = drops.length - 1; i >= 0; i--) {
       const d = drops[i];
       if (d.fading) continue; // too late, it's fading away
-      if (d.reclaiming || now < (d.pickableAt ?? 0)) continue; // flying home / just thrown as a reward
+      if (d.held || d.reclaiming || now < (d.pickableAt ?? 0)) continue; // held / flying home / just thrown as a reward
       const reach = pickupRadius() + (d.falling ? d.falling.catchBonus : 0);
       if (Math.hypot(ctx.cursor.x - d.x, ctx.cursor.y - d.y) < reach) {
         collect(ctx, i);
@@ -796,7 +887,9 @@ export default {
     const rules = rulesFor(ctx.pet);
     if (!rules.refuses) refusedThisSpell = false; // next mad spell may refuse again
     // 'shop': parked in the shop's display box (events/shop.js), so no drops while shopping.
-    if (ctx.pet.mode === 'drag' || ctx.pet.mode === 'shop') return;
+    // 'quiz': drawing a constellation (events/constellation.js); a stray drop would muddle it.
+    // 'focus': "Sorry, I gotta focus" (events/focus.js): fully quiet, no drops.
+    if (ctx.pet.mode === 'drag' || ctx.pet.mode === 'shop' || ctx.pet.mode === 'quiz' || ctx.pet.mode === 'focus') return;
     if (ctx.pet.hiding) return; // hide and seek: a starbit flying out would give him away
 
     // Playful (rate 2) counts down twice as fast. Rate 0 still counts at normal speed,

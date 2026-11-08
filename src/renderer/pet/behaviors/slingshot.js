@@ -6,10 +6,12 @@
 // normal throw physics (launch() in ./drag.js, so the Fling power slider applies). He glides,
 // bounces off the screen edges, wobbles back upright and lands as usual.
 //
-// A plain right-CLICK (no pull) still opens his menu (drag.js). On Windows the 'contextmenu'
-// event comes on mouse-up; if you pulled, we swallow it so no menu pops up after a slingshot.
-// If it ever arrives while the button is still down, we hold it until mouse-up and only show
-// the menu if you didn't pull.
+// A plain right-CLICK (no pull) still opens his dialogue box (drag.js turns 'contextmenu' into a
+// 'pet:right-clicked' event, see ../dialogue/). On Windows 'contextmenu' comes on mouse-up; if you
+// pulled, we swallow it so the dialogue box doesn't pop up after a slingshot. If it ever arrives
+// while the button is still down, we hold it until mouse-up and only open the box if you didn't pull.
+// (Hoop Shot, ../events/hoopShot.js, has its own right-click slingshot inside its game; this one
+// only works while he's wandering, so they never overlap.)
 //
 // Like a grab, it respects moods: a star that can't be picked up (mad) can't be slingshotted
 // either, and only works while he's just wandering around (idle / walk / follow / flee).
@@ -101,7 +103,8 @@ export default {
         swallowNextMenu = true; // the contextmenu that Windows sends right after mouse-up
         setTimeout(() => { swallowNextMenu = false; }, 400);
       } else if (menuWaiting) {
-        ctx.api.showContextMenu(); // it was just a click after all
+        // It was just a click after all: open the dialogue box the same way drag.js does.
+        ctx.petEl.dispatchEvent(new CustomEvent('pet:right-clicked'));
       }
       menuWaiting = false;
       reset(ctx);

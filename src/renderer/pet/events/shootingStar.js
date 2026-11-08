@@ -1,4 +1,4 @@
-// SHOOTING STAR — a happening (./happenings.js): a clump of starbits shoots across the screen, from
+// SHOOTING STAR — a sky event (./happenings.js): a clump of starbits shoots across the screen, from
 // left to right or right to left, with trails.
 //
 // Starby yells "WATCH OUT! STARS INCOMING!" and turns toward where they'll come from; WARN_FOR
@@ -7,8 +7,9 @@
 // ../behaviors/starbits.js). Catch them with the cursor as they fly past; any that reach the other
 // side are gone. Afterwards he says how many you caught.
 //
-// Like the star shower he isn't taken over (no pet.mode of his own), it's low priority (never
-// interrupts a game), and it shares the 20–50 minute happenings timer. Decisions run on ticks.
+// Like the star shower he isn't taken over (no pet.mode of his own). A SKY EVENT (./happenings.js):
+// high priority, interrupts a dance, shares the 20–50 minute sky timer (which waits for a running
+// game to finish). Decisions run on ticks.
 // DevTools: starby.happening('shooting-star'), or right-click → Developer → "Start shooting star now".
 import { rand, startJump, isJumping } from '../behaviors/motion.js';
 import { lineBag } from '../behaviors/chatter.js';
@@ -50,7 +51,8 @@ function finish(result) {
 
 export default {
   name: 'shooting-star',
-  priority: 3, // below games and invites
+  category: 'sky',
+  priority: 14, // high: beats dancing, invites and games; below hush (15), so a call silences it
 
   start(ctx, end) {
     const { pet } = ctx;

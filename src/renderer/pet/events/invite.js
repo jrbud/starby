@@ -1,13 +1,13 @@
 // INVITE — Starby asks you to play a game (any game in GAMES, ./games.js).
 //
-// Every so often (the runner rolls AUTO) he picks a game at random, stops, faces you and asks:
+// When the games timer (./games.js) picks a game he announces, he stops, faces you and asks:
 // "wanna play pong?" plus a "Play Pong with Starby? [Yes] [No]" popup next to him (./prompt.js).
 //   Yes       → that game starts (its 3-2-1-GO countdown first)
 //   No        → he gets sad (mood.js 'sad') and won't ask again on his own for DECLINED_COOLDOWN
 //   no answer → "...maybe later then", no hard feelings
 //
-// Random invites only happen when he's relaxed (idle/walking), happy or playful, rested after the
-// last game, and you're around (the cursor moved in the last USER_AROUND seconds).
+// Timer invites only happen when he's relaxed (idle/walking), happy or playful, rested after the
+// last game, not just told "no", and you're around (the games timer checks that).
 // New games join automatically: add them to GAMES in ./games.js (with ask lines).
 // DevTools: starby.invite() or starby.invite('pong').
 //
@@ -17,14 +17,11 @@ import { lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { createPrompt } from './prompt.js';
-import { GAMES, restLeft } from './games.js';
+import { GAMES, restLeft, takeInviteGame } from './games.js';
 
 // ---- Tuning ----
 const INVITE_FOR = 12; // seconds to answer the popup
 const DECLINED_COOLDOWN = 600; // after a "no", don't ask again on his own for this long (seconds)
-// Random invite (the runner rolls this): every 60s, 20% chance, at most once per 4 minutes.
-const AUTO = { every: 60, chance: 0.2, cooldown: 240 };
-const USER_AROUND = 10; // seconds since the cursor last moved, to count as "you're there"
 
 const LINES = {
   declined: lineBag(['oh... ok.', 'aw... nevermind then', '*sniff* ok...']),
@@ -43,16 +40,6 @@ let answer = null; // 'yes' | 'no', set by the popup buttons, acted on at the ne
 let left = 0;
 let prompt = null;
 let declinedAt = -Infinity;
-let lastCursor = { x: -9999, y: -9999 };
-let cursorMovedAt = -Infinity;
-
-function trackCursor(ctx) {
-  const { cursor } = ctx;
-  if (cursor.x !== lastCursor.x || cursor.y !== lastCursor.y) {
-    lastCursor = { x: cursor.x, y: cursor.y };
-    cursorMovedAt = ctx.clock.seconds;
-  }
-}
 
 // A random game, avoiding the one offered last time when there's a choice.
 function pickGame() {
@@ -68,8 +55,8 @@ function finish(result) {
 
 export default {
   name: 'invite',
+  category: 'games', // part of the games: the games timer (./games.js) starts it
   priority: 5, // below the games, so an invite never interrupts one
-  auto: AUTO,
 
   init(ctx) {
     if (typeof window !== 'undefined' && window.starby) {
@@ -82,8 +69,6 @@ export default {
     }
   },
 
-  watch: trackCursor, // every tick, so random invites know whether you're around
-
   canStart(ctx, reason) {
     const { pet, cursor } = ctx;
     if (!INVITABLE.length || cursor.x < -1000) return false;
@@ -92,8 +77,7 @@ export default {
     const now = ctx.clock.seconds;
     const relaxed = pet.mode === 'idle' || pet.mode === 'walk';
     const goodMood = pet.mood === 'happy' || pet.mood === 'playful';
-    return relaxed && goodMood
-      && now - cursorMovedAt <= USER_AROUND
+    return relaxed && goodMood // (the games timer already checked that you're around)
       && now - declinedAt >= DECLINED_COOLDOWN
       && restLeft(ctx) === 0;
   },
@@ -101,7 +85,8 @@ export default {
   start(ctx, end, reason) {
     const { pet } = ctx;
     endInvite = end;
-    game = INVITABLE.find((g) => g.name === pendingGame) || pickGame();
+    const wanted = pendingGame || takeInviteGame(); // DevTools choice, or the games timer's pick
+    game = INVITABLE.find((g) => g.name === wanted) || pickGame();
     pendingGame = null;
     lastGame = game.name;
     answer = null;
