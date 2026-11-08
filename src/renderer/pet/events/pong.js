@@ -21,7 +21,7 @@
 // Decisions (AI aim, scoring, ending) run on ticks; motion runs every frame.
 //
 // ART: the paddles are plain flat CSS bars, i.e. UI chrome like the countdown box, not character
-// art. Only YOUR paddle gets a "YOU" label, and it fades out YOU_LABEL_FOR seconds after "GO!" (the
+// art. Only YOUR paddle gets a "YOU" label (Sour Gummy on the team's button-white-light.png), and it fades out YOU_LABEL_FOR seconds after "GO!" (the
 // other paddle is obviously the AI's, so it has no label). Swap in team art here if wanted.
 import { rand, clamp, approach, startJump, cancelJump, updateJump } from '../behaviors/motion.js';
 import { chat, lineBag } from '../behaviors/chatter.js';
@@ -46,6 +46,7 @@ const MAX_BOUNCE = 55; // degrees: hitting the very end of a paddle
 const AI_SPEED = 430; // px/s top speed of the AI paddle
 const YOU_LABEL_FOR = 1.5; // seconds after "GO!" before the "YOU" label fades out
 const YOU_LABEL_FADE = 0.6; // seconds the fade takes
+const LABEL_ART = '../../../assets/menuIcons/button-white-light.png'; // team art behind "YOU" (relative to src/renderer/pet/index.html)
 const AI_ERROR_BASE = 40; // px of aiming error per rally hit...
 const AI_ERROR_PER_SPEED = 0.09; // ...plus this much per px/s of ball speed
 const SPIN_PER_SPEED = 1 / 120; // rad/s of spin per px/s of speed
@@ -96,11 +97,17 @@ function injectStyles() {
       box-sizing: border-box; background: #2b2b3a; border: 2px solid #ffffff; border-radius: 7px;
       pointer-events: none; display: none; will-change: transform;
     }
+    /* "YOU": Sour Gummy (declared in pet.css) on the team's button art (menuIcons/button-white-light.png)
+       as a border-image, so the hand-drawn edge stays the same thickness at any label size (like the
+       dialogue's buttons). The drop-shadow follows the art's wobbly edge. */
     .pong-label {
       position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
-      font: 800 20px "Segoe UI", system-ui, sans-serif; color: #2b2b3a; background: rgba(255,255,255,0.95);
-      border: 2px solid #2b2b3a; border-radius: 8px; padding: 3px 12px; white-space: nowrap; margin-bottom: 10px;
-      letter-spacing: 1px; box-shadow: 0 2px 6px rgba(0,0,0,0.35); /* big + shadowed: readable at any resolution */
+      font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif; font-weight: 800; font-size: 22px; line-height: 1;
+      color: #2b2b3a; white-space: nowrap; margin-bottom: 10px; letter-spacing: 1px;
+      padding: 4px 10px 5px;
+      border: 10px solid transparent;
+      border-image: url('${LABEL_ART}') 110 fill / 10px stretch;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35)); /* big + shadowed: readable at any resolution */
       transition: opacity ${YOU_LABEL_FADE}s ease-out;
     }
   `;
