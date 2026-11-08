@@ -26,7 +26,7 @@
 //   60–70   hats and shoes: propeller hat, sneakers, boots, top hat (~12–14 min)
 //   80–90   floating extras: balloon, star trail                   (~16–18 min)
 //   100–120 the showpieces: halo, UFO                        (~20–24 min)
-// Everything (colors 295 + accessories 780) costs 1075 starbits, about 3.5 hours of play.
+// Everything (colors 60 + accessories 780) costs 840 starbits, about 2.8 hours of play.
 // For demos use the shop's demo shortcut (P4-3).
 
 const SHOP_ITEMS = [
@@ -35,13 +35,10 @@ const SHOP_ITEMS = [
   // set: hand-drawn skin in assets/sprite/bubblegum/ (the id stays color-pink so saves that
   // already own it keep it).
   { id: 'color-pink', slot: 'color', name: 'Bubblegum', price: 25, value: '#ff8fc7', set: 'bubblegum' },
-  { id: 'color-mint', slot: 'color', name: 'Mint', price: 25, value: '#7be0b5' },
-  { id: 'color-peach', slot: 'color', name: 'Peach', price: 30, value: '#ffb48a' },
-  { id: 'color-sky', slot: 'color', name: 'Sky', price: 35, value: '#7fbfff' },
-  { id: 'color-aqua', slot: 'color', name: 'Aqua', price: 35, value: '#5fd8e0' },
-  { id: 'color-coral', slot: 'color', name: 'Coral', price: 40, value: '#ff7f7a' },
-  { id: 'color-lilac', slot: 'color', name: 'Lilac', price: 45, value: '#c6a2ff' },
-  { id: 'color-moonbeam', slot: 'color', name: 'Moonbeam', price: 60, value: '#f4f1de' },
+  { id: 'color-sky', slot: 'color', name: 'Sky', price: 35, value: '#7fbfff' }, // assets/sprite/sky/
+  // Only colors with a hand-drawn skin are sold. (Mint, Peach, Aqua, Coral, Lilac and Moonbeam
+  // were removed; stateSchema.js migrate() drops them from old saves and puts anyone wearing
+  // one back in Sunny.)
 
   // Accessories (place: head | feet | neck | leftHand | rightHand | companion | trail;
   // left/right = HIS left/right: he faces you, so his left hand is on the screen's right)
