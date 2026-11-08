@@ -576,7 +576,8 @@ export default {
 
     const rules = rulesFor(ctx.pet);
     if (!rules.refuses) refusedThisSpell = false; // next mad spell may refuse again
-    if (ctx.pet.mode === 'drag') return;
+    // 'shop': parked in the shop's display box (events/shop.js), so no drops while shopping.
+    if (ctx.pet.mode === 'drag' || ctx.pet.mode === 'shop') return;
 
     // Playful (rate 2) counts down twice as fast. Rate 0 still counts at normal speed,
     // so a mad star "refuses" at about the moment he'd have dropped some.

@@ -3,7 +3,7 @@
 const { ipcMain, BrowserWindow, Menu, app } = require('electron');
 const store = require('./store');
 const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
-const { openShopWindow } = require('./windows/shopWindow');
+const { openShopWindow, setDisplayRect, petSay, minimizeShop, closeShop } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const settingsStore = require('./settingsStore');
 
@@ -43,6 +43,11 @@ function registerIpc() {
   });
 
   ipcMain.on('shop:open', () => openShopWindow());
+  // Shop window (frameless): its own title-bar buttons, and parking Starby in the display box.
+  ipcMain.on('shop:minimize', () => minimizeShop());
+  ipcMain.on('shop:close', () => closeShop());
+  ipcMain.on('shop:display-rect', (_e, rect) => setDisplayRect(rect));
+  ipcMain.on('shop:say', (_e, text) => petSay(text));
 
   // ---- Settings (sliders) ----
   ipcMain.handle('settings:get', () => settingsStore.get());

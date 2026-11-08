@@ -29,8 +29,9 @@
 // Start one from code with ctx.startEvent('tag'), from DevTools with starby.startEvent('tag'),
 // or from the right-click menu (see src/main/ipc.js). Logged as 'event-start' / 'event-end'.
 import tag from './tag.js';
+import shop from './shop.js';
 
-export const EVENTS = [tag];
+export const EVENTS = [tag, shop];
 
 export function createEventRunner(ctx) {
   let active = null; // { event, startedAt }
