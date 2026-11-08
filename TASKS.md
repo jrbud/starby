@@ -200,21 +200,31 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
         nothing while mad or asleep. **Person 4: please check these numbers against shop prices.**
     - **New rules in `moods.js`:** `refuses`, `lookAway`, `eyesShut`. The table now builds every mood from
       shared defaults, so each mood only lists what differs from happy.
-  - [ ] **Phase 3: faces (Person 4 + artists).** A new `renderer/shared/frames.js` loads
-    `assets/sprite/<face>/<face>_N.png`. `pet.js` `render()` draws the frames for `pet.face` (a shared file,
-    so ask first) and falls back to today's star for any face without art yet. The artists need these
-    folders, every frame on the same canvas size (suggest 128×128, with room above the head):
-    - `happy/` (plus a `blink` frame)
-    - `talking/`
-    - `mad/`
-    - `playful/`
-    - `dizzy/` (stars around the head are part of the art)
-    - `yawning/`
-    - `sleepy/` (zzz)
-    - `dragged/`
-    - optional `swat/`
-
-    Shop colors on the PNG art are a later slice.
+  - [x] **Phase 3: the hand-drawn PNGs are now Starby** (done by Person 3).
+    - **Art:** 22 PNGs in `assets/sprite/sunny/`. The mapping (which file shows when, and how fast pairs
+      alternate) is in `assets/README.md` and `src/renderer/pet/frames.js`.
+    - **`frames.js` (new):** loads each 2048px frame once and shrinks it to the on-screen size.
+      - It lines every frame up on the same feet spot, measured from the art: `left`, `right` and
+        `dizzy` get small shifts, and the rest already matched.
+      - His feet sit on the bottom edge, so squash pivots from his feet and he stands on the taskbar.
+      - Color sets are folders next to `sunny/`, and missing files fall back to sunny.
+    - **`pet.js` (shared):**
+      - draws `pet.face`'s frame instead of the code-drawn star, on a higher-resolution canvas for
+        sharp scaling;
+      - stops mirroring (the art faces the viewer; walking uses `left`/`right`);
+      - waits for the standing frames before he first appears;
+      - falls back to the old drawn star only if the art can't load.
+    - **`mood.js` (new faces):** `left`/`right` while walking, `up`/`down` when the cursor is right above
+      or below him, `up` when an event sets `pet.lookUp` (for a star shower), `playful` during tag, and
+      random `glistening`/`wink` moments every 15–35s. Try them with `starby.flourish('wink')`.
+    - **Unchanged:** every effect (swing, spin, squash/stretch, impact freeze, hops, dizzy wobble) is the
+      same CSS transform on the canvas, so it works on the PNGs as before. Tested in the real app.
+    - **No longer visible:** eyes following the cursor, and mad's eyes looking away (the eyes are painted
+      on now).
+    - **Still to do:**
+      - the old code-drawn accessories (top hat, bow, halo) don't show on the PNGs and need PNG versions;
+      - **shop previews** (`shop.js` / `sprite.js`, Person 4) still draw the old star;
+      - other color sets need their PNG folders.
 
 ---
 

@@ -3,7 +3,7 @@
 // Three layers, so emotions don't need new pet.mode values:
 //   pet.mode  what the body is doing (Person 1): idle | walk | follow | flee | drag | toss
 //   pet.mood  how he feels (this file):          happy | mad | playful | dizzy | yawning | sleepy
-//   pet.face  which face to show:                the mood, plus two overlays (dragged, talking)
+//   pet.face  which PNG frames to show (see "Face" below and ../frames.js)
 //   pet.goal  { x, y } a mood wants him to walk to (yawning → nearest top corner), or null.
 //             idle.js walks there once Person 1 hooks it up (Phase 2).
 // Other behaviors don't check mood names; they read the rules in ./moods.js.
@@ -278,16 +278,69 @@ function trackShake(ctx, dt) {
 }
 
 // ---- Face ----
-// Priority: dragged (held; a sleeping star dangles asleep instead) > dizzy > sleepy > yawning >
-// mad > playful (incl. mid-throw) > talking (happy and speaking) > happy.
+// pet.face picks the PNG frames (../frames.js). First match wins:
+//   sleepy (even while held: he dangles asleep) > dragged (held) > dizzy > yawning > mad >
+//   sad (shown with the mad frames: grumpy, not truly mad) > playful (mood, mid-throw, or tag) >
+//   up (an event wants him to look up, e.g. a star shower) > talking >
+//   up / down (cursor right above / below him) > left / right (walking that way) >
+//   glistening / wink (a random moment now and then) > happy.
+// Everything after "playful" only happens in his normal (happy) mood.
+const MOVE_SPEED = 20; // px/s sideways before he counts as walking left/right
+const LOOK_RANGE = 220; // px: cursor this far above/below (at most) makes him look up/down
+const LOOK_SIDE = 0.6; // ...and within this many star-widths sideways of his middle
+const LOOK_MIN = 0.45; // ...but not right on top of him (star-heights)
+const FLOURISH_EVERY = [15, 35]; // seconds between random glistening/wink moments
+const GLISTEN_CHANCE = 0.6; // otherwise a wink
+const GLISTEN_FOR = 2.4; // seconds
+const WINK_FOR = 0.7;
+
+let lastX = null;
+let moveVX = 0; // smoothed sideways speed while walking, px/s
+let flourish = null; // { face, until } for a random glistening/wink moment
+let nextFlourishAt = 0;
+
+function cursorAboveOrBelow(ctx) {
+  const { pet, cursor } = ctx;
+  if (cursor.x < -1000) return null;
+  const c = center(pet);
+  const dx = cursor.x - c.x;
+  const dy = cursor.y - c.y;
+  if (Math.abs(dx) > pet.size * LOOK_SIDE) return null;
+  if (Math.abs(dy) < pet.size * LOOK_MIN || Math.abs(dy) > LOOK_RANGE) return null;
+  return dy < 0 ? 'up' : 'down';
+}
+
+function trackMovement(ctx, dt) {
+  const { pet } = ctx;
+  const walking = pet.mode === 'walk' || pet.mode === 'follow' || pet.mode === 'flee';
+  const vx = lastX !== null && dt > 0 ? (pet.x - lastX) / dt : 0;
+  lastX = pet.x;
+  moveVX = walking ? moveVX + (vx - moveVX) * Math.min(1, dt * 10) : 0;
+}
+
 function faceFor(ctx) {
   const { pet } = ctx;
   if (pet.mood === 'sleepy') return 'sleepy';
   if (pet.mode === 'drag') return 'dragged';
   if (pet.mood === 'dizzy' || pet.mood === 'yawning' || pet.mood === 'mad' || pet.mood === 'sad') return pet.mood;
-  if (pet.mood === 'playful' || pet.mode === 'toss') return 'playful';
+  if (pet.mood === 'playful' || pet.mode === 'toss' || pet.mode === 'tag') return 'playful';
+  if (pet.lookUp) return 'up';
   if (ctx.isSpeaking()) return 'talking';
+  const look = cursorAboveOrBelow(ctx);
+  if (look) return look;
+  if (Math.abs(moveVX) >= MOVE_SPEED) return moveVX < 0 ? 'left' : 'right';
+  if (flourish && ctx.clock.seconds < flourish.until) return flourish.face;
   return 'happy';
+}
+
+// Now and then, while he's just standing there happy: a sparkly-eyed glistening moment or a wink.
+function maybeFlourish(ctx, now) {
+  if (now < nextFlourishAt) return;
+  nextFlourishAt = now + FLOURISH_EVERY[0] + Math.random() * (FLOURISH_EVERY[1] - FLOURISH_EVERY[0]);
+  if (ctx.pet.face !== 'happy') return; // busy: skip this one
+  const glisten = Math.random() < GLISTEN_CHANCE;
+  flourish = { face: glisten ? 'glistening' : 'wink', until: now + (glisten ? GLISTEN_FOR : WINK_FOR) };
+  ctx.log('flourish', { face: flourish.face });
 }
 
 export default {
@@ -299,6 +352,7 @@ export default {
     pet.face = 'happy';
     pet.goal = null;
     lastInteraction = ctx.clock.seconds;
+    nextFlourishAt = ctx.clock.seconds + FLOURISH_EVERY[0];
     ctx.events.onEntry((e) => onEntry(ctx, e));
 
     // DevTools: starby.setMood('sleepy'), starby.mood()
@@ -310,6 +364,11 @@ export default {
         return pet.mood;
       };
       window.starby.mood = () => ({ mood: pet.mood, face: pet.face, goal: pet.goal });
+      // starby.flourish('wink') / starby.flourish('glistening') to see one right now
+      window.starby.flourish = (face = 'glistening') => {
+        flourish = { face, until: ctx.clock.seconds + (face === 'wink' ? WINK_FOR : GLISTEN_FOR) };
+        return face;
+      };
     }
   },
 
@@ -322,6 +381,7 @@ export default {
       interacted(ctx, 'cursor');
     }
     trackCircle(ctx, now);
+    maybeFlourish(ctx, now);
 
     const relaxed = pet.mode === 'idle' || pet.mode === 'walk';
     if (pet.mood === 'happy' && relaxed && now - lastInteraction >= (isNight ? YAWN_AFTER_NIGHT : YAWN_AFTER)) {
@@ -335,6 +395,7 @@ export default {
 
   update(ctx, dt) {
     trackShake(ctx, dt);
+    trackMovement(ctx, dt);
     ctx.pet.face = faceFor(ctx);
   },
 };
