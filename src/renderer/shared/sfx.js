@@ -43,7 +43,7 @@ const GAIN = {
   chat: 0.1,
   throw: 0.1,
   sling: 0.07,
-  startup: 1
+  startup: 0.1
 };
 // Sounds that always share another sound's loudness: change chat above and prompt follows.
 GAIN.prompt = GAIN.chat; // his questions sound as loud as his lines
