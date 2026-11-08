@@ -34,8 +34,9 @@
 //   category  events                              starts from                         priority
 //   sky       star-shower, shooting-star          sky timer, 20–50 min (happenings.js)  14
 //   games     tag, pong, hide-seek, catch,        dialogue / tray menu / games timer   10 (invite 5)
-//             constellation, copycat, starby-says, hoop-shot, invite
-//             (games.js: every 60s, 20%, 4 min cooldown; hide-seek and copycat start silently)
+//             constellation, starby-says, hoop-shot, invite
+//             (games.js: every 60s, 20%, 4 min cooldown; hide-seek starts silently)
+//   copycat   copycat                             its own timer, every 3 min (copycat.js)    3
 //   dance     dance                               music playing, 1 min cooldown (dance.js)  2
 //   system    intro (100), shop (20), focus (16), launch / the shop window / the dialogue's
 //             hush (15)                           "I gotta focus" / a call or fullscreen app
@@ -69,7 +70,7 @@ import { dialogue } from '../dialogue/dialogue.js';
 // dance = its own category: dances while a song plays in Spotify, 1 min apart (dance.js).
 // hush = quiet and still during video calls / fullscreen apps (hush.js); above the games.
 // constellation = a game: he draws a constellation out of starbits, you guess it (constellation.js).
-// copycat = a game: he copies your cursor's movement for 30s, starts silently (copycat.js).
+// copycat = its own category: every 3 min he copies your cursor's movement for 30s (copycat.js).
 // starby-says = a game: do what he says only if he says "starby says" first, 15s (starbySays.js).
 // hoop-shot = a game: right-drag slingshot him into a hoop, with gravity, 15s (hoopShot.js).
 // focus = "Sorry, I gotta focus": parked bottom-left, silent, until you click/grab him (focus.js).
