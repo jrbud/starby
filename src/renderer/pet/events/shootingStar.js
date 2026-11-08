@@ -1,10 +1,11 @@
-// SHOOTING STAR — a happening (./happenings.js): a bunch of starbits shoot across the screen, from
-// left to right or right to left, in a quick stream with trails.
+// SHOOTING STAR — a happening (./happenings.js): a clump of starbits shoots across the screen, from
+// left to right or right to left, with trails.
 //
-// Starby spots it ("ooh, a shooting star! ✦") and turns to watch; then COUNT starbits launch from
-// one side over STREAM_FOR seconds, in a band at a random height, each flying fast to the other
-// side (shootStarbit in ../behaviors/starbits.js). Catch them with the cursor as they fly past; any
-// that reach the other side are gone. Afterwards he says how many you caught.
+// Starby yells "WATCH OUT! STARS INCOMING!" and turns toward where they'll come from; WARN_FOR
+// seconds later COUNT starbits launch from that side in a tight clump (all within STREAM_FOR seconds,
+// ±BAND px of one height, similar speeds and slant), flying fast to the other side (shootStarbit in
+// ../behaviors/starbits.js). Catch them with the cursor as they fly past; any that reach the other
+// side are gone. Afterwards he says how many you caught.
 //
 // Like the star shower he isn't taken over (no pet.mode of his own), it's low priority (never
 // interrupts a game), and it shares the 20–50 minute happenings timer. Decisions run on ticks.
@@ -15,15 +16,17 @@ import { shootStarbit } from '../behaviors/starbits.js';
 import { TICK_SECONDS } from '../core/clock.js';
 
 // ---- Tuning ----
-const COUNT = [10, 16]; // starbits in the stream
-const STREAM_FOR = 2.2; // seconds over which they launch
-const SPEED = [750, 1100]; // px/s across the screen
-const DRIFT = 90; // px/s max up/down drift (the whole stream shares a slant, each one varies a bit)
-const BAND = 70; // px: starbits launch within ± this of the stream's height
-const TAIL = 3.5; // seconds after the last launch for them to finish crossing
+const WARN_FOR = 1.5; // seconds between the warning and the first starbit
+const COUNT = [10, 16]; // starbits in the clump
+const STREAM_FOR = 0.2; // seconds over which they all launch (short = clumped: 0.2s ≈ 190px apart at most)
+const SPEED = [910, 970]; // px/s across the screen (close together, so the clump holds its shape)
+const DRIFT = 90; // px/s max up/down drift for the whole clump (they share one slant)
+const DRIFT_JITTER = 8; // px/s each starbit may differ from that slant
+const BAND = 25; // px: starbits launch within ± this of the clump's height
+const TAIL = 3; // seconds after the last launch for them to finish crossing
 
 const LINES = {
-  start: lineBag(['ooh, a shooting star! ✦', 'shooting star! make a wish!', 'look look! a shooting star!']),
+  start: lineBag(['WATCH OUT! STARS INCOMING!', 'WATCH OUT! STARS INCOMING!! ✦']),
   caughtSome: (n) => (n === 1 ? 'you caught 1 starbit!' : `you caught ${n} starbits!`),
   caughtNone: lineBag(['whoosh! they all got away', 'too fast! none caught']),
 };
@@ -63,8 +66,8 @@ export default {
     startedAt = ctx.clock.seconds;
     // He looks toward where it's coming from.
     if (pet.mode === 'idle' || pet.mode === 'walk') pet.facing = side === 'left' ? -1 : 1;
-    ctx.say(LINES.start(), 2200);
-    if (pet.mode !== 'drag' && pet.mode !== 'toss' && !isJumping()) startJump({ height: rand(14, 22), air: 0.3 });
+    ctx.say(LINES.start(), (WARN_FOR + 0.8) * 1000); // the warning stays up until they arrive
+    if (pet.mode !== 'drag' && pet.mode !== 'toss' && !isJumping()) startJump({ height: rand(20, 28), air: 0.32 }); // alarmed hop
     ctx.log('shooting-star', { from: side, count: total });
   },
 
@@ -72,15 +75,16 @@ export default {
     elapsed += TICK_SECONDS;
     const a = areaOf(ctx);
 
-    // Launch the stream evenly over STREAM_FOR seconds.
-    const due = Math.min(total, Math.ceil((elapsed / STREAM_FOR) * total));
+    // After the warning, launch the clump over STREAM_FOR seconds.
+    const sinceWarn = elapsed - WARN_FOR;
+    const due = sinceWarn <= 0 ? 0 : Math.min(total, Math.ceil((sinceWarn / STREAM_FOR) * total));
     while (launched < due) {
       const y = Math.max(a.top + 20, Math.min(a.bottom - 20, laneY + rand(-BAND, BAND)));
-      shootStarbit(ctx, side, y, rand(...SPEED), slant + rand(-25, 25));
+      shootStarbit(ctx, side, y, rand(...SPEED), slant + rand(-DRIFT_JITTER, DRIFT_JITTER));
       launched++;
     }
 
-    if (elapsed >= STREAM_FOR + TAIL) {
+    if (elapsed >= WARN_FOR + STREAM_FOR + TAIL) {
       const caught = ctx.events.since(ctx.clock.seconds - startedAt)
         .filter((e) => e.type === 'starbits' && e.data.delta > 0)
         .reduce((sum, e) => sum + e.data.delta, 0);

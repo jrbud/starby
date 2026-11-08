@@ -111,9 +111,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   takes any number of buttons) and in `HAPPENINGS` (he hides on his own), never in invites (`invite: false`).
   DevTools: `starby.startEvent('hide-seek')`, `starby.setHideWindow({ x, y, width, height })`, `starby.hideTest()`.
 - [x] **P1-13 (Nice) Shooting Star + slower random tosses.** `events/shootingStar.js`: a happening (shares the
-  20–50 min timer with Star Shower and Hide & Seek): "ooh, a shooting star! ✦", then 10–16 starbits shoot across
-  the screen from the left or right in a stream with trails (`shootStarbit` in `starbits.js`, 750–1100px/s, a
-  band at a random height with a shared slant). Catch them as they fly past; uncaught ones fade at the far side.
+  20–50 min timer with Star Shower and Hide & Seek): he yells "WATCH OUT! STARS INCOMING!", then 1.5s later
+  10–16 starbits shoot across the screen from the left or right as one tight clump with trails (`shootStarbit` in
+  `starbits.js`; all launched within 0.2s, ±25px of one height, 910–970px/s, shared slant: ~180×50px mid-flight). Catch them as they fly past; uncaught ones fade at the far side.
   Rain and shooting stars share one "flying starbit" path in `starbits.js`. Developer menu: "Start shooting star
   now". Separately, Starby's own random tosses now default to every **30–60s** (`dropEveryMin/Max` in
   `shared/starbitsTuning.js`, was 8–15s; Admin Settings overrides still win).
