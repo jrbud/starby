@@ -17,6 +17,7 @@ import { goodbyeBurst } from './fx.js';
 import { requestMood } from './mood.js';
 import { closeDialogue } from '../dialogue/dialogue.js';
 import { speechBubble } from '../bubble.js';
+import { sfx } from '../../shared/sfx.js';
 
 // ---- Tuning ----
 const SAY_FOR = 1.4; // seconds of his goodbye line before the burst
@@ -47,6 +48,8 @@ async function sayGoodbye(ctx) {
   pet.rotation = 0;
   if (pet.mood !== 'happy' && pet.mood !== 'playful') requestMood(ctx, 'happy', 'saying goodbye'); // awake + talking
   ctx.log('goodbye', {});
+  // exit.mp3. Exclusive: nothing else plays over it (not even the chat blip of his bye line).
+  sfx.play('exit', { exclusive: true });
 
   // 2. The line.
   ctx.say(LINES[Math.floor(Math.random() * LINES.length)], SAY_FOR * 1000 + 600);

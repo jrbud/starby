@@ -45,6 +45,22 @@
       <input id="fling-power" type="range" min="0" max="100" step="1" value="50" />
     </section>
 
+    <!-- Sound effects volume + mute (settingsStore.sfxVolume / sfxMuted; played by shared/sfx.js).
+         Letting go of the slider plays a sample at the new volume. -->
+    <section class="setting">
+      <div class="label-row">
+        <label for="sfx-volume">Sound effects</label>
+        <output id="sfx-volume-value" for="sfx-volume">70%</output>
+      </div>
+      <input id="sfx-volume" type="range" min="0" max="100" step="1" value="70" />
+    </section>
+    <section class="setting switches">
+      <label class="switch-row">
+        <span class="switch-name">Mute sounds</span>
+        <input id="sfx-muted" type="checkbox" class="art-check" />
+      </label>
+    </section>
+
 
 
     <!-- Collapsible: click the heading (or Enter/Space). Open/closed is remembered (settings.js). -->

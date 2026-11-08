@@ -23,6 +23,7 @@
 import { launch } from '../behaviors/drag.js';
 import { petBounds, rand } from '../behaviors/motion.js';
 import { lineBag } from '../behaviors/chatter.js';
+import { sfx } from '../../shared/sfx.js';
 
 // ---- Tuning ----
 const TITLE_DIR = '../../../assets/title'; // relative to src/renderer/pet/index.html
@@ -117,6 +118,7 @@ function showTitle(ctx, frames, w, h) {
   el.append(canvas);
   // Behind Starby: first in the stage, so he flies in front of the fading title.
   ctx.stage.prepend(el);
+  sfx.play('launch'); // launch.mp3 with the title card
   const g = canvas.getContext('2d');
   g.drawImage(frames[0], 0, 0);
   // The slam: drop in from big and see-through to full size, with a squash on impact.

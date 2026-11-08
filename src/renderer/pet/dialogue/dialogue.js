@@ -54,6 +54,7 @@ import { requestGame } from '../events/games.js';
 import { strikePose } from '../behaviors/mood.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { createTalkbox, loadTalkbox, talkboxReady, takeSpeech, releaseSpeech, onSpeechBubbleShown } from '../talkbox.js';
+import { sfx } from '../../shared/sfx.js';
 
 // ---- Tuning ----
 export const MAX_OPTIONS = 6; // answers per node (tree.js keeps to this; extras are dropped)
@@ -381,6 +382,9 @@ function showNode(ctx, id, origin = { x: 0, y: 0 }) {
   }
   if (!say) say = makeSay();
   setSayText(ctx, resolve(ctx, node.line));
+  // prompt.mp3: he's asking you something (every dialogue step, and event menus like
+  // "wanna play?" via showMenu, all come through here).
+  sfx.play('prompt');
   // A face to make while he says it (tree.js `pose`), e.g. really winking on "*wink*".
   if (node.pose) {
     const pose = typeof node.pose === 'string' ? { face: node.pose } : node.pose;

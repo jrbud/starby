@@ -295,3 +295,6 @@ input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Sound effects slider while muted: dimmed (the value is kept for when you unmute). */
+#sfx-volume.is-muted { opacity: 0.45; }

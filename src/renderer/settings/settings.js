@@ -2,6 +2,7 @@
 // 'settings:changed'); the value is saved to settings.json and survives restarts.
 import { flingTuning } from '../shared/flingTuning.js';
 import { STARBIT_COLORS, starbitImage, enabledColors, STARBIT_SIZE, clampStarbitSize } from '../shared/starbitArt.js';
+import { sfx } from '../shared/sfx.js';
 
 // ---- Collapsible sections (<details>): remember open/closed per section in this window's
 // localStorage (a per-viewer convenience; if storage is unavailable they just start open).
@@ -129,7 +130,47 @@ starbySlider.addEventListener('input', () => {
   api.setSettings({ starbySize: Number(starbySlider.value) });
 });
 
+// ---- Sound effects: volume slider + mute (shared/sfx.js plays at this volume everywhere) ----
+const sfxSlider = document.getElementById('sfx-volume');
+const sfxOut = document.getElementById('sfx-volume-value');
+const sfxMute = document.getElementById('sfx-muted');
+sfx.preload(['collect-starbit']);
+
+function showSfx(settings) {
+  const v = Number.isFinite(Number(settings.sfxVolume)) ? Number(settings.sfxVolume) : 70;
+  const muted = Number(settings.sfxMuted) === 1;
+  sfxSlider.value = v;
+  sfxOut.textContent = muted ? 'muted' : `${v}%`;
+  sfxMute.checked = muted;
+  sfxSlider.classList.toggle('is-muted', muted);
+}
+
+sfxSlider.addEventListener('input', () => {
+  // Moving the slider while muted unmutes (you clearly want sound).
+  const v = Number(sfxSlider.value);
+  sfxMute.checked = false;
+  sfxOut.textContent = `${v}%`;
+  sfxSlider.classList.remove('is-muted');
+  api.setSettings({ sfxVolume: v, sfxMuted: 0 });
+});
+// Letting go: play a sample so you hear the new volume.
+sfxSlider.addEventListener('change', () => {
+  sfx.setVolume(Number(sfxSlider.value), false);
+  sfx.play('collect-starbit');
+});
+sfxMute.addEventListener('change', () => {
+  const muted = sfxMute.checked;
+  sfxOut.textContent = muted ? 'muted' : `${sfxSlider.value}%`;
+  sfxSlider.classList.toggle('is-muted', muted);
+  api.setSettings({ sfxMuted: muted ? 1 : 0 });
+  if (!muted) {
+    sfx.setVolume(Number(sfxSlider.value), false);
+    sfx.play('collect-starbit');
+  }
+});
+
 function show(settings) {
+  showSfx(settings);
   showSwitches(settings);
   showStarbySize(settings.starbySize);
   slider.value = settings.flingPower;

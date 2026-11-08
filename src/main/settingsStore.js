@@ -18,6 +18,9 @@ const DEFAULTS = {
   starbitSpawning: 1, // drop starbits at all (timed, wall hits, tag rewards)
   starbitVisible: 1, // show starbits on screen (off = hidden, still collectable)
   starbitShootAnimation: 1, // collected starbits zip to the count card (off = just fade)
+  // Sound effects (assets/sounds/, played via renderer/shared/sfx.js):
+  sfxVolume: 70, // 0–100 %
+  sfxMuted: 0, // 1 = muted (keeps sfxVolume for when you unmute)
 };
 
 // Number settings are kept within 0–100 unless listed here as [min, max].

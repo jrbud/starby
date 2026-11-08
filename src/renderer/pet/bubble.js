@@ -13,6 +13,7 @@
 // Only one talkbox at a time: while the dialogue is open it holds his speech (./talkbox.js
 // takeSpeech), so new lines go into ITS talkbox and this bubble stays hidden.
 import { createTalkbox, loadTalkbox, registerSpeechBubble, speechTakenBy, speechBubbleShown, speechMuted } from './talkbox.js';
+import { sfx } from '../shared/sfx.js';
 
 const GAP = 3; // px between the tail tip and his head (or feet, when flipped)
 // Thought cloud (dreams): its trailing dots come from his upper-LEFT, so the dots' tip sits here
@@ -120,7 +121,9 @@ export function createBubble(el, opts = {}) {
         taker(text);
         return;
       }
-      show((t) => t.setText(text), ms, text);
+      // chat.mp3: he says something that needs no answer. (Questions go through the dialogue →
+      // prompt.mp3; dreams use showContent's think cloud → silent.)
+      if (show((t) => t.setText(text), ms, text)) sfx.play('chat');
     },
     /**
      * Show an element (w × h px) in the bubble instead of words, e.g. a dream. Not while the

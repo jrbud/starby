@@ -67,6 +67,7 @@ let size = STARBIT_SIZE.default;
 // Each new starbit picks a random image from the colors switched on in Settings → Starbits →
 // Color (yellow only by default). Starbits already on screen keep their color when it's toggled.
 import { starbitImages, enabledColors, STARBIT_SIZE, clampStarbitSize } from '../../shared/starbitArt.js';
+import { sfx } from '../../shared/sfx.js';
 let starbitImagePool = starbitImages(enabledColors()); // updated from Settings at startup
 // Size and center an element on (x, y). Movement is a transform relative to the spawn
 // point, so re-running this on a resize keeps it in the same place on screen.
@@ -750,6 +751,7 @@ function collect(ctx, index) {
   const [drop] = drops.splice(index, 1);
   const value = tuning.value;
   const shoot = switches.shootAnimation;
+  sfx.play('collect-starbit'); // one of collect-starbit-1/2/3 at random
   slideToastIn(ctx); // shows the count before this pickup; it ticks up when it lands
   ctx.api.collectStarbits(value).then((state) => {
     if (state && Number.isFinite(state.starbits)) total = state.starbits;
