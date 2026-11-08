@@ -106,6 +106,10 @@ let catcher = null; // full-screen click catcher behind the boxes (see 'click aw
 let catching = false;
 // While open, his ctx.say lines land here (replacing his line) instead of a second bubble.
 const takeLine = (text) => { if (ctxRef && open && say) replaceLine(ctxRef, text, true); };
+// While an EVENT menu is open (the star quiz's question, a game invite) his line belongs to the event:
+// other speech (click replies, system reactions, chatter...) is dropped instead of replacing the
+// question. The event changes its own line with setMenuLine, and says its result after closeMenu.
+const dropLine = () => {};
 let boilStep = 0;
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -483,6 +487,7 @@ function close(ctx, picked = null) {
   if (!open) return;
   open = null;
   releaseSpeech(takeLine); // lines go back to his speech bubble
+  releaseSpeech(dropLine); // (an event menu held it)
   setCatching(ctx, false); // clicks go to the desktop again
   room = null;
   const now = performance.now();
@@ -550,7 +555,7 @@ export function showMenu(ctx, { line, options, onCancel = null }) {
   open = null;
   showNode(ctx, { line, options: options.slice(0, MAX_OPTIONS), menu: true });
   open.onCancel = onCancel;
-  takeSpeech(takeLine);
+  takeSpeech(dropLine); // other speech can't talk over the event's question (see dropLine)
   if (onCancel) setCatching(ctx, true); // click away = cancel; otherwise clicks pass through
 }
 
