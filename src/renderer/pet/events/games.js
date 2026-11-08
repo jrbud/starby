@@ -19,6 +19,13 @@
 // nothing else is running and you're around (the cursor moved in the last USER_AROUND seconds);
 // each game's / the invite's canStart(ctx, 'random') adds its own checks (mood, rested, ...).
 //
+// NO MATTER WHAT: if MUST_ASK_AFTER seconds (4 minutes) pass without any game or invite starting
+// (from the buttons, menu, timer, anything; counted from launch at first), he ASKS you to play,
+// skipping the chance roll and all the usual checks (mood, you being around, the rest between
+// games, the 10 min after a "no"). Always an invite (never a silent hide and seek), with reason
+// 'due'. It only waits while another event is already running (a game, the shop, a call...) or
+// you're holding / throwing him, and then asks the moment he's free.
+//
 // Not an event itself: events/index.js runs `gamesMenu` as a helper (init / watch / watchFrame
 // every tick/frame), and each game imports what it needs:
 //   canStart(ctx, reason) { if (!readyToPlay(ctx, reason)) return false; ... }
@@ -57,6 +64,8 @@ let noRestUntil = -Infinity; // session seconds: no rest between games before th
 // Games timer
 const GAMES_TIMER = { every: 30, chance: 0.3, cooldown: 120 }; // seconds, chance per roll, seconds (≈ a game every 3–4 min)
 const USER_AROUND = 10; // seconds since the cursor last moved, to count as "you're there"
+const MUST_ASK_AFTER = 240; // seconds without a game/invite → he asks no matter what
+let lastGameAt = null; // session seconds when the last game or invite started (null = not started yet)
 let nextRollAt = null;
 let lastTimerStartAt = -Infinity;
 let lastPicked = null;
@@ -79,9 +88,30 @@ function trackCursor(ctx) {
   }
 }
 
+// It's been MUST_ASK_AFTER seconds with no game: ask now, no matter what (see above).
+function askIfDue(ctx) {
+  const now = ctx.clock.seconds;
+  if (lastGameAt === null) lastGameAt = now; // counted from launch
+  if (now - lastGameAt < MUST_ASK_AFTER || ctx.activeEvent()) return false;
+  const { pet } = ctx;
+  if (pet.mode === 'drag' || pet.mode === 'toss') return false; // let go of him first
+  const invitable = GAMES.filter((g) => g.invite !== false);
+  if (!invitable.length) return false;
+  const choices = invitable.length > 1 ? invitable.filter((g) => g.name !== lastPicked) : invitable;
+  const game = choices[Math.floor(Math.random() * choices.length)];
+  invitePick = game.name;
+  if (!ctx.startEvent('invite', 'due')) { invitePick = null; return false; } // e.g. cursor off screen: next tick
+  lastPicked = game.name;
+  lastTimerStartAt = now;
+  nextRollAt = now + GAMES_TIMER.every;
+  ctx.log('games-timer', { game: game.name, how: 'due' });
+  return true;
+}
+
 // Every tick: maybe start a game on his own (see THE GAMES TIMER above).
 function rollGamesTimer(ctx) {
   const now = ctx.clock.seconds;
+  if (askIfDue(ctx)) return;
   if (nextRollAt === null) nextRollAt = now + GAMES_TIMER.every;
   if (now < nextRollAt) return;
   nextRollAt = now + GAMES_TIMER.every;
@@ -156,6 +186,11 @@ export const gamesMenu = {
   name: 'games-menu',
 
   init(ctx) {
+    // Any game or invite starting (however it was started) resets the "ask no matter what" clock.
+    const gameNames = new Set([...GAMES.map((g) => g.name), 'invite']);
+    ctx.events.onEntry((e) => {
+      if (e.type === 'event-start' && gameNames.has(e.data.name)) lastGameAt = ctx.clock.seconds;
+    });
     // DevTools / Developer menu: forget the last game, so he'll play again right away.
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.skipRest = () => { lastPlayedEndAt = -Infinity; return 'rested'; };

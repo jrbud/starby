@@ -35,7 +35,8 @@
 //   sky       star-shower, shooting-star          sky timer, 10–15 min (happenings.js)  14
 //   games     tag, pong, hide-seek, catch,        dialogue / tray menu / games timer   10 (invite 5)
 //             constellation, starby-says, hoop-shot, invite
-//             (games.js: every 30s, 30%, 2 min cooldown; hide-seek starts silently)
+//             (games.js: every 30s, 30%, 2 min cooldown; hide-seek starts silently;
+//             4 min with no game → he asks no matter what)
 //   copycat   copycat                             its own timer, every 3 min (copycat.js)    3
 //   dance     dance                               music playing, 1 min cooldown (dance.js)  2
 //   system    intro (100), shop (20), focus (16), launch / the shop window / the dialogue's

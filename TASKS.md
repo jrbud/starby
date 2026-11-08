@@ -133,6 +133,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
     nothing else is running and you're around). The timer picks a random game: announced games go through an
     invite (`events/invite.js` no longer has its own `auto` roll); Hide & Seek starts silently
     (`canStart(ctx, 'random')`).
+    **No matter what:** if 4 minutes pass without any game or invite starting, he asks you to play anyway
+    (always an invite, reason `'due'`), skipping the chance roll, mood, you-being-around, rest and the
+    10-min-after-"no" checks; it only waits while another event is running or you're holding him.
   - **Dance** (`category: 'dance'`, priority 2): music-triggered (P3-8), with a **1-minute cooldown** between
     dances (counted from the end of every dance).
   - Intro and shop are `category: 'system'`. The runner still supports `auto`, but nothing uses it now.
