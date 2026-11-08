@@ -433,9 +433,11 @@ export default {
       }
     });
 
+    // Right-click: Starby's dialogue box (src/renderer/pet/dialogue/). The old native menu now
+    // lives on the tray icon (src/main/tray.js).
     petEl.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      ctx.api.showContextMenu();
+      petEl.dispatchEvent(new CustomEvent('pet:right-clicked'));
     });
   },
 

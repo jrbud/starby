@@ -5,6 +5,7 @@ const store = require('./store');
 const { createPetWindow } = require('./windows/petWindow');
 const { registerIpc } = require('./ipc');
 const { startSystemReads } = require('./systemReads');
+const { createTray } = require('./tray');
 
 // Only one pet at a time — a second launch just exits.
 if (!app.requestSingleInstanceLock()) {
@@ -15,6 +16,7 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc();
     const petWindow = createPetWindow();
     startSystemReads(petWindow);
+    createTray(); // tray icon; its right-click menu = the old right-click menu (tray.js)
   });
 
   app.on('window-all-closed', () => app.quit());

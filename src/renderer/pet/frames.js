@@ -19,6 +19,7 @@ export const DEFAULT_SET = 'sunny';
 // face (pet.face) → files and seconds per frame. Faster for busy faces, slow for sleep.
 export const FACES = {
   happy: { files: ['idle-1', 'idle-2'], every: 0.6 }, // default: standing, content
+  calm: { files: ['idle-1'] }, // content, arms down, no swapping (focus mode: not distracting)
   talking: { files: ['talk-1', 'talk-2'], every: 0.2 }, // mouth flapping
   playful: { files: ['happy-1', 'happy-2'], every: 0.35 }, // playing / thrown / tag (tongue out)
   dancing: { files: ['happy-1', 'happy-2'], every: 0.25 }, // dancing to music: swaps twice a beat (events/dance.js)
