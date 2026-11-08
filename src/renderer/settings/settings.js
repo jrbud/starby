@@ -20,13 +20,6 @@ document.getElementById('close').addEventListener('click', () => window.close())
 
 const slider = document.getElementById('fling-power');
 const valueOut = document.getElementById('fling-power-value');
-const detail = document.getElementById('fling-power-detail');
-
-function describe(power) {
-  const t = flingTuning(power);
-  return `Throws ×${t.speedMul.toFixed(1)} · walls keep ${Math.round(t.bounce * 100)}% of the speed · `
-    + 'hard wall hits freeze it for a moment.';
-}
 
 // ---- Starbits → Color: one checkbox per color (saved as the list of colors turned OFF) ----
 const colorGrid = document.getElementById('starbit-colors');
@@ -49,7 +42,7 @@ for (const color of STARBIT_COLORS) {
   preview.alt = '';
   preview.draggable = false;
   const name = document.createElement('span');
-  name.textContent = titleCase(color);
+  // name.textContent = titleCase(color);
   label.append(box, preview, name);
   colorGrid.append(label);
   colorBoxes.set(color, box);
@@ -74,7 +67,6 @@ function showColors(colorsOn) {
     box.disabled = checked.length === 1 && box.checked;
     box.title = box.disabled ? 'At least one color stays on' : '';
   }
-  colorCount.textContent = checked.length === colorBoxes.size ? 'All colors' : `${checked.length} of ${colorBoxes.size}`;
 }
 
 // ---- Starbits → Size: slider + live preview ----
@@ -137,7 +129,6 @@ function show(settings) {
   showStarbySize(settings.starbySize);
   slider.value = settings.flingPower;
   valueOut.textContent = settings.flingPower;
-  detail.textContent = describe(settings.flingPower);
   if (pendingColorSaves === 0) showColors(settings.starbitColors);
   showSize(settings.starbitSize);
   sizePreview.src = starbitImage(previewColor(settings.starbitColors), 1);
@@ -145,7 +136,6 @@ function show(settings) {
 
 slider.addEventListener('input', () => {
   valueOut.textContent = slider.value;
-  detail.textContent = describe(slider.value);
   api.setSettings({ flingPower: Number(slider.value) });
 });
 

@@ -30,8 +30,6 @@
         <output id="fling-power-value" for="fling-power">50</output>
       </div>
       <input id="fling-power" type="range" min="0" max="100" step="1" value="50" />
-      <div class="ends"><span>Gentle</span><span>Extra</span></div>
-      <p id="fling-power-detail" class="detail">How hard throws fly and how much it bounces off the screen edges.</p>
     </section>
 
     <!-- Starby's size on screen (settingsStore.starbySize; pet.js resizes him live). -->
@@ -41,7 +39,6 @@
         <output id="starby-size-value" for="starby-size">96 px</output>
       </div>
       <input id="starby-size" type="range" min="48" max="144" step="4" value="96" />
-      <div class="ends"><span>Small</span><span>Big</span></div>
     </section>
 
     <!-- Collapsible: click the heading (or Enter/Space). Open/closed is remembered (settings.js). -->
@@ -67,7 +64,7 @@
     <section class="setting">
       <div class="label-row">
         <span class="label" id="starbit-colors-label">Color</span>
-        <output id="starbit-colors-count"></output>
+<!--        <output id="starbit-colors-count"></output>-->
       </div>
       <!-- One checkbox per color in renderer/shared/starbitArt.js (built by settings.js). -->
       <div id="starbit-colors" class="color-grid" role="group" aria-labelledby="starbit-colors-label"></div>

@@ -39,8 +39,8 @@ body {
 }
 
 .setting {
-  background: var(--panel);
-  border: 1px solid var(--line);
+  /*background: var(--panel);*/
+  /*border: 1px solid var(--line);*/
   border-radius: 10px;
   padding: 12px 14px;
   display: grid;
@@ -66,7 +66,7 @@ label,
   gap: 8px;
   margin-top: 4px;
   padding: 2px 0 4px;
-  border-bottom: 1px solid var(--line);
+  /*border-bottom: 1px solid var(--line);*/
   cursor: pointer;
   list-style: none; /* hide the default triangle; we draw our own chevron below */
   user-select: none;
@@ -120,7 +120,7 @@ label,
 /* Starbits → Color: a grid of checkbox chips, each with a preview of that color's starbit. */
 .color-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
   gap: 6px;
   margin-top: 2px;
 }
@@ -130,7 +130,7 @@ label,
   align-items: center;
   gap: 6px;
   padding: 5px 8px;
-  border: 1px solid var(--line);
+  /*border: 1px solid var(--line);*/
   border-radius: 8px;
   font-weight: 500;
   cursor: pointer;
@@ -169,7 +169,7 @@ label,
 }
 
 .switch-row + .switch-row {
-  border-top: 1px solid var(--line);
+  /*border-top: 1px solid var(--line);*/
 }
 
 .switch-name {
@@ -218,7 +218,7 @@ input.art-check:checked:focus-visible {
   flex: none;
   display: grid;
   place-items: center;
-  border: 1px dashed var(--line);
+  /*border: 1px dashed var(--line);*/
   border-radius: 8px;
 }
 
@@ -243,13 +243,6 @@ input[type="range"] {
   accent-color: var(--accent);
 }
 
-.ends {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--muted);
-}
-
 .detail {
   margin: 2px 0 0;
   font-size: 13px;
@@ -258,8 +251,8 @@ input[type="range"] {
 
 button {
   justify-self: start;
-  border: 1px solid var(--line);
-  background: var(--panel);
+  /*border: 1px solid var(--line);*/
+  /*background: var(--panel);*/
   color: var(--ink);
   border-radius: 6px;
   padding: 6px 12px;
