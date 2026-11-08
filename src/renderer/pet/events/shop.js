@@ -6,6 +6,10 @@
 //                                event, or re-aims it (the shop window was moved).
 //   { type: 'shop-release' }     shop closed / minimized: hand him back.
 //   { type: 'shop-say', text }   the shop wants him to say something (browsing, can't afford...).
+//   { type: 'shop-preview', accessory }  try-on: wear this accessory value while browsing
+//                                (null = what he really has on). Removed again when the shop
+//                                closes/minimizes; only Buy/Equip make it stick (that's saved
+//                                state, which pet.js shows once the preview is cleared).
 //
 // He owns the star via pet.mode = 'shop', so behaviors stand down (they only act on modes they
 // know): no wandering, no flinching, no idle chatter, and starbits.js drops nothing in 'shop'.
@@ -46,7 +50,10 @@ export default {
         setTarget(ctx, cmd);
         if (ctx.activeEvent() !== 'shop') ctx.startEvent('shop', 'shop-open');
       } else if (cmd.type === 'shop-release') {
+        ctx.previewAccessory?.(null); // take off anything he was only trying on
         endFn?.('shop-closed');
+      } else if (cmd.type === 'shop-preview') {
+        ctx.previewAccessory?.(typeof cmd.accessory === 'string' ? cmd.accessory : null);
       } else if (cmd.type === 'shop-say' && typeof cmd.text === 'string') {
         ctx.say(cmd.text, 2800);
       }
@@ -105,6 +112,7 @@ export default {
     const { pet } = ctx;
     endFn = null;
     target = null;
+    ctx.previewAccessory?.(null);
     if (pet.mode === 'shop') pet.mode = 'idle'; // free to wander again
   },
 };

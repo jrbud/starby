@@ -231,11 +231,22 @@ function render() {
   renderAction();
 }
 
+// ---- Try-on ----
+// Selecting an accessory shows it on Starby right away (not saved). Selecting anything else,
+// or the accessory he already wears, shows what he really has on. Closing or minimizing the
+// shop takes a try-on off again (main process → events/shop.js); only Buy/Equip keep it.
+function updateTryOn() {
+  const item = selectedItem();
+  const tryOn = item && item.slot === 'accessory' && !isEquipped(item) ? item.value : null;
+  api.previewAccessory?.(tryOn);
+}
+
 // ---- Actions ----
 function select(item) {
   if (item.id === selectedId) return;
   selectedId = item.id;
   render();
+  updateTryOn();
   // Clicking through new items you don't own: Starby comments.
   if (!isOwned(item)) {
     const need = missing(item);
@@ -248,7 +259,10 @@ async function onAction() {
   if (!item || isEquipped(item)) return;
   if (isOwned(item)) {
     const res = await api.equip(item.id);
-    if (res.ok) say(LINES.equipped());
+    if (res.ok) {
+      updateTryOn(); // now really worn: drop the try-on
+      say(LINES.equipped());
+    }
     return;
   }
   const need = missing(item);
@@ -257,8 +271,16 @@ async function onAction() {
     return;
   }
   const res = await api.buy(item.id);
-  if (res.ok) say(LINES.bought(item));
-  else say(LINES.cantAfford(missing(item)));
+  if (!res.ok) {
+    say(LINES.cantAfford(missing(item)));
+    return;
+  }
+  // An accessory you just bought (while trying it on) stays on: equip it too.
+  if (item.slot === 'accessory') {
+    await api.equip(item.id);
+    updateTryOn();
+  }
+  say(LINES.bought(item));
   // UI refresh happens via onStateChanged.
 }
 
@@ -278,6 +300,7 @@ async function boot() {
   state = await api.getState();
   // Start on what he's wearing.
   selectedId = state.equipped.color || catalog[0]?.id || null;
+  api.previewAccessory?.(null); // fresh shop: no try-on left over
   api.onStateChanged((s) => { state = s; render(); });
   render();
 

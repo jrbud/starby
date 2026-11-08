@@ -25,6 +25,10 @@ const HEIGHT = 570;
 
 let shopWindow = null;
 let displayRect = null; // { x, y, width, height } of the display box, in shop-page CSS px
+// Try-on: the accessory value selected in the shop but not bought/equipped yet (null = none).
+// The pet takes it off on close/minimize ('shop-release'); after a restore it goes back on,
+// since the shop still has that item selected.
+let preview = null;
 
 function sendToPet(cmd) {
   const pet = getPetWindow();
@@ -47,10 +51,16 @@ function parkPet() {
 
 const releasePet = () => sendToPet({ type: 'shop-release' });
 
+// Shop is back on screen: park him again and put the try-on back on.
+function returnPet() {
+  parkPet();
+  if (preview) sendToPet({ type: 'shop-preview', accessory: preview });
+}
+
 function openShopWindow() {
   if (shopWindow) {
     bringToFront(shopWindow);
-    parkPet();
+    returnPet();
     return shopWindow;
   }
 
@@ -76,14 +86,15 @@ function openShopWindow() {
   shopWindow.once('ready-to-show', () => bringToFront(shopWindow));
   shopWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'shop', 'index.html'));
   shopWindow.on('move', parkPet);
-  shopWindow.on('restore', parkPet);
-  shopWindow.on('show', parkPet);
+  shopWindow.on('restore', returnPet);
+  shopWindow.on('show', returnPet);
   shopWindow.on('minimize', releasePet);
   shopWindow.on('hide', releasePet);
   shopWindow.on('closed', () => {
     shopWindow = null;
     displayRect = null;
-    releasePet();
+    preview = null;
+    releasePet(); // also takes off the try-on
   });
   return shopWindow;
 }
@@ -106,7 +117,13 @@ function petSay(text) {
   if (typeof text === 'string' && text) sendToPet({ type: 'shop-say', text: text.slice(0, 120) });
 }
 
+// Try-on from the shop page: an accessory value, or null to show what he really wears.
+function setPreview(value) {
+  preview = typeof value === 'string' && value ? value : null;
+  sendToPet({ type: 'shop-preview', accessory: preview });
+}
+
 const minimizeShop = () => shopWindow?.minimize();
 const closeShop = () => shopWindow?.close();
 
-module.exports = { openShopWindow, setDisplayRect, petSay, minimizeShop, closeShop };
+module.exports = { openShopWindow, setDisplayRect, petSay, setPreview, minimizeShop, closeShop };

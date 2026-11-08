@@ -3,7 +3,7 @@
 const { ipcMain, BrowserWindow, Menu, app } = require('electron');
 const store = require('./store');
 const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
-const { openShopWindow, setDisplayRect, petSay, minimizeShop, closeShop } = require('./windows/shopWindow');
+const { openShopWindow, setDisplayRect, petSay, setPreview, minimizeShop, closeShop } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const settingsStore = require('./settingsStore');
 const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
@@ -50,6 +50,7 @@ function registerIpc() {
   ipcMain.on('shop:close', () => closeShop());
   ipcMain.on('shop:display-rect', (_e, rect) => setDisplayRect(rect));
   ipcMain.on('shop:say', (_e, text) => petSay(text));
+  ipcMain.on('shop:preview', (_e, accessory) => setPreview(accessory)); // try-on, never saved
 
   // ---- Settings (sliders) ----
   ipcMain.handle('settings:get', () => settingsStore.get());
