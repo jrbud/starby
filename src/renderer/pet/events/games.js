@@ -1,10 +1,11 @@
 // Shared bits for the games (tag, pong):
-//   - the "Play a game?" button that pops up next to Starby when you click him: one button per
-//     game; pressing one asks him to play it
+//   - requestGame(ctx, name): you asked him to play, from the right-click dialogue's "Do you
+//     want to play a game?" answers (../dialogue/). Left-click used to pop up game buttons; it's
+//     just a poke now.
 //   - the rest between games: after ANY game he needs GAME_REST seconds before he'll play again
-//     when asked ("give me a little, i'm tired", escalating if you keep asking); the button shows
-//     the time left ("resting… 0:42")
-//   - mood answers: mad / dizzy → he says no; asleep → no button
+//     when asked ("give me a little, i'm tired", escalating if you keep asking); the dialogue
+//     shows the time left
+//   - mood answers: mad / dizzy → he says no
 //   - GAMES: the list of games (also used by ./invite.js when he asks you to play)
 //   - createReady(): the "3...", "2...", "1...", "GO!" countdown before a game
 //
@@ -24,10 +25,8 @@
 import { lineBag } from '../behaviors/chatter.js';
 import { rand, startJump, isJumping } from '../behaviors/motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
-import { createPrompt } from './prompt.js';
 
 export const GAME_REST = 60; // seconds after a game before he'll play again when asked
-const CHIP_FOR = 4; // seconds the game buttons stay up after clicking him
 
 // THE GAMES. Every game here is on the "Play a game?" buttons AND can be offered when Starby asks
 // you to play on his own (./invite.js picks one at random). `name` = the event name in
@@ -104,14 +103,6 @@ function rollGamesTimer(ctx) {
     ctx.log('games-timer', { game: game.name, how: game.invite === false ? 'silent' : 'invite' });
   }
 }
-let chip = null; // the game buttons (a prompt with one button per game)
-let chipLeft = 0;
-let chipPressed = null; // name of the game whose button was pressed; acted on at the next tick
-
-const mmss = (s) => {
-  const whole = Math.ceil(s);
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
-};
 
 /** Seconds of rest he still needs after the last game (0 = ready to play). */
 export function restLeft(ctx) {
@@ -148,33 +139,9 @@ export function readyToPlay(ctx, reason) {
   return true;
 }
 
-const chipText = (ctx) => (restLeft(ctx) > 0 ? `resting… ${mmss(restLeft(ctx))}` : 'Play a game?');
-
-// Clicked him: offer the game buttons for a few seconds.
-function showChip(ctx) {
+/** The user asked to play `name` (right-click dialogue). Mood and rest answers come from here. */
+export function requestGame(ctx, name) {
   const { pet } = ctx;
-  if (ctx.activeEvent()) return; // already playing / asking
-  if (pet.mood === 'sleepy') return; // asleep: can't ask him anything
-  if (pet.mode === 'drag' || pet.mode === 'toss') return;
-  chipLeft = CHIP_FOR;
-  chipPressed = null;
-  chip.show({
-    text: chipText(ctx),
-    buttons: GAMES.map((g) => ({ label: g.label, onClick: () => { chipPressed = g.name; } })),
-  });
-  chip.place(pet, ctx.area?.());
-}
-
-function hideChip() {
-  chipLeft = 0;
-  chipPressed = null;
-  chip?.hide();
-}
-
-// The user asked to play `name`.
-function askToPlay(ctx, name) {
-  const { pet } = ctx;
-  hideChip();
   ctx.log('game-request', { game: name, mood: pet.mood });
   if (ctx.activeEvent()) return;
   if (pet.mood === 'mad') { ctx.say(LINES.mad(), 2000); return; }
@@ -187,31 +154,16 @@ export const gamesMenu = {
   name: 'games-menu',
 
   init(ctx) {
-    chip = createPrompt(ctx.stage);
-    ctx.petEl.addEventListener('pet:clicked', () => showChip(ctx));
     // DevTools / Developer menu: forget the last game, so he'll play again right away.
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.skipRest = () => { lastPlayedEndAt = -Infinity; return 'rested'; };
     }
   },
 
-  // Every tick: the games timer; act on a pressed button, keep the rest countdown live, hide when
-  // done/busy.
+  // Every tick: the games timer.
   watch(ctx) {
     trackCursor(ctx);
     rollGamesTimer(ctx);
-    if (!chip || chipLeft <= 0) return;
-    const { pet } = ctx;
-    if (chipPressed) { askToPlay(ctx, chipPressed); return; }
-    chipLeft -= TICK_SECONDS;
-    const busy = ctx.activeEvent() || pet.mode === 'drag' || pet.mode === 'toss' || pet.mood === 'sleepy';
-    if (chipLeft <= 0 || busy) { hideChip(); return; }
-    chip.setText(chipText(ctx));
-  },
-
-  // Every frame: keep the buttons next to him while he walks.
-  watchFrame(ctx) {
-    if (chipLeft > 0) chip.place(ctx.pet, ctx.area?.());
   },
 };
 

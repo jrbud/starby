@@ -888,7 +888,8 @@ export default {
     if (!rules.refuses) refusedThisSpell = false; // next mad spell may refuse again
     // 'shop': parked in the shop's display box (events/shop.js), so no drops while shopping.
     // 'quiz': drawing a constellation (events/constellation.js); a stray drop would muddle it.
-    if (ctx.pet.mode === 'drag' || ctx.pet.mode === 'shop' || ctx.pet.mode === 'quiz') return;
+    // 'focus': "Sorry, I gotta focus" (events/focus.js): fully quiet, no drops.
+    if (ctx.pet.mode === 'drag' || ctx.pet.mode === 'shop' || ctx.pet.mode === 'quiz' || ctx.pet.mode === 'focus') return;
     if (ctx.pet.hiding) return; // hide and seek: a starbit flying out would give him away
 
     // Playful (rate 2) counts down twice as fast. Rate 0 still counts at normal speed,
