@@ -356,6 +356,19 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     lunch (12–1pm), dinner (6–7pm), each at most once per hour. DevTools: `starby.timeMoment(2)`.
   - **Copy-paste champion:** 5 copies within 60s → "you're a copy-paste machine!" (10 min cooldown),
     said instead of the normal copy line.
+- [x] **P3-11 Effects: wall impacts.**
+  - **Art:** `assets/effects/` holds hand-drawn frame pairs: `impact1/2`, `dust1/2`, `starcloud1/2`,
+    `wind1/2` (wind isn't used yet).
+  - **`src/renderer/pet/effects.js` (new):** a reusable player. It swaps frames 1 and 2 quickly, fades in
+    and out, can rotate, mirror, drift and grow, and removes itself when done. Every effect is
+    click-through.
+  - **`behaviors/wallImpact.js` (new):** on drag.js's `impact` (hard hits only) it plays:
+    - the crash lines at the wall, in front of him (drawn for a right wall: mirrored or rotated for the
+      others, and nudged to his feet on the floor);
+    - a dust puff off the wall, behind him;
+    - two small twinkling star clouds drifting away.
+
+    Harder hits get bigger, longer effects. DevTools: `starby.impactFx('left', 2000)`.
 
 ---
 
