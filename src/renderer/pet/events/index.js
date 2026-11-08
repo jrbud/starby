@@ -35,6 +35,7 @@ import starShower from './starShower.js';
 import hideSeek from './hideSeek.js';
 import shop from './shop.js';
 import dance from './dance.js';
+import hush from './hush.js';
 import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
 
@@ -43,7 +44,8 @@ import { happenings } from './happenings.js';
 // hide-seek = a game (buttons) and a happening (he hides on his own); never in invites.
 // shop = parks him in the shop window's display box while it's open (shop.js).
 // dance = dances in bursts while a song plays in Spotify (dance.js); lowest priority.
-export const EVENTS = [tag, pong, invite, starShower, hideSeek, shop, dance];
+// hush = quiet and still during video calls / fullscreen apps (hush.js); above the games.
+export const EVENTS = [tag, pong, invite, starShower, hideSeek, shop, dance, hush];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js);

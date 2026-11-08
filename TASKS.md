@@ -311,6 +311,44 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - it ends when the song stops, when he's grabbed, or when his mood changes (mad, dizzy, sleepy...);
     - dancing counts as busy in `mood.js`, so no yawning mid-playlist;
     - DevTools: `starby.startEvent('dance')` dances one burst without music.
+  - **Update:** any Spotify/Spotifast title other than its idle name ("Spotify", "Spotify Premium",
+    "Spotifast", ads) now counts as playing. Clicking, grabbing, throwing, a swat or a flinch snaps him
+    out of the dance, and he only dances again after 25s with no interaction and no other event.
+- [x] **P3-9 More system reactions.**
+  - **Lock/unlock** (`power.js`, Electron `powerMonitor`): on unlock he says a line that depends on how
+    long you were away (quick / a minute or more / 30 min or more) and does a happy hop. Unlocking also
+    wakes a yawning star (`mood.js`).
+  - **New app kinds** (`activeWindow.js`), still worked out from the program name only:
+    - `chat` (Discord, Slack, Teams, WhatsApp...): "say hi to everyone for me!";
+    - `reading` (PDF readers, or a `.pdf` open in a browser);
+    - `writing` (Word, Notepad, OneNote, Notion, Excel, Google Docs in a browser).
+
+    A browser tab's title is only checked locally. Switching browser tabs to a PDF or a Doc counts as
+    a change.
+  - **Smarter clipboard** (`clipboard.js`), sending only the kind: url, email, color code, number,
+    file path, emoji, code, long text, text, **image**, **files** copied in Explorer.
+  - **Wi-Fi** (`systemReactions.js`, the browser's `online`/`offline` events): one line if the
+    internet stays down for 3s or more (blips are ignored), and one line when it's back.
+- [x] **P3-10 Considerate + fun reactions.** No emoji in any line (music notes removed too).
+  - **Quiet during video calls** (`systemReads/calls.js`, new):
+    - finds a meeting window by program + title, checked in the main process only: Zoom meeting,
+      Teams meeting/call, a Google Meet tab, Webex, Slack huddle;
+    - sends only `{ type: 'call', active }`.
+  - **Fullscreen** (`activeWindow.js`): the focused window covers the whole display →
+    `{ type: 'fullscreen', active }`. Maximized windows and the desktop don't count.
+  - **`events/hush.js` (new), priority 15** (above games, below the shop):
+    - during a call he stops and sits still; with a fullscreen app he tiptoes to the nearest bottom corner;
+    - `pet.hushed` makes `ctx.say` in `pet.js` show nothing, and hides a bubble already showing, so
+      he's completely silent, including when clicked;
+    - games and dancing can't start; you can still move him.
+  - **PC sleep/wake** (`power.js`): a wake-up greeting and a hop; waking also wakes a yawning star.
+  - **Screenshot** (`clipboard.js` → kind `screenshot`): a picture that's exactly a display's size
+    (Print Screen), or copied while or just after a snipping tool window was open (Win+Shift+S). He
+    winks (`strikePose` in `mood.js`) and says "say cheese!".
+  - **Time-of-day moments** (`systemReactions.js`): late night (12am–4am, "it's 2am... go to sleep!"),
+    lunch (12–1pm), dinner (6–7pm), each at most once per hour. DevTools: `starby.timeMoment(2)`.
+  - **Copy-paste champion:** 5 copies within 60s → "you're a copy-paste machine!" (10 min cooldown),
+    said instead of the normal copy line.
 
 ---
 

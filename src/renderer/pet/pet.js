@@ -76,6 +76,7 @@ const pet = {
   face: 'happy', // which PNG frames to show; set every frame by behaviors/mood.js
   frameFile: 'idle-1', // which PNG file is on screen right now (accessories follow its pose)
   lookUp: false, // set by events (e.g. a star shower) to make him look up
+  hushed: false, // true during video calls / fullscreen apps (events/hush.js): ctx.say shows nothing
   // colorSet = folder in assets/sprite/ for the equipped color ('sunny' for 'color-sunny').
   // accessories = what he's wearing, as accessory values (e.g. ['tophat']). A list so several
   // can be worn at once later; for now the save holds one (see shopCatalog.js / stateSchema.js).
@@ -121,6 +122,11 @@ const ctx = {
   stageWidth,
   area: workArea, // usable screen area { left, top, right, bottom } (taskbar on any side)
   say: (text, ms) => {
+    // Hushed (a video call or a fullscreen app, see events/hush.js): no speech bubbles at all.
+    if (pet.hushed) {
+      log('say-muted', { text });
+      return;
+    }
     bubble.say(text, ms);
     log('say', { text });
   },
@@ -279,6 +285,7 @@ function render(now, dt) {
     g.drawImage(fallback, ox, oy, RES, RES);
   }
   floaters.update(dt, now / 1000);
+  if (pet.hushed && bubble.isShowing()) bubble.hide(); // a line that started just before the hush
 }
 
 // ---- Boot ----

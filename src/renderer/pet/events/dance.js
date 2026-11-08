@@ -9,9 +9,11 @@
 // steady beat. We can't hear the music, so the beat is a fixed pop tempo (BEAT). His face is the
 // 'dancing' face (frames.js: the excited happy-1/2 frames, swapping on the beat).
 //
-// Lowest priority of all events (2): a star shower, an invite, a game or the shop window always
-// wins, and the dance just picks up again later. It ends when the song stops, when he gets
-// grabbed (drag.js takes pet.mode), or when his mood changes (mad, dizzy, sleepy...).
+// It's a background thing, not all he does: lowest priority of all events (2), so a star shower,
+// an invite, a game or the shop window always wins. And YOU snap him out of it: clicking him
+// (talking to him), grabbing or throwing him, a swat or a flinch ends the dance. It also ends when
+// the song stops or his mood changes (mad, dizzy, sleepy...). He only starts dancing again once
+// things have been quiet for QUIET_FOR seconds: no interaction and no other event.
 // Owns the star via pet.mode = 'dance' (behaviors stand down for modes they don't know).
 // In DevTools: starby.startEvent('dance') dances one burst even without music.
 import { rand, approach, clampToScreen, startJump, updateJump, cancelJump } from '../behaviors/motion.js';
@@ -26,15 +28,19 @@ const MOODS_THAT_DANCE = ['happy', 'playful'];
 const MOVES = ['bounce', 'sway', 'step', 'hop', 'spin'];
 const STEP = 0.22; // side-step distance, in star-sizes
 const MID_LINE_CHANCE = 0.25; // per move change
+const QUIET_FOR = 25; // seconds with no interaction / other event before he dances (again)
+// Things you do to him that snap him out of a dance (event log types).
+const SNAP_OUT = ['click', 'grab', 'toss', 'swat', 'flinch'];
 
 const LINES = {
-  start: lineBag(['ooh, i love this song!', '♪ dance time ♪', "this one's a bop!", '*starts bopping*', 'music!! ♫']),
-  mid: lineBag(['♪ ♫ ♪', 'woo!', 'look at my moves!', '*shimmy*', 'ba-dum tss ♪']),
-  stop: lineBag(['aww, the song stopped', 'that was fun ♪', 'encore?']),
+  start: lineBag(['ooh, i love this song!', '*dance time*', "this one's a bop!", '*starts bopping*', 'music!!']),
+  mid: lineBag(['la la la!', 'woo!', 'look at my moves!', '*shimmy*', 'ba-dum tss']),
+  stop: lineBag(['aww, the song stopped', 'that was fun!', 'encore?']),
 };
 
 let musicPlaying = false;
 let restUntil = 0; // session seconds: no new burst before this
+let busyAt = -Infinity; // session seconds of the last interaction or other event
 let endDance = null;
 let t = 0; // seconds into this burst
 let danceFor = 0;
@@ -63,9 +69,17 @@ export default {
 
   init(ctx) {
     ctx.events.onEntry((e) => {
-      if (e.type !== 'system' || e.data.type !== 'music') return;
-      musicPlaying = Boolean(e.data.playing);
-      if (!musicPlaying) restUntil = 0; // the next song starts a dance straight away
+      if (e.type === 'system' && e.data.type === 'music') {
+        musicPlaying = Boolean(e.data.playing);
+        if (!musicPlaying) restUntil = 0; // the next song starts a dance (once it's quiet)
+        return;
+      }
+      // You interacted with him, or something else happened: snap out of it, and wait for quiet.
+      const otherEvent = (e.type === 'event-start' || e.type === 'event-end') && e.data.name !== 'dance';
+      if (SNAP_OUT.includes(e.type) || otherEvent) {
+        busyAt = ctx.clock.seconds;
+        if (endDance && SNAP_OUT.includes(e.type)) finish(`snapped out: ${e.type}`);
+      }
     });
   },
 
@@ -75,9 +89,11 @@ export default {
     return musicPlaying || reason === 'devtools';
   },
 
-  // Every tick, even when not dancing: start a burst when the song is on and he's free.
+  // Every tick, even when not dancing: start a burst when the song is on, he's free, and it's
+  // been quiet for a while.
   watch(ctx) {
-    if (!musicPlaying || ctx.activeEvent() || ctx.clock.seconds < restUntil) return;
+    const now = ctx.clock.seconds;
+    if (!musicPlaying || ctx.activeEvent() || now < restUntil || now - busyAt < QUIET_FOR) return;
     ctx.startEvent('dance', 'music');
   },
 
