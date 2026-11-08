@@ -33,6 +33,7 @@ import starbits from './starbits.js';
 import systemReactions from './systemReactions.js';
 import sessionEvents from './sessionEvents.js';
 import dream from './dream.js'; // dreams while asleep: accessories / starbits wiggling in his bubble
+import goodbye from './goodbye.js'; // quitting: a goodbye line, a star burst, he shrinks away
 import fx from './fx.js'; // hand-drawn effects: wall hits, swats, star bursts
 
-export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, dream, fx];
+export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, dream, goodbye, fx];

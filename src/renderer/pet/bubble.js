@@ -5,16 +5,19 @@
 // with the tail pointing at him, and is kept ON SCREEN every frame while it shows:
 //   - near the left/right edge it slides sideways (the tail stays as close to him as it can)
 //   - no room above him (top of the screen) → it flips below him, tail pointing up
-// It can also show an OBJECT instead of words (showContent): behaviors/dream.js uses it for his
-// dreams while he sleeps, so dreams follow the same one-bubble-at-a-time rule as his speech.
+// It can also show an OBJECT instead of words (showContent), in the speech box or the THOUGHT CLOUD
+// (style 'think'): behaviors/dream.js uses the cloud for his dreams while he sleeps, so dreams follow the same one-bubble-at-a-time rule as his speech.
 // Until the talkbox art has loaded (a moment after launch), lines use the old plain box from
 // pet.css. The #bubble element lives inside #pet, so it moves with him; pet.css's .bubble look
 // is switched off with the `talkbox-host` class while a talkbox is showing.
 // Only one talkbox at a time: while the dialogue is open it holds his speech (./talkbox.js
 // takeSpeech), so new lines go into ITS talkbox and this bubble stays hidden.
-import { createTalkbox, loadTalkbox, registerSpeechBubble, speechTakenBy, speechBubbleShown } from './talkbox.js';
+import { createTalkbox, loadTalkbox, registerSpeechBubble, speechTakenBy, speechBubbleShown, speechMuted } from './talkbox.js';
 
 const GAP = 3; // px between the tail tip and his head (or feet, when flipped)
+// Thought cloud (dreams): its trailing dots come from his upper-LEFT, so the dots' tip sits here
+// (share of his box) and the cloud floats lower and further left than a speech bubble.
+const THINK_TIP = { x: 0.12, y: 0.28 };
 const EDGE = 6; // px kept clear of the screen edges
 const FONT = 14; // px
 const MAX_TEXT = 200; // px: lines wrap past this
@@ -51,7 +54,8 @@ export function createBubble(el, opts = {}) {
   const petEl = el.parentElement;
   let hideTimer = null;
   let raf = null;
-  let tb = null; // the talkbox, once the art is in
+  let tb = null; // the talkbox showing now (speech or think)
+  const boxes = {}; // style → its talkbox, made on first use
 
   function place() {
     raf = null;
@@ -60,8 +64,9 @@ export function createBubble(el, opts = {}) {
     const ph = petEl.offsetHeight;
     const r = petEl.getBoundingClientRect();
     const a = area();
-    let left = pw / 2 - tb.tailFrac * tb.w; // tail tip over his middle
-    let top = -tb.h - GAP;
+    const think = tb.style === 'think';
+    let left = (think ? pw * THINK_TIP.x : pw / 2) - tb.tailFrac * tb.w; // tail tip over his middle (cloud: his upper-left)
+    let top = think ? ph * THINK_TIP.y - tb.h : -tb.h - GAP;
     const flipped = r.top + top < a.top + EDGE; // no room above → below him, tail up
     if (flipped) top = ph + GAP;
     const screenLeft = r.left + left;
@@ -80,9 +85,12 @@ export function createBubble(el, opts = {}) {
   registerSpeechBubble(hide); // the dialogue hides this bubble when it opens
 
   // Put a filled talkbox up for `ms` (`fill(tb)` sets its text or content; false = art not ready).
-  function show(fill, ms, fallbackText) {
-    if (!tb) tb = createTalkbox({ fontSize: FONT, maxText: MAX_TEXT, padX: 9, padY: 6 });
-    if (fill(tb)) {
+  // style: 'speech' (his lines) or 'think' (the thought cloud, for dreams).
+  function show(fill, ms, fallbackText, style = 'speech') {
+    if (!boxes[style]) boxes[style] = createTalkbox({ fontSize: FONT, maxText: MAX_TEXT, padX: 9, padY: 6, style });
+    const box = boxes[style];
+    if (fill(box)) {
+      tb = box;
       el.textContent = '';
       el.appendChild(tb.el);
       el.classList.add('talkbox-host');
@@ -90,7 +98,7 @@ export function createBubble(el, opts = {}) {
       tb.el.animate([{ scale: '0.85' }, { scale: '1' }], { duration: 170, easing: 'cubic-bezier(0.2, 1.4, 0.4, 1)' });
     } else if (fallbackText != null) {
       el.classList.remove('talkbox-host'); // art not loaded yet: the plain box
-      el.textContent = fallbackText;
+      el.textContent = fallbackText.toLowerCase(); // he never speaks in uppercase
     } else {
       return false;
     }
@@ -103,7 +111,9 @@ export function createBubble(el, opts = {}) {
   }
 
   instance = {
-    say(text, ms = 3000) {
+    // opts.force: show even while he's muted for being asleep (behaviors/dream.js sleep-talk).
+    say(text, ms = 3000, opts = {}) {
+      if (!opts.force && speechMuted()) return; // asleep: he doesn't talk (dreams still show, see showContent)
       const taker = speechTakenBy();
       if (taker) { // the dialogue is open: the line replaces his line there (no second bubble)
         hide();
@@ -116,9 +126,9 @@ export function createBubble(el, opts = {}) {
      * Show an element (w × h px) in the bubble instead of words, e.g. a dream. Not while the
      * dialogue holds his speech. Returns false if it couldn't show (art not loaded yet / dialogue).
      */
-    showContent(node, w, h, ms = 4000) {
+    showContent(node, w, h, ms = 4000, style = 'speech') {
       if (speechTakenBy()) return false;
-      return show((t) => t.setContent(node, w, h), ms, null);
+      return show((t) => t.setContent(node, w, h), ms, null, style);
     },
     // While the dialogue holds his speech he counts as speaking (so chatter waits its turn).
     isShowing: () => Boolean(speechTakenBy()) || !el.classList.contains('hidden'),

@@ -46,7 +46,8 @@ export const GAMES = [
   { name: 'pong', label: 'Pong', ask: ['wanna play pong? i can be the ball!', 'pong? pleeease?', 'hey! bonk me around in pong?'] },
   { name: 'hide-seek', label: 'Hide & Seek', invite: false },
   { name: 'catch', label: 'Catch', ask: ["wanna play catch? i'll throw myself!", 'catch? i throw, you catch!', 'hey! play catch with me?'] },
-  { name: 'starby-says', label: 'Starby Says', ask: ['wanna play starby says?', "starby says: play with me! hehe", 'hey! play starby says with me?'] },
+  // weight: how likely the games timer picks it (default 1). Starby Says is his favorite.
+  { name: 'starby-says', label: 'Starby Says', weight: 3, ask: ['wanna play starby says?', "starby says: play with me! hehe", 'hey! play starby says with me?'] },
   { name: 'hoop-shot', label: 'Hoop Shot', ask: ['wanna play hoop shot? shoot me into the hoop!', 'slingshot me into a hoop?', 'hey! hoop shot? i\'ll be the ball!'] },
   { name: 'constellation', label: 'Star Quiz', ask: ['wanna do a star quiz?', "quiz time? i'll draw you a constellation!", 'hey! guess my constellation?'] },
 ];
@@ -119,7 +120,10 @@ function rollGamesTimer(ctx) {
   if (now - lastTimerStartAt < GAMES_TIMER.cooldown || now - cursorMovedAt > USER_AROUND) return;
   if (Math.random() >= GAMES_TIMER.chance) return;
   const choices = GAMES.length > 1 ? GAMES.filter((g) => g.name !== lastPicked) : GAMES;
-  const game = choices[Math.floor(Math.random() * choices.length)];
+  // Weighted pick (a game's `weight`, default 1): Starby Says comes up more often.
+  const total = choices.reduce((sum, g) => sum + (g.weight || 1), 0);
+  let roll = Math.random() * total;
+  const game = choices.find((g) => (roll -= g.weight || 1) < 0) || choices[choices.length - 1];
   lastPicked = game.name;
   let started;
   if (game.invite === false) {

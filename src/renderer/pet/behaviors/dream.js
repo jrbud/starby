@@ -1,16 +1,19 @@
 // DREAMS (Person 3): while Starby is asleep (mood 'sleepy'), every so often he dreams something,
-// shown in his speech bubble above his head (../bubble.js showContent, so it follows the same
-// one-bubble-at-a-time rule as his speech: a new line replaces it, chatter waits for it):
+// shown in the team's THOUGHT CLOUD above him (../bubble.js showContent, style 'think'; the cloud's
+// little dots trail down to his head; same one-bubble-at-a-time rule as his speech):
 //   - an accessory from the shop (top hat, bow, lollipop, ufo...), wiggling and shaking
 //   - or a little row of starbits, bouncing and jiggling
 // Only the team's existing art (assets/accessories/, assets/starbits/); the empty canvas around
 // each item is trimmed at load so it fills the bubble. Nothing is drawn by code.
 //
-// ART NOTE: the team plans thought-bubble art for dreams. It isn't in assets/ yet, so dreams use
-// the normal speech talkbox for now; switching is a change in ../talkbox.js once the files exist.
+// SLEEP-TALK: about a third of the time, instead of a dream he murmurs something in his speech
+// bubble: themed lines ("mmm... starbits...", "zzz... io... io..."), or about what he just dreamed
+// ("mmm... top hat..."). It's the only thing he says while asleep: everything else is muted
+// (mood.js speech gate), so these go through bubble.say(..., { force: true }).
 //
 // No dreams while he's being carried, during hush (calls / fullscreen) or while he's speaking.
-// Logged as 'dream' { kind, item }. DevTools: starby.dream() dreams right now (even awake).
+// Logged as 'dream' { kind, item } / 'sleep-talk' { line }. DevTools: starby.dream() dreams right now
+// (even awake), starby.sleepTalk() murmurs.
 import { ACCESSORIES } from '../accessories.js';
 import { starbitImages } from '../../shared/starbitArt.js';
 import { rand } from './motion.js';
@@ -21,6 +24,21 @@ const FIRST_DREAM = [5, 10]; // seconds after falling asleep
 const DREAM_EVERY = [10, 18]; // seconds between dreams (after one ends)
 const DREAM_FOR = 4.5; // seconds a dream stays up
 const STARBIT_CHANCE = 0.4; // otherwise an accessory
+const SLEEP_TALK_CHANCE = 0.35; // each turn: a sleep-talk line instead of a dream
+const ABOUT_DREAM_CHANCE = 0.5; // ...and half of those are about the last thing he dreamed
+const SLEEP_TALK_FOR = 3; // seconds
+const SLEEP_TALK = [
+  'mmm... starbits...',
+  'zzz... so many starbits...',
+  'no... those are MY starbits...',
+  'five more minutes... of space...',
+  'mmm... io... io...',
+  'zzz... the moon is a little dusty...',
+  'mmm... martians... party...',
+  'wheee... light speed... zzz',
+  'shooting star... make a wish... zzz',
+];
+const ABOUT_DREAM = (thing) => [`mmm... ${thing}...`, `zzz... my ${thing}...`, `so shiny... ${thing}... zzz`];
 const ITEM_SIZE = 44; // px: an accessory fits in this square
 const STARBIT_SIZE = 18; // px each, three in a row
 const ACCESSORY_DIR = '../../../assets/accessories'; // relative to src/renderer/pet/index.html
@@ -30,6 +48,14 @@ const trimmed = new Map(); // url → Promise<canvas | null>
 
 let nextDreamAt = null; // session seconds
 let dreamingUntil = 0;
+let lastDreamed = null; // what he dreamed last ('top hat', 'starbits'), for sleep-talk
+
+// The shop's name for an accessory art file ('propeller hat' → 'toy hat'), for sleep-talk.
+function shopName(ctx, file) {
+  const key = Object.keys(ACCESSORIES).find((k) => ACCESSORIES[k].file === file);
+  const item = (ctx.catalog || []).find((i) => i.value === key);
+  return (item ? item.name : file).toLowerCase();
+}
 
 function pick(list) {
   return list[Math.floor(Math.random() * list.length)];
@@ -149,9 +175,22 @@ async function dream(ctx, { force = false } = {}) {
   shake(box);
   // Still asleep (and not talking) after loading? Then show it.
   if (!force && (ctx.pet.mood !== 'sleepy' || ctx.isSpeaking())) return false;
-  if (!bubble.showContent(box, w, h, DREAM_FOR * 1000)) return false;
+  if (!bubble.showContent(box, w, h, DREAM_FOR * 1000, 'think')) return false;
   dreamingUntil = ctx.clock.seconds + DREAM_FOR;
+  lastDreamed = kind === 'starbits' ? 'starbits' : shopName(ctx, item);
   ctx.log('dream', { kind, item });
+  return true;
+}
+
+// A murmur in his sleep (the only speech allowed while he's asleep).
+function sleepTalk(ctx) {
+  const bubble = speechBubble();
+  if (!bubble) return false;
+  const pool = lastDreamed && Math.random() < ABOUT_DREAM_CHANCE ? ABOUT_DREAM(lastDreamed) : SLEEP_TALK;
+  const line = pick(pool);
+  bubble.say(line, SLEEP_TALK_FOR * 1000, { force: true });
+  dreamingUntil = ctx.clock.seconds + SLEEP_TALK_FOR;
+  ctx.log('sleep-talk', { line });
   return true;
 }
 
@@ -161,13 +200,14 @@ export default {
   init(ctx) {
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.dream = () => { dream(ctx, { force: true }); return 'dreaming'; };
+      window.starby.sleepTalk = () => { sleepTalk(ctx); return 'mumbling'; };
     }
   },
 
   onTick(ctx) {
     const { pet } = ctx;
     const now = ctx.clock.seconds;
-    if (pet.mood !== 'sleepy') { nextDreamAt = null; return; }
+    if (pet.mood !== 'sleepy') { nextDreamAt = null; lastDreamed = null; return; }
     if (nextDreamAt === null) nextDreamAt = now + rand(...FIRST_DREAM); // just fell asleep
     if (now < nextDreamAt || now < dreamingUntil) return;
     if (pet.mode === 'drag' || pet.mode === 'toss' || pet.hushed || ctx.isSpeaking()) {
@@ -175,6 +215,7 @@ export default {
       return;
     }
     nextDreamAt = now + DREAM_FOR + rand(...DREAM_EVERY);
-    dream(ctx);
+    if (Math.random() < SLEEP_TALK_CHANCE) sleepTalk(ctx);
+    else dream(ctx);
   },
 };

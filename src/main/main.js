@@ -6,6 +6,7 @@ const { createPetWindow } = require('./windows/petWindow');
 const { registerIpc } = require('./ipc');
 const { startSystemReads } = require('./systemReads');
 const { createTray } = require('./tray');
+const { setupGoodbye } = require('./goodbye');
 
 // Only one pet at a time — a second launch just exits.
 if (!app.requestSingleInstanceLock()) {
@@ -17,6 +18,7 @@ if (!app.requestSingleInstanceLock()) {
     const petWindow = createPetWindow();
     startSystemReads(petWindow);
     createTray(); // tray icon; its right-click menu = the old right-click menu (tray.js)
+    setupGoodbye(); // quitting: Starby says bye + bursts into stars first (goodbye.js)
   });
 
   app.on('window-all-closed', () => app.quit());

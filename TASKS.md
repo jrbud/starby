@@ -464,7 +464,64 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - What he dreams: an accessory (wiggling and shaking) or a row of 3 random starbits (bouncing). The art's
       empty canvas is trimmed at load.
     - It goes through `bubble.js showContent` (`talkbox.setContent`), so it follows the one-bubble rule.
-    - Thought-bubble art isn't in `assets/` yet, so dreams use the speech talkbox for now.
+    - **Thought cloud:** dreams use the team's think bubble (`assets/talkbox/think-bubble-frame-1/2.png`, the
+      `think` style in `talkbox.js`, measured from the art). The cloud floats up-left with its dots trailing
+      to his head, and boils frame 1 ↔ 2.
+    - **Sleep-talk:** about a third of turns, he murmurs a themed line in his speech bubble instead of
+      dreaming ("mmm... starbits...", "zzz... io... io...", "no... those are MY starbits..."). Half of those
+      are about what he just dreamed ("mmm... top hat..."). It's the only speech allowed while asleep
+      (`bubble.say(..., { force: true })`).
+    - **Naps on the taskbar:** yawning now walks him down onto the taskbar under where he is (`napSpot` in
+      `mood.js`), not to a top corner. He's kept 140px from the left edge and 100px from the right, so the
+      cloud and bubbles never get pushed by an edge.
+    - **Asleep = silent:**
+      - `mood.js` sets `talkbox.setSpeechGate` while sleepy, so no `ctx.say` line shows (chatter, clicks,
+        system comments). Only dreams show.
+      - Right-click does nothing while he's asleep.
+      - Wake-up lines still show, because the mood changes first.
+  - **Click the starbits counter → shop** (`starbits.js`, P2's file):
+    - The top-right counter card is now a `.hit` button that opens the shop.
+    - Hovering keeps it from sliding away and grows it a little.
+    - It's parked off-screen when hidden, so it only catches clicks while it's showing.
+  - **Fixes:**
+    - Exit: he vanishes in place inside the burst (quick fade). Before, a CSS `scale` on #pet also scaled
+      his position, so he zoomed off toward the top-left.
+    - Launch: empty bubbles no longer flicker in the bottom-left. The boil swapped frames with
+      `visibility: visible`, which overrode the intro's hidden parent, so it now uses opacity.
+    - Dream cloud: its dots now come from his upper-left (`THINK_TIP` in `bubble.js`), so the cloud sits
+      lower and further left.
+    - Dialogue line: it sits right on his head now. Rows of boxes at that height move out sideways to
+      clear it, instead of the line floating above the boxes.
+  - **More space talk** (`speech.js`): ~20 space jokes in his idle chatter ("the martians are throwing
+    another party tonight. i'm not invited. again."), plus space click replies ("greetings, earthling!") and
+    playful/mad lines.
+  - **Bigger dialogue (+33%):** his dialogue line and the answer boxes (font, padding, button borders, gaps).
+    `fitCenter` still keeps everything 10px inside the screen: he slides away from an edge, as before.
+  - **Never uppercase:** `text-transform: lowercase` on every talkbox text and dialogue line, and the plain
+    fallback bubble lowercases too, so whatever he says shows in lowercase.
+  - **Copycat smacks into the wall** (`copycat.js`, P1's file):
+    - A copied move into an edge makes him actually hit it: a `slam` (fx.js wall-hit effects, no starbit
+      drop), a squish, a bounce back, and a dazed face.
+    - Then "oof! you tricked me!" and the game ends 'wall'.
+  - **Shop names** (`shopCatalog.js`, P4's file): Propeller hat → Toy hat, Basketball shoes → Shoes, UFO
+    buddy → UFO. Sleep-talk uses these shop names too.
+  - **Only sleeps on the taskbar:** asleep anywhere else (dropped, thrown, put to sleep up high), he drifts
+    down to his nap spot at 150px/s (`sinkToNapSpot` in `mood.js`).
+  - **Goodbye on quit** (`src/main/goodbye.js` + `behaviors/goodbye.js`):
+    - Every quit (tray, dialogue, Windows) goes through app.quit(). `before-quit` holds the quit once and runs
+      `starby.goodbye()` in the pet window.
+    - The goodbye: he stops everything and says an excited line ("see you next time!", "byeee! come back
+      soon!"). Then a star-cloud explosion plays on top of him (`fx.js goodbyeBurst`) while he pops and shrinks
+      away, and his floaters fade.
+    - The pet then sends `app:goodbye-done` and the app quits (~2.2s). The main process quits after 3.5s no
+      matter what.
+    - Nothing can talk over the goodbye line (speech gate, `pet.goodbyeSaid`).
+    - Shared files: `main.js` (1 line) and `preload.js` (`goodbyeDone`).
+  - **More Starby Says / dancing:**
+    - `GAMES` entries can have a `weight` (games.js). Starby Says has weight 3, so the games timer picks it
+      ~27% of the time vs ~12% for each other game.
+    - Random no-music dance is now 12%/min after a 5 min rest (was 2%/min after 20 min): roughly every
+      10-15 min.
   - **Choices are lowercase:** `text-transform: lowercase` on every answer box (tree, invites, quiz).
   - **Harder to scare** (`cursorReact.js`, P1's file):
     - Flinching needs a really fast lunge right at him: 2600px/s (was 1300), path within 130px (was 180),

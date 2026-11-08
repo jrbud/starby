@@ -4,7 +4,7 @@
 //   pet.mode  what the body is doing (Person 1): idle | walk | follow | flee | drag | toss
 //   pet.mood  how he feels (this file):          happy | mad | playful | dizzy | yawning | sleepy
 //   pet.face  which PNG frames to show (see "Face" below and ../frames.js)
-//   pet.goal  { x, y } a mood wants him to walk to (yawning → nearest top corner), or null.
+//   pet.goal  { x, y } a mood wants him to walk to (yawning → his nap spot on the taskbar), or null.
 //             idle.js walks there once Person 1 hooks it up (Phase 2).
 // Other behaviors don't check mood names; they read the rules in ./moods.js.
 //
@@ -19,11 +19,14 @@
 //                             Interaction = click, grab, throw, edge hit, flinch, starbits pickup,
 //                             or the cursor within 120px.
 //   yawning → happy           any interaction
-//   yawning → sleepy          reached the top corner in pet.goal
+//   yawning → sleepy          reached his nap spot in pet.goal: sitting on the taskbar (below him,
+//                             kept away from the screen edges so his thought cloud / bubbles fit)
 //   any → sad                 said no to a game (events/tag.js calls requestMood). Lasts 5s, or
 //                             one click cheers him up early. Then back to happy.
 //   happy → playful           the cursor rests on him for HOVER_FOR seconds; staying there keeps
 //                             him playful.
+//   sleepy                    asleep: he doesn't talk at all (../talkbox.js setSpeechGate), only dreams.
+//                             Only on the taskbar: asleep anywhere else, he drifts down to it (sinkToNapSpot)
 //   sleepy → happy            picked up and shaken, or THROWN (released at ≥WAKE_THROW_SPEED; a
 //                             real throw then also makes him playful). Clicks, the cursor or just
 //                             setting him down don't wake him; he keeps sleeping where he lands.
@@ -32,6 +35,7 @@
 import { chat, lineBag } from './chatter.js';
 import { MOODS } from './moods.js';
 import { petBounds } from './motion.js';
+import { setSpeechGate } from '../talkbox.js';
 
 // ---- Tuning ----
 // Exported: speech.js warns on the pokes leading up to it ("one more poke and i'm gonna be mad!").
@@ -85,11 +89,33 @@ const shake = { t: 0, prev: null, lastDir: null, reversals: [] };
 const center = (pet) => ({ x: pet.x + pet.size / 2, y: pet.y + pet.size / 2 });
 
 // Top corners of the usable screen area (below a top taskbar, beside a side one).
-function nearestTopCorner(ctx) {
+// His nap spot: straight down onto the taskbar, but not too close to a screen edge: his dream
+// cloud floats up and to his LEFT (behaviors/dream.js), and speech bubbles need room either side,
+// so nothing gets pushed sideways by the edge.
+const NAP_ROOM_LEFT = 140; // px kept clear on his left (the thought cloud)
+const NAP_ROOM_RIGHT = 100; // px on his right
+const SINK_SPEED = 150; // px/s: asleep somewhere else (dropped, thrown...) → he drifts down onto the taskbar
+function napSpot(ctx) {
   const { pet } = ctx;
   const b = petBounds(ctx);
-  const left = center(pet).x < (b.minX + b.maxX + pet.size) / 2;
-  return { x: left ? b.minX : b.maxX, y: b.minY };
+  const lo = Math.min(b.minX + NAP_ROOM_LEFT, b.maxX);
+  const hi = Math.max(lo, b.maxX - NAP_ROOM_RIGHT);
+  return { x: Math.max(lo, Math.min(hi, pet.x)), y: b.maxY };
+}
+
+// He only sleeps ON THE TASKBAR: asleep anywhere else (dropped or thrown while sleeping, put to
+// sleep up high...) he slowly drifts down to his nap spot, still asleep.
+function sinkToNapSpot(ctx, dt) {
+  const { pet } = ctx;
+  if (pet.mood !== 'sleepy' || pet.mode !== 'idle') return;
+  const spot = napSpot(ctx);
+  const dx = spot.x - pet.x;
+  const dy = spot.y - pet.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 0.5) return;
+  const step = Math.min(d, SINK_SPEED * dt);
+  pet.x += (dx / d) * step;
+  pet.y += (dy / d) * step;
 }
 
 /** Switch mood. Returns false if it's already that mood (or not a real one). */
@@ -101,7 +127,7 @@ function setMood(ctx, mood, reason) {
   ctx.cancel(moodTimer);
   moodTimer = null;
   moodEndsAt = null;
-  pet.goal = mood === 'yawning' ? nearestTopCorner(ctx) : null;
+  pet.goal = mood === 'yawning' ? napSpot(ctx) : null;
   ctx.log('mood', { from, to: mood, reason });
   return true;
 }
@@ -430,6 +456,10 @@ export default {
     const { pet } = ctx;
     pet.mood = 'happy';
     pet.face = 'happy';
+    // Asleep = no talking at all (his dreams still show: behaviors/dream.js). Waking up changes
+    // the mood BEFORE the wake-up line, so "huh? i'm up!" still shows.
+    // Also silent once his goodbye line is up (behaviors/goodbye.js: nothing may talk over it).
+    setSpeechGate(() => pet.mood === 'sleepy' || pet.goodbyeSaid === true);
     pet.goal = null;
     lastInteraction = ctx.clock.seconds;
     nextFlourishAt = ctx.clock.seconds + FLOURISH_EVERY[0];
@@ -477,6 +507,7 @@ export default {
   update(ctx, dt) {
     trackShake(ctx, dt);
     trackMovement(ctx, dt);
+    sinkToNapSpot(ctx, dt);
     ctx.pet.face = faceFor(ctx);
   },
 };
