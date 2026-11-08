@@ -9,23 +9,40 @@ const path = require('path');
 
 const DEFAULTS = {
   flingPower: 50, // 0–100: how hard throws fly and how bouncy the walls are (50 = original feel)
-  starbySize: 96, // Starby's size on screen in px (Settings slider, 48–144; pet.js applies it live)
+  starbySize: 100, // Starby's size on screen in px (Settings slider, 50–150; pet.js applies it live)
   // Starbit colors switched ON in Settings (names from renderer/shared/starbitArt.js).
-  // Default: yellow only. Must match DEFAULT_STARBIT_COLORS in starbitArt.js.
-  starbitColors: ['yellow'],
+  // Default: every color except white. Must match DEFAULT_STARBIT_COLORS in starbitArt.js.
+  starbitColors: ['blue', 'green', 'pink', 'red', 'teal', 'yellow'],
   starbitSize: 20, // px on screen (the Settings slider allows 10–48)
   // Starbits on/off switches (1 = on, 0 = off):
   starbitSpawning: 1, // drop starbits at all (timed, wall hits, tag rewards)
   starbitVisible: 1, // show starbits on screen (off = hidden, still collectable)
   starbitShootAnimation: 1, // collected starbits zip to the count card (off = just fade)
   // Sound effects (assets/sounds/, played via renderer/shared/sfx.js):
-  sfxVolume: 70, // 0–100 %
+  sfxVolume: 70, // master "All sounds", 0–150 % (100 = as recorded)
   sfxMuted: 0, // 1 = muted (keeps sfxVolume for when you unmute)
+  // Per-category sound controls (categories: SOUND_CATEGORIES in renderer/shared/sfx.js).
+  // Volume 0–200 % on top of sfxVolume (100 = no change); On 1/0 switches the category on/off.
+  sfxVoiceVolume: 100, // chat + prompt
+  sfxVoiceOn: 1,
+  sfxStarbitsVolume: 100, // collecting starbits
+  sfxStarbitsOn: 1,
+  sfxActionVolume: 100, // throw, sling, explode
+  sfxActionOn: 1,
+  sfxAppVolume: 100, // startup + exit
+  sfxAppOn: 1,
 };
 
 // Number settings are kept within 0–100 unless listed here as [min, max].
 const RANGES = {
-  starbySize: [48, 144], // keep in sync with SIZE_MIN / SIZE_MAX in src/renderer/pet/pet.js
+  starbySize: [50, 150], // keep in sync with SIZE_MIN / SIZE_MAX in src/renderer/pet/pet.js
+  // Sound sliders go up to 200 % (shared/sfx.js boosts past full volume). Keep in sync with the
+  // sliders' max in renderer/settings (index.html master, settings.js categories).
+  sfxVolume: [0, 150], // master; the categories below go to 200
+  sfxVoiceVolume: [0, 200],
+  sfxStarbitsVolume: [0, 200],
+  sfxActionVolume: [0, 200],
+  sfxAppVolume: [0, 200],
 };
 
 // List settings: arrays of short lowercase names (e.g. color names), nothing else.

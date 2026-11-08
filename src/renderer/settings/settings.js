@@ -2,7 +2,7 @@
 // 'settings:changed'); the value is saved to settings.json and survives restarts.
 import { flingTuning } from '../shared/flingTuning.js';
 import { STARBIT_COLORS, starbitImage, enabledColors, STARBIT_SIZE, clampStarbitSize } from '../shared/starbitArt.js';
-import { sfx } from '../shared/sfx.js';
+import { sfx, SOUND_CATEGORIES } from '../shared/sfx.js';
 
 // ---- Collapsible sections (<details>): remember open/closed per section in this window's
 // localStorage (a per-viewer convenience; if storage is unavailable they just start open).
@@ -120,7 +120,7 @@ const starbySlider = document.getElementById('starby-size');
 const starbyOut = document.getElementById('starby-size-value');
 
 function showStarbySize(px) {
-  const v = Number(px) || 96;
+  const v = Number(px) || 100;
   starbySlider.value = v;
   starbyOut.textContent = `${v} px`;
 }
@@ -130,43 +130,97 @@ starbySlider.addEventListener('input', () => {
   api.setSettings({ starbySize: Number(starbySlider.value) });
 });
 
-// ---- Sound effects: volume slider + mute (shared/sfx.js plays at this volume everywhere) ----
+// ---- Sounds: on/off box in the "Sounds" header (all sounds), "All sounds" master volume, then one
+// slider + on/off box per category. (shared/sfx.js plays every sound at master × category;
+// categories: SOUND_CATEGORIES there.) The header box is the reverse of the saved sfxMuted:
+// checked = sounds on = sfxMuted 0.
 const sfxSlider = document.getElementById('sfx-volume');
 const sfxOut = document.getElementById('sfx-volume-value');
-const sfxMute = document.getElementById('sfx-muted');
-sfx.preload(['collect-starbit']);
+const sfxOn = document.getElementById('sfx-on');
+sfx.preload(SOUND_CATEGORIES.map((c) => c.sample));
+const pct = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+
+// Change settings: apply to this window's player right away (so the sample uses it), then save.
+function saveSound(patch) {
+  sfx.applyNow(patch);
+  return api.setSettings(patch);
+}
 
 function showSfx(settings) {
-  const v = Number.isFinite(Number(settings.sfxVolume)) ? Number(settings.sfxVolume) : 70;
+  const v = pct(settings.sfxVolume, 70);
   const muted = Number(settings.sfxMuted) === 1;
   sfxSlider.value = v;
-  sfxOut.textContent = muted ? 'muted' : `${v}%`;
-  sfxMute.checked = muted;
+  sfxOut.textContent = muted ? 'off' : `${v}%`;
+  sfxOn.checked = !muted;
   sfxSlider.classList.toggle('is-muted', muted);
+  for (const row of categoryRows) row.show(settings);
 }
 
 sfxSlider.addEventListener('input', () => {
-  // Moving the slider while muted unmutes (you clearly want sound).
+  // Moving the slider while sounds are off turns them back on (you clearly want sound).
   const v = Number(sfxSlider.value);
-  sfxMute.checked = false;
+  sfxOn.checked = true;
   sfxOut.textContent = `${v}%`;
   sfxSlider.classList.remove('is-muted');
-  api.setSettings({ sfxVolume: v, sfxMuted: 0 });
+  saveSound({ sfxVolume: v, sfxMuted: 0 });
 });
 // Letting go: play a sample so you hear the new volume.
-sfxSlider.addEventListener('change', () => {
-  sfx.setVolume(Number(sfxSlider.value), false);
-  sfx.play('collect-starbit');
+sfxSlider.addEventListener('change', () => sfx.play('collect-starbit'));
+sfxOn.addEventListener('change', () => {
+  const on = sfxOn.checked;
+  sfxOut.textContent = on ? `${sfxSlider.value}%` : 'off';
+  sfxSlider.classList.toggle('is-muted', !on);
+  saveSound({ sfxMuted: on ? 0 : 1 });
+  if (on) sfx.play('collect-starbit');
 });
-sfxMute.addEventListener('change', () => {
-  const muted = sfxMute.checked;
-  sfxOut.textContent = muted ? 'muted' : `${sfxSlider.value}%`;
-  sfxSlider.classList.toggle('is-muted', muted);
-  api.setSettings({ sfxMuted: muted ? 1 : 0 });
-  if (!muted) {
-    sfx.setVolume(Number(sfxSlider.value), false);
-    sfx.play('collect-starbit');
-  }
+
+// One row per category: "Voice  80%" (+ a hint of what's in it), the slider, and an on/off box.
+const categoryList = document.getElementById('sound-categories');
+const categoryRows = SOUND_CATEGORIES.map((cat) => {
+  const id = `sfx-cat-${cat.id.toLowerCase()}`;
+  const section = document.createElement('section');
+  section.className = 'setting sound-category';
+  section.innerHTML = `
+    <div class="label-row">
+      <label for="${id}">${cat.label} <span class="sound-hint">${cat.hint}</span></label>
+      <output for="${id}"></output>
+    </div>
+    <div class="sound-row">
+      <input id="${id}" type="range" min="0" max="200" step="1" value="100" />
+      <label class="switch-row sound-toggle" title="${cat.label} sounds on/off">
+        <input type="checkbox" class="art-check" aria-label="${cat.label} sounds on" />
+      </label>
+    </div>`;
+  categoryList.append(section);
+  const slider = section.querySelector('input[type="range"]');
+  const out = section.querySelector('output');
+  const box = section.querySelector('input[type="checkbox"]');
+
+  const showState = (v, on) => {
+    slider.value = v;
+    out.textContent = on ? `${v}%` : 'off';
+    box.checked = on;
+    slider.classList.toggle('is-muted', !on);
+  };
+  slider.addEventListener('input', () => {
+    // Moving a category's slider switches that category back on.
+    const v = Number(slider.value);
+    showState(v, true);
+    saveSound({ [cat.volumeKey]: v, [cat.onKey]: 1 });
+  });
+  slider.addEventListener('change', () => sfx.play(cat.sample)); // hear the new level
+  box.addEventListener('change', () => {
+    showState(Number(slider.value), box.checked);
+    saveSound({ [cat.onKey]: box.checked ? 1 : 0 });
+    if (box.checked) sfx.play(cat.sample);
+  });
+
+  return {
+    show(settings) {
+      const on = settings[cat.onKey] === undefined || Number(settings[cat.onKey]) !== 0;
+      showState(pct(settings[cat.volumeKey], 100), on);
+    },
+  };
 });
 
 function show(settings) {
