@@ -47,6 +47,7 @@ src/
       core/                 clock.js (10 ticks/s), scheduler.js (after/every), eventLog.js
       events/               scripted sequences that take over the star (index.js = runner; tag.js;
                             pong.js; invite.js = he asks you to play a random game;
+                            happenings.js = 20–50 min timer for random happenings (starShower.js);
                             games.js = list of games, game buttons, rest between games, 3-2-1-GO;
                             prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements

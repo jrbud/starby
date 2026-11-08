@@ -87,6 +87,15 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   "maybe later", not sad. Only when he's relaxed, happy/playful, rested after the last game, and the cursor
   moved in the last 10s. **New games join automatically:** add them to `GAMES` with their ask lines.
   DevTools: `starby.invite()` / `starby.invite('pong')`. The menu items start games directly (no invite).
+- [x] **P1-10 (Nice) Happenings timer + Star Shower.** `events/happenings.js`: one shared timer on the session
+  clock; every 20–50 min (random gap) it starts a random *happening* from `HAPPENINGS` (weighted). Not a good
+  moment (a game/invite running, or the cursor hasn't moved for 2 min)? It retries every 60s instead of
+  skipping. **Add a happening:** write its event, register it in `events/index.js`, add it to `HAPPENINGS`.
+  First one, `events/starShower.js`: he shouts "THE SKY IS FALLING!" and hops; for 12s, 30 starbits fall from
+  the top of the usable area (`rainStarbit` in `starbits.js`: sway + spin, no magnet, slightly bigger catch
+  zone). Catch them with the cursor or they fade at the bottom; then he says how many you caught. He isn't
+  taken over (keeps wandering, extra hops). Low priority: never interrupts a game. DevTools:
+  `starby.happening('star-shower')`, `starby.nextHappening()` (seconds until the next).
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors

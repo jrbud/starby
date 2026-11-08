@@ -27,6 +27,8 @@
 //   burstStarbits(ctx, 7)   he throws starbits out in a full ring, a bit farther than a normal drop,
 //                           ignoring MAX_ON_SCREEN; for REWARD_PICKUP_DELAY the magnet and pickup
 //                           leave them alone, so you see them fly out before sweeping them up
+//   rainStarbit(ctx, x, speed)  one starbit falls from the top of the screen (star shower happening):
+//                           catch it with the cursor before it reaches the bottom, or it fades away
 //   reclaimStarbits(ctx)    every starbit on screen spins and flies back into him and disappears
 //                           (not added to the count)
 import { rulesFor } from './moods.js';
@@ -92,6 +94,12 @@ const IMPACT_ARC = 120; // degrees
 const REWARD_DIST = [60, 130]; // px past the star's edge a reward starbit lands
 const REWARD_PICKUP_DELAY = 0.35; // s before the magnet/pickup notice a fresh reward starbit
 const RECLAIM_SPEED = 700; // px/s minimum while flying back into him
+// Falling starbits (rainStarbit, used by the star shower happening in ../events/starShower.js)
+const FALL_SWAY = [10, 28]; // px side-to-side sway
+const FALL_SWAY_FREQ = [1.2, 2.4]; // rad/s
+const FALL_SPIN = 160; // deg/s max
+const FALL_CATCH_BONUS = 8; // px added to PICKUP_RADIUS for a falling starbit (no magnet while falling)
+const FALL_MISS_FADE = 0.35; // s fade when one reaches the bottom uncaught
 const RECLAIM_SPIN = 720; // deg/s while flying back
 
 const REFUSE_LINES = lineBag(['no starbits for you!', 'hmph. no sparkles.', 'not dropping anything for a poker']);
@@ -202,6 +210,59 @@ export function reclaimStarbits(ctx) {
   return n;
 }
 
+/**
+ * Rain: drop one starbit from the top of the usable screen at x, falling at `speed` px/s.
+ * It sways and spins on the way down. No magnet while falling: catch it with the cursor (slightly
+ * bigger catch zone than a normal pickup) and it's collected like any starbit. If it reaches the
+ * bottom uncaught it fades away. Doesn't count against MAX_ON_SCREEN.
+ */
+export function rainStarbit(ctx, x, speed = 240) {
+  const a = area(ctx);
+  const y = a.top + EDGE_MARGIN;
+  const el = document.createElement('img');
+  el.className = 'starbits';
+  el.src = randomStarbitImage();
+  el.alt = '';
+  el.draggable = false;
+  el.style.left = `${x - SIZE / 2}px`;
+  el.style.top = `${y - SIZE / 2}px`;
+  ctx.stage.appendChild(el);
+  drops.push({
+    el, spawnX: x, spawnY: y, px: x, py: y, x, y, vx: 0, vy: speed,
+    falling: { baseX: x, sway: rand(...FALL_SWAY), freq: rand(...FALL_SWAY_FREQ), phase: rand(0, 6.28), t: 0 },
+    thrown: false, attracted: false, age: 0, fading: false, reclaiming: false,
+    pickableAt: ctx.clock.seconds, anchorX: x, anchorY: y,
+    angle: rand(0, 360), spin: rand(-FALL_SPIN, FALL_SPIN), spinTarget: 0, retargetIn: 99,
+    bob: { t: 0, amp: 0, fx1: 1, fx2: 1, px1: 0, px2: 0, fy1: 1, fy2: 1, py1: 0, py2: 0 },
+  });
+}
+
+// One frame of falling (see rainStarbit). Missed at the bottom → fade out and remove.
+function fallStep(ctx, d, dt) {
+  const f = d.falling;
+  f.t += dt;
+  d.py += d.vy * dt;
+  d.px = f.baseX + Math.sin(f.t * f.freq + f.phase) * f.sway;
+  d.angle = (d.angle + d.spin * dt) % 360;
+  d.x = d.px;
+  d.y = d.py;
+  d.el.style.transform = `translate(${d.x - d.spawnX}px, ${d.y - d.spawnY}px) rotate(${d.angle}deg)`;
+  const bottom = area(ctx).bottom - EDGE_MARGIN;
+  if (!d.fading && d.py >= bottom) {
+    d.fading = true; // too late to catch
+    d.vy = 0; // stop right there (don't slide down over the taskbar while fading)
+    d.py = bottom;
+    d.el.style.transition = `opacity ${FALL_MISS_FADE}s ease-in`;
+    d.el.style.opacity = '0';
+    ctx.after(FALL_MISS_FADE, () => {
+      const i = drops.indexOf(d);
+      if (i !== -1) drops.splice(i, 1);
+      d.el.remove();
+    }, 'falling starbit missed');
+    ctx.log('starbit-missed', {});
+  }
+}
+
 // One frame of flying back into him. Returns true once it has arrived (then it's removed).
 function reclaimStep(ctx, d, dt) {
   const { pet } = ctx;
@@ -242,7 +303,7 @@ function impactDrops(ctx, impact) {
 // opts (for rewards): ignoreCap, past = [min, max] px past the star's edge to land,
 // pickupDelay = seconds before the magnet/pickup notice it.
 function spawn(ctx, deg, { ignoreCap = false, past, pickupDelay = 0 } = {}) {
-  if (!ignoreCap && drops.length >= MAX_ON_SCREEN) return;
+  if (!ignoreCap && drops.filter((d) => !d.falling).length >= MAX_ON_SCREEN) return;
   const { pet } = ctx;
   // Out of the star's center, wherever it is.
   const x = pet.x + pet.size / 2;
@@ -615,7 +676,9 @@ export default {
   update(ctx, dt) {
     for (let i = drops.length - 1; i >= 0; i--) {
       const d = drops[i];
-      if (!d.reclaiming) {
+      if (d.falling && !d.reclaiming) {
+        fallStep(ctx, d, dt); // rain (star shower)
+      } else if (!d.reclaiming) {
         animate(ctx, d, dt);
       } else if (reclaimStep(ctx, d, dt)) {
         drops.splice(i, 1); // arrived back inside him
@@ -639,7 +702,8 @@ export default {
       const d = drops[i];
       if (d.fading) continue; // too late, it's fading away
       if (d.reclaiming || now < (d.pickableAt ?? 0)) continue; // flying home / just thrown as a reward
-      if (Math.hypot(ctx.cursor.x - d.x, ctx.cursor.y - d.y) < PICKUP_RADIUS) {
+      const reach = PICKUP_RADIUS + (d.falling ? FALL_CATCH_BONUS : 0);
+      if (Math.hypot(ctx.cursor.x - d.x, ctx.cursor.y - d.y) < reach) {
         collect(ctx, i);
       }
     }
