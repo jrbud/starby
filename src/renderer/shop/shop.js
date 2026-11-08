@@ -210,7 +210,7 @@ function renderLists() {
 function fitNames() {
   for (const name of document.querySelectorAll('.item-name')) {
     let px = 18;
-    while (name.scrollWidth > name.clientWidth && px > 13) {
+    while (name.scrollWidth > name.clientWidth && px > 12) {
       px -= 1;
       name.style.fontSize = `${px}px`;
     }

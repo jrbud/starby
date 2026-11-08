@@ -52,14 +52,18 @@ button {
 .wallet {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-width: 100px;
-  height: 36px; /* art ratio ~2.7:1 */
-  padding: 0 16px;
+  gap: 7px;
+  min-width: 118px;
+  height: 42px; /* art ratio ~2.7:1 */
+  padding: 0 18px;
   background: url('../../../assets/menuIcons/button-idle.png') center / 100% 100% no-repeat;
   color: var(--yellow); /* light text on the dark purple art */
-  font-size: 15px;
+  font-size: 24px;
   font-weight: 700;
+}
+.wallet .starbit-icon {
+  width: 24px;
+  height: 24px;
 }
 
 .starbit-icon {
@@ -152,6 +156,13 @@ button {
   color: var(--yellow);
   font-size: 28px;
   font-weight: 800;
+  /* Dark outline (the art's border color) around the text, its underline and the ▲/▼ arrow:
+     a 1.5px shadow in 8 directions. */
+  --outline-dark: #2b2236;
+  text-shadow:
+    -1.5px -1.5px 0 var(--outline-dark), 0 -1.5px 0 var(--outline-dark), 1.5px -1.5px 0 var(--outline-dark),
+    -1.5px 0 0 var(--outline-dark), 1.5px 0 0 var(--outline-dark),
+    -1.5px 1.5px 0 var(--outline-dark), 0 1.5px 0 var(--outline-dark), 1.5px 1.5px 0 var(--outline-dark);
 }
 .section-toggle .label {
   text-decoration: underline;
@@ -227,9 +238,9 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 15px;
+  font-size: 17px;
 }
 .price .starbit-icon {
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
 }
