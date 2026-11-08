@@ -3,7 +3,8 @@
 //   setup   "i'm gonna throw myself! catch me in the box!" A dashed catch box (BOX_STARBYS × BOX_STARBYS
 //           Starbys big) appears on the right side of the usable screen, labelled with the strikes;
 //           he goes to the far left.
-//   windup  he stretches out (squashed wide, winding up) and says "ready?"
+//   windup  he stretches out (squashed wide, winding up), announces "get ready to catch me!" and counts
+//           down "3... 2... 1... GO!" (createReady, ./games.js), then throws. Before every throw.
 //   fly     he flings himself at the box, fast (THROW_SPEED). Click / grab him WHILE HE'S INSIDE THE
 //           BOX → "NICE!" and WIN_REWARD starbits. He leaves the box uncaught → "STRIKE!"; he bonks
 //           into the edge, walks back to the left (facing left) and winds up again. STRIKES_OUT strikes → you're out.
@@ -22,13 +23,13 @@ import { lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
 import { burstStarbits } from '../behaviors/starbits.js';
 import { TICK_SECONDS } from '../core/clock.js';
-import { readyToPlay, markPlayed } from './games.js';
+import { readyToPlay, markPlayed, createReady } from './games.js';
 
 // ---- Tuning ----
 const BOX_STARBYS = 5; // the box is this many Starbys wide and tall
 const BOX_INSET = 60; // px from the usable area's right edge
 const START_INSET = 20; // px from the usable area's left edge where he winds up
-const WINDUP_FOR = 1.3; // seconds of "ready?" before each throw
+const ANNOUNCE_FOR = 1.5; // seconds of "get ready to catch me!" before the 3-2-1 countdown
 const THROW_SPEED = 950; // px/s
 const WALK_SPEED = 650; // px/s walking back to the left (at the start and after a strike)
 const STEP_RATE = 14; // rad/s of the little step bounce while walking back
@@ -39,7 +40,7 @@ const CATCH_PAD = 12; // px around him that still counts as clicking him (from i
 
 const LINES = {
   intro: lineBag(["i'm gonna throw myself! catch me in the box!", 'catch me! but only in the box!']),
-  ready: lineBag(['ready?', 'ready? ✦', 'here i go... ready?']),
+  ready: lineBag(['get ready to catch me!', 'get ready to catch me! here i go...']),
   strike: (n) => (n >= STRIKES_OUT ? `STRIKE ${n}! you're out!` : `STRIKE ${n}!`),
   nice: lineBag(['NICE! ✦', 'NICE! great catch!', 'NICE!! you got me!']),
   cheater: lineBag(['CHEATER! that was outside the box!', "CHEATER! no catching outside the box!", 'hey! CHEATER! game over']),
@@ -48,8 +49,8 @@ const LINES = {
 // ---- State ----
 let endGame = null;
 let phase = 'setup'; // setup | windup | fly | bonk | return | done
+const ready = createReady({ pause: ANNOUNCE_FOR }); // the countdown before each throw
 let strikes = 0;
-let phaseLeft = 0;
 let laneY = 0; // center y of this throw
 let box = null; // { x, y, size } in pet-window coordinates
 let boxEl = null;
@@ -145,12 +146,12 @@ function windUp(ctx) {
   ctx.pet.faceOverride = null;
   ctx.pet.bob = 0;
   phase = 'windup';
-  phaseLeft = WINDUP_FOR;
   wasInBox = false;
   leftBox = false;
   grab = null;
   ctx.pet.facing = 1;
-  ctx.say(LINES.ready(), WINDUP_FOR * 1000);
+  ready.start(); // "get ready to catch me!", then 3... 2... 1... GO!
+  ctx.say(LINES.ready(), ANNOUNCE_FOR * 1000);
 }
 
 // Say the result line, and remember it: the click that caught him also makes speech.js answer the
@@ -234,8 +235,7 @@ export default {
     if (pet.mode !== 'catch') { finish(ctx, `interrupted:${pet.mode}`); return; }
 
     if (phase === 'windup') {
-      phaseLeft -= TICK_SECONDS;
-      if (phaseLeft <= 0) {
+      if (ready.tick(ctx)) { // said "GO!"
         phase = 'fly';
         thrown = true;
         startJump({ height: 6, air: 0.15 }); // a little push-off

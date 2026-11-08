@@ -106,7 +106,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   (he hides on his own, P1-15) and the menu ("Play hide & seek"); never in invites (`invite: false`).
 - [x] **P1-14 (Nice) Catch.** `events/catchGame.js`, a game (buttons, invites, menu "Play catch"): "i'm gonna
   throw myself! catch me in the box!" A dashed catch box (5 × 5 Starbys) appears on the right; he goes to the far
-  left, stretches out, says "ready?" and flings himself at the box (950px/s, ~0.35s inside it). Click/grab him
+  left, stretches out, says "get ready to catch me!", counts down "3... 2... 1... GO!" (before every throw) and flings himself at the box (950px/s, ~0.35s inside it). Click/grab him
   **inside the box** → "NICE!" + 10 starbits. Missed → "STRIKE n!", he bonks the edge, flies back, tries again;
   3 strikes → out. He walks back to the left facing left (the 'left' art, via `pet.faceOverride`, which
   `mood.js` honours) on one straight path. Clicking him before or after the box (or while winding up / flying back) → "CHEATER!", game
@@ -171,12 +171,13 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   throwing work as usual.
 - [x] **P1-19 (Nice) Hoop Shot.** `events/hoopShot.js`, a game (invite "wanna play hoop shot?", game buttons,
   menu "Play hoop shot"). He flies to a launch spot on his side; a hoop appears on the far side (random height).
-  **Right-click and drag** him back like a slingshot (he's pulled toward the cursor, max 170px) and let go: he
+  **Right- or left-click and drag** him back like a slingshot (he's pulled toward the cursor, max 170px) and let go: he
   flies the other way in an **arc** (gravity 1500px/s², this game only), spinning, bouncing off the screen edges.
   While pulling, 6 small starbit PNGs show only the **first 0.4s** of the arc. Passing down through the hoop's
   opening → "SWISH!" + 10 starbits. A miss bounces on the floor and he flies back to try again. **15s** on the clock
-  (countdown top right); a shot in the air at 0 still counts. The right-click menu is blocked only while the game
-  runs (window capture listener; drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
+  (countdown top right); a shot in the air at 0 still counts. Just a click (either button) → he stays put: "right
+  click or left click and drag me!". During the game, presses on him and the right-click menu are caught by window
+  capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
   (`HOOP_ART` / `HOOP_ART_BOX` in hoopShot.js; swap when a hoop is drawn).
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
