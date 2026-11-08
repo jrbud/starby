@@ -104,6 +104,7 @@ let boilTimer = null;
 let ctxRef = null;
 let catcher = null; // full-screen click catcher behind the boxes (see 'click away' above)
 let catching = false;
+let armed = null; // the box (or 'away' = the catcher) pressed and not released yet
 // While open, his ctx.say lines land here (replacing his line) instead of a second bubble.
 const takeLine = (text) => { if (ctxRef && open && say) replaceLine(ctxRef, text, true); };
 let boilStep = 0;
@@ -210,8 +211,14 @@ function build(ctx) {
   // Behind everything on the stage (Starby and the boxes stay clickable above it).
   catcher = document.createElement('div');
   catcher.className = 'dlg-catcher hit';
+  // Click away = cancel, on the RELEASE (see the answer buttons for why).
   catcher.addEventListener('mousedown', (e) => {
-    if (e.button === 0 || e.button === 2) cancel(ctx);
+    if (e.button === 0 || e.button === 2) armed = 'away';
+  });
+  catcher.addEventListener('mouseup', (e) => {
+    const was = armed;
+    armed = null;
+    if ((e.button === 0 || e.button === 2) && was === 'away') cancel(ctx);
   });
   catcher.addEventListener('contextmenu', (e) => e.preventDefault());
   ctx.stage.insertBefore(catcher, ctx.stage.firstChild);
@@ -222,7 +229,7 @@ function setCatching(ctx, on) {
   if (catching === on) return;
   catching = on;
   if (catcher) catcher.style.display = on ? 'block' : 'none';
-  ctx.setPinned?.(on);
+  ctx.setPinned?.(on, 'menu'); // its own pin owner (clickThrough.js): drags can't unpin it
   if (!on && ctx.cursor && ctx.cursor.x > -1000) {
     // Re-check click-through for where the cursor is now (clickThrough.js does it on mousemove).
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: ctx.cursor.x, clientY: ctx.cursor.y }));
@@ -359,9 +366,18 @@ function makeBox(ctx, option, from) {
   root.appendChild(el);
   const b = { el, option, w: 0, h: 0, slot: { x: 0, y: 0 }, from: { ...from }, kind: 'wait', start: 0, dur: 0 };
   // mousedown so it answers on the first press even though the pet window isn't focusable.
+  // Pressed here, released here = picked. It acts on the RELEASE, not the press: closing the menu
+  // (which turns click-through back on) while the button is still held could leave Windows routing
+  // the mouse to this window afterwards, so other apps couldn't be clicked.
   btn.addEventListener('mousedown', (e) => {
     e.stopPropagation();
-    if (e.button === 0 && open && (b.kind === 'shown' || b.kind === 'in')) choose(ctx, b);
+    if (e.button === 0) armed = b;
+  });
+  btn.addEventListener('mouseup', (e) => {
+    e.stopPropagation();
+    const was = armed;
+    armed = null;
+    if (e.button === 0 && was === b && open && (b.kind === 'shown' || b.kind === 'in')) choose(ctx, b);
   });
   return b;
 }
@@ -607,8 +623,8 @@ export const dialogue = {
 
   // Every tick: close when he's taken, an event takes over, or it's been left alone too long.
   watch(ctx) {
+    if (catching && !open) setCatching(ctx, false); // (safety: never leave the catcher up with nothing open)
     if (!open) return;
-    if (catching) ctx.setPinned?.(true); // a poke's mouseup (drag.js) unpins; keep catching
     const { pet, cursor } = ctx;
     const under = cursor.x > -1000 ? document.elementFromPoint(cursor.x, cursor.y) : null;
     quietFor = under && under.closest('.dlg-root') ? 0 : quietFor + TICK_SECONDS;

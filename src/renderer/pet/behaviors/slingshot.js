@@ -108,6 +108,11 @@ export default {
 
     window.addEventListener('mousemove', (e) => {
       if (!pressing) return;
+      // Lost right-button mouseup (no button held any more): let go the normal way. (Person 3)
+      if (e.buttons === 0) {
+        window.dispatchEvent(new MouseEvent('mouseup', { clientX: e.clientX, clientY: e.clientY, button: 2 }));
+        return;
+      }
       cursor = { x: e.clientX, y: e.clientY };
       if (!pulled && Math.hypot(cursor.x - press.x, cursor.y - press.y) > PULL_SLOP) {
         // Still allowed? (an event may have taken him over since the press)

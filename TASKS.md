@@ -491,6 +491,15 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - The top-right counter card is now a `.hit` button that opens the shop.
     - Hovering keeps it from sliding away and grows it a little.
     - It's parked off-screen when hidden, so it only catches clicks while it's showing.
+  - **"feeling sleepy?"** (right-click dialogue → Settings → `starby:getSleepy`, in `mood.js`): "yeah...
+    *yawn*", then he goes straight into the sleepy walk to his nap spot on the taskbar and falls asleep.
+    It isn't on the settings page.
+  - **Un-clickable screen fixed** (`clickThrough.js`, `drag.js`, `slingshot.js`, `hoopShot.js`):
+    - Pins are named ('press' for drags/pulls, 'menu' for the dialogue catcher), so one can't clear another.
+    - A mousemove with no button held drops a stale 'press' pin and replays the lost mouseup (drag /
+      slingshot / hoop pull end normally).
+    - Before: an event interrupting a press could leave the whole screen catching clicks (window X buttons
+      dead) or Starby glued to the cursor.
   - **Calls + fullscreen → focus mode** (`focus.js`; `hush.js` no longer auto-starts):
     - Call: "i'll be quiet for now!", then the slingshot to the corner.
     - Fullscreen: an instant, silent flip into focus.
