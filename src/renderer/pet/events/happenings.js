@@ -71,6 +71,7 @@ export const happenings = {
       window.starby.happening = (name) => {
         const h = name ? HAPPENINGS.find((x) => x.name === name) : pick();
         if (!h) return `unknown happening; try: ${HAPPENINGS.map((x) => x.name).join(', ')}`;
+        if (ctx.activeEvent()) ctx.stopEvent('dev'); // a dev trigger always works: end whatever's running
         return ctx.startEvent(h.name, 'devtools');
       };
       window.starby.nextHappening = () => (dueAt === null ? null : Math.max(0, Math.round(dueAt - ctx.clock.seconds)));

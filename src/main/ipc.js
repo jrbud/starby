@@ -79,6 +79,22 @@ function registerIpc() {
       // Scripted events run in the pet renderer (src/renderer/pet/events/).
       { label: 'Play tag', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'tag' }) },
       { label: 'Play pong', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'pong' }) },
+      { label: 'Play hide & seek', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'hide-seek' }) },
+      { type: 'separator' },
+      // Dev / demo helpers. 'starby' commands call window.starby.<fn>(...args) in the pet window
+      // (the same debug helpers you can run in its DevTools console).
+      {
+        label: 'Developer',
+        submenu: [
+          { label: 'Open pet DevTools', click: () => e.sender.openDevTools({ mode: 'detach' }) },
+          { type: 'separator' },
+          { label: 'Start star shower now', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'happening', args: ['star-shower'] }) },
+          { label: 'Hide & seek behind a test window', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'hideTest' }) },
+          { label: 'Starby invites you to a game', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'invite' }) },
+          { label: 'Skip game rest', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'skipRest' }) },
+          { label: 'Stop current event', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'stopEvent' }) },
+        ],
+      },
       { type: 'separator' },
       { label: 'Quit sprite.exe', click: () => app.quit() },
     ]).popup({ window: win });

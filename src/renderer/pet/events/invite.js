@@ -76,6 +76,7 @@ export default {
       window.starby.invite = (name) => {
         if (name && !INVITABLE.some((g) => g.name === name)) return `can't invite to that; try: ${INVITABLE.map((g) => g.name).join(', ')}`;
         pendingGame = name || null;
+        if (ctx.activeEvent()) ctx.stopEvent('dev'); // a dev trigger always works: end whatever's running
         return ctx.startEvent('invite', 'devtools');
       };
     }

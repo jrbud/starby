@@ -226,6 +226,11 @@ async function boot() {
   // Commands from the main process, e.g. the right-click menu's "Play tag".
   api.onPetCommand?.((cmd) => {
     if (cmd && cmd.type === 'start-event') eventRunner.start(cmd.name, 'menu');
+    // Right-click → Developer: call a debug helper on window.starby (see src/main/ipc.js).
+    if (cmd && cmd.type === 'starby' && typeof window.starby[cmd.fn] === 'function') {
+      const result = window.starby[cmd.fn](...(cmd.args || []));
+      log('dev-command', { fn: cmd.fn, result: typeof result === 'object' ? 'object' : String(result) });
+    }
   });
 
   log('app-start', { at: new Date(clock.startedAt).toISOString() });

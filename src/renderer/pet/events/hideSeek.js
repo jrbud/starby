@@ -22,6 +22,8 @@
 // in his "wanna play?" invites: he doesn't announce it. Shares the rest between games.
 // DevTools: starby.setHideWindow({ x, y, width, height }) pretends that's the active window
 // (screen coordinates), e.g. to test window hiding without get-windows.
+// starby.hideTest() (also right-click → Developer): starts a round hiding behind a pretend window
+// in the middle of the screen, drawn as a dashed outline so you can see what he's behind.
 //
 // Owns the star via pet.mode = 'hide'. Decisions (timers, found, relocating) on ticks; motion
 // and clipping every frame.
@@ -59,6 +61,8 @@ let phaseLeft = 0; // seconds left in timed phases (hidden / peek)
 let gameLeft = 0;
 let seen = false; // touched while peeking (spotted in update, acted on at the tick)
 let lastWindow = null; // active window rectangle (screen coordinates), from system events
+let forceWindow = false; // hideTest(): the next spot must be behind the (test) window
+let testOutline = null; // dashed box showing the pretend window during hideTest()
 
 const areaOf = (ctx) => (ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + ctx.pet.size });
 const PEEKING = ['peekOut', 'peek', 'peekIn'];
@@ -126,8 +130,37 @@ function windowSpot(ctx) {
 }
 
 function pickSpot(ctx) {
-  const win = Math.random() < WINDOW_CHANCE ? windowSpot(ctx) : null;
+  const win = forceWindow || Math.random() < WINDOW_CHANCE ? windowSpot(ctx) : null;
   return win || edgeSpot(ctx);
+}
+
+// Dev test: a pretend window in the middle of the usable screen, outlined, and a round behind it.
+function hideTest(ctx) {
+  const a = areaOf(ctx);
+  const w = Math.min(640, (a.right - a.left) * 0.5);
+  const h = Math.min(420, (a.bottom - a.top) * 0.5);
+  const local = { x: (a.left + a.right - w) / 2, y: (a.top + a.bottom - h) / 2, width: w, height: h };
+  // windowSpot() expects screen coordinates.
+  lastWindow = { ...local, x: local.x + (window.screenX || 0), y: local.y + (window.screenY || 0) };
+  if (!testOutline) {
+    testOutline = document.createElement('div');
+    Object.assign(testOutline.style, {
+      position: 'absolute', pointerEvents: 'none', boxSizing: 'border-box',
+      border: '2px dashed rgba(108, 92, 231, 0.9)', borderRadius: '8px',
+      font: '600 12px "Segoe UI", system-ui, sans-serif', color: '#6c5ce7', padding: '4px 8px',
+    });
+    testOutline.textContent = 'test window (hide & seek)';
+    ctx.stage.appendChild(testOutline);
+  }
+  Object.assign(testOutline.style, {
+    left: `${local.x}px`, top: `${local.y}px`, width: `${local.width}px`, height: `${local.height}px`, display: 'block',
+  });
+  if (ctx.activeEvent()) ctx.stopEvent('dev test');
+  forceWindow = true;
+  const started = ctx.startEvent('hide-seek', 'devtools');
+  forceWindow = false;
+  if (!started) testOutline.style.display = 'none';
+  return started;
 }
 
 // How much of him to clip away so only the part on the visible side of the edge shows.
@@ -203,6 +236,7 @@ export default {
     });
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.setHideWindow = (rect) => { lastWindow = rect; return rect; };
+      window.starby.hideTest = () => hideTest(ctx);
     }
   },
 
@@ -299,6 +333,7 @@ export default {
     petEl.style.opacity = '';
     if (pet.mode === 'hide') pet.mode = 'idle'; // pet.js steps him back onto the screen if needed
     if (result === 'found' || result === 'star-won') markPlayed(ctx); // shared rest between games
+    if (testOutline) testOutline.style.display = 'none';
     phase = 'out';
     spot = null;
   },
