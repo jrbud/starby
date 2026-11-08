@@ -2,23 +2,21 @@
 // If you add a field: add it to createDefaultState() and make sure migrate() fills it in
 // for old save files (spreading the defaults usually handles it).
 
-const { SHOP_ITEMS, getItem } = require('./shopCatalog');
-
-// FOR NOW every accessory is unlocked from the start (team decision). Old saves get them too,
-// because migrate() always merges the default `owned` list in. To make accessories buyable
-// again, set this to [] (players keep anything they already own).
-const UNLOCKED_FOR_NOW = SHOP_ITEMS.filter((item) => item.slot === 'accessory').map((item) => item.id);
+const { getItem } = require('./shopCatalog');
 
 // v2: removed the 'shape' slot (the star has one shape). migrate() drops old shape items.
 // v3: currency renamed `stardust` -> `starbits`. migrate() carries old `stardust` counts over.
-const SCHEMA_VERSION = 3;
+// v4: accessories cost starbits again. v3 builds handed every accessory out for free, so a v3
+//     save lists them all as owned; migrate() takes those back, except the one he's wearing
+//     (so nobody's star suddenly loses its hat).
+const SCHEMA_VERSION = 4;
 
 function createDefaultState() {
   return {
     version: SCHEMA_VERSION,
     starbits: 0,
     // Item ids from shopCatalog.js. The free starter items are always owned.
-    owned: [...new Set(['color-sunny', 'accessory-none', ...UNLOCKED_FOR_NOW])],
+    owned: ['color-sunny', 'accessory-none'],
     equipped: {
       color: 'color-sunny',
       accessory: 'accessory-none',
@@ -30,8 +28,13 @@ function migrate(raw) {
   const defaults = createDefaultState();
   if (!raw || typeof raw !== 'object') return defaults;
   // Keep only items that still exist in the catalog (drops removed items, e.g. old shapes).
-  const owned = Array.from(new Set([...defaults.owned, ...(Array.isArray(raw.owned) ? raw.owned : [])]))
+  let owned = Array.from(new Set([...defaults.owned, ...(Array.isArray(raw.owned) ? raw.owned : [])]))
     .filter((id) => getItem(id));
+  // Saves from before v4 got every accessory for free: take them back, keeping the worn one.
+  if (!(raw.version >= 4)) {
+    const worn = raw.equipped?.accessory;
+    owned = owned.filter((id) => getItem(id).slot !== 'accessory' || defaults.owned.includes(id) || id === worn);
+  }
   // Keep only known slots, each holding an owned item of that slot; otherwise use the default.
   const equipped = { ...defaults.equipped };
   for (const slot of Object.keys(equipped)) {
