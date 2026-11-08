@@ -52,7 +52,7 @@ function finish(result) {
 export default {
   name: 'shooting-star',
   category: 'sky',
-  priority: 15, // high: beats dancing and invites (the sky timer waits for games to finish)
+  priority: 14, // high: beats dancing, invites and games; below hush (15), so a call silences it
 
   start(ctx, end) {
     const { pet } = ctx;

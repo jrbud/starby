@@ -32,12 +32,12 @@
 //
 // CATEGORIES — each has its own way of starting, so they don't share a timer:
 //   category  events                              starts from                         priority
-//   sky       star-shower, shooting-star          sky timer, 20–50 min (happenings.js)  15
+//   sky       star-shower, shooting-star          sky timer, 20–50 min (happenings.js)  14
 //   games     tag, pong, hide-seek, catch, invite buttons / menu / games timer         10 (invite 5)
 //             (games.js: every 60s, 20%, 4 min cooldown; hide-seek starts silently)
 //   dance     dance                               music playing, 1 min cooldown (dance.js)  2
-//   system    intro (100), shop (20)              launch / the shop window
-// A sky event interrupts a dance; the sky timer waits for games, invites, the shop and the intro.
+//   system    intro (100), shop (20), hush (15)   launch / the shop window / a call or fullscreen app
+// A sky event interrupts a dance; the sky timer waits for games, invites, the shop, hush and the intro.
 import intro from './intro.js';
 import tag from './tag.js';
 import pong from './pong.js';
@@ -48,6 +48,7 @@ import hideSeek from './hideSeek.js';
 import catchGame from './catchGame.js';
 import shop from './shop.js';
 import dance from './dance.js';
+import hush from './hush.js';
 import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
 
@@ -58,7 +59,8 @@ import { happenings } from './happenings.js';
 // intro = the launch animation (title slam, Starby flies in, greeting); starts itself at launch.
 // catch = a game: he throws himself across the screen, catch him in the box (catchGame.js).
 // dance = its own category: dances while a song plays in Spotify, 1 min apart (dance.js).
-export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance];
+// hush = quiet and still during video calls / fullscreen apps (hush.js); above the games.
+export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance, hush];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the "Play a game?" buttons, the rest between games and the games

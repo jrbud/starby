@@ -1,10 +1,11 @@
 // Is a song playing in Spotify? (read-only) Emits
 //   emit('music', { playing })   when that changes (and once at startup)
 //
-// HOW: the Spotify desktop app's window title is "Artist - Song" while a song plays, and just
-// "Spotify" / "Spotify Premium" / "Spotify Free" when paused or stopped. Every POLL_MS we read
-// the titles of that app's windows (get-windows, read-only: nothing is focused, moved or
-// changed) and work out playing / not playing HERE.
+// HOW: the Spotify desktop app's window title is the song while one plays ("Artist - Song"),
+// and just the app's own name ("Spotify" / "Spotify Premium" / "Spotify Free" / "Spotifast")
+// when paused or stopped. So ANY other title means music is playing. Every POLL_MS we read the
+// titles of that app's windows (get-windows, read-only: nothing is focused, moved or changed)
+// and work out playing / not playing HERE.
 //
 // PRIVACY: the title (song and artist) never leaves this file. Only true/false is sent.
 //
@@ -15,14 +16,19 @@ const path = require('path');
 
 const POLL_MS = 2000;
 const PLAYER = /spotif/i; // exe name
-// Titles that mean "open but not playing" (also ads say "Advertisement" or similar: not music).
-const NOT_PLAYING = /^(spotify(\s+(premium|free))?|advertisement|spotify\s*-\s*advertisement)?$/i;
+// Titles that mean "open but not playing": the app's own name (with or without its plan),
+// ads, an empty title, and Windows' invisible helper windows some apps own.
+const NOT_PLAYING = [
+  /^$/,
+  /^spoti(fy|fast)(\s+(premium|free|music))?$/i,
+  /^(spotify\s*[-–]\s*)?advertisement$/i,
+  /^(gdi\+ window|default ime|msctfime ui|chrome legacy window)\b/i,
+];
 
-/** True if a player window title means a song is playing ("Artist - Song"). */
+/** True if a player window title means a song is playing: anything but an idle title. */
 function isPlayingTitle(title) {
   const t = String(title || '').trim();
-  if (NOT_PLAYING.test(t)) return false;
-  return /\s[-–—]\s/.test(t); // "Artist - Song"
+  return !NOT_PLAYING.some((re) => re.test(t));
 }
 
 const exeOf = (owner) => path.win32.basename((owner && (owner.path || owner.name)) || '').toLowerCase();

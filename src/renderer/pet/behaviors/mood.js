@@ -216,6 +216,8 @@ function onEntry(ctx, e) {
     case 'system':
       if (e.data.type === 'time-of-day') isNight = e.data.part === 'night';
       if (e.data.type === 'idle' && pet.mood === 'happy') enter(ctx, 'yawning', 'user away');
+      // You're back (unlocked, or the PC woke up): wakes a yawning star.
+      if (e.data.type === 'unlock' || e.data.type === 'wake') interacted(ctx, e.data.type);
       break;
     default:
       break;
@@ -330,6 +332,17 @@ let lastX = null;
 let moveVX = 0; // smoothed sideways speed while walking, px/s
 let flourish = null; // { face, until } for a random glistening/wink moment
 let nextFlourishAt = 0;
+let pose = null; // { face, until }: a deliberate pose (e.g. a wink for a screenshot), see strikePose
+
+/**
+ * Strike a pose: show `face` (a frames.js face, e.g. 'wink') for `seconds`, over talking,
+ * looking and walking faces (moods like mad/asleep/dizzy still win). For reactions like
+ * "say cheese!" when you take a screenshot.
+ */
+export function strikePose(ctx, face, seconds) {
+  pose = { face, until: ctx.clock.seconds + seconds };
+  ctx.log('pose', { face });
+}
 
 function cursorAboveOrBelow(ctx) {
   const { pet, cursor } = ctx;
@@ -357,6 +370,7 @@ function faceFor(ctx) {
   // An event can ask for a specific face for a moment (e.g. catch: 'left' while he walks back).
   if (pet.faceOverride) return pet.faceOverride;
   if (pet.mood === 'dizzy' || pet.mood === 'yawning' || pet.mood === 'mad' || pet.mood === 'sad') return pet.mood;
+  if (pose && ctx.clock.seconds < pose.until) return pose.face; // strikePose (e.g. screenshot wink)
   if (pet.mode === 'dance') return 'dancing'; // events/dance.js (only runs while happy/playful)
   if (pet.mood === 'playful' || pet.mode === 'toss' || pet.mode === 'tag') return 'playful';
   if (pet.lookUp) return 'up';
