@@ -6,8 +6,9 @@ const idle = require('./idle');
 const power = require('./power');
 const timeOfDay = require('./timeOfDay');
 const activeWindow = require('./activeWindow');
+const music = require('./music'); // is a song playing in Spotify? (playing true/false only)
 
-const READERS = [clipboard, idle, power, timeOfDay, activeWindow];
+const READERS = [clipboard, idle, power, timeOfDay, activeWindow, music];
 const START_DELAY_MS = 2000;
 
 function startSystemReads(petWindow) {
