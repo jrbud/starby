@@ -45,6 +45,7 @@ body {
   padding: 12px 14px;
   display: grid;
   gap: 6px;
+  font-size: 20px;
 }
 
 .label-row {
@@ -94,7 +95,7 @@ label,
 }
 
 .group-title {
-  font-size: 13px;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;

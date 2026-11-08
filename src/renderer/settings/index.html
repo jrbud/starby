@@ -23,6 +23,15 @@
     <!-- The art's grey panel; everything below scrolls inside it. -->
     <main class="menu-panel settings-scroll">
       <div class="settings-content">
+        <!-- Starby's size on screen (settingsStore.starbySize; pet.js resizes him live). -->
+    <section class="setting">
+        <div class="label-row">
+            <label for="starby-size">Starby size</label>
+          <output id="starby-size-value" for="starby-size">96 px</output>
+        </div>
+      <input id="starby-size" type="range" min="48" max="144" step="4" value="96" />
+    </section>
+
 
     <section class="setting">
       <div class="label-row">
@@ -32,14 +41,7 @@
       <input id="fling-power" type="range" min="0" max="100" step="1" value="50" />
     </section>
 
-    <!-- Starby's size on screen (settingsStore.starbySize; pet.js resizes him live). -->
-    <section class="setting">
-      <div class="label-row">
-        <label for="starby-size">Starby size</label>
-        <output id="starby-size-value" for="starby-size">96 px</output>
-      </div>
-      <input id="starby-size" type="range" min="48" max="144" step="4" value="96" />
-    </section>
+
 
     <!-- Collapsible: click the heading (or Enter/Space). Open/closed is remembered (settings.js). -->
     <details class="group" data-key="starbits" open>
