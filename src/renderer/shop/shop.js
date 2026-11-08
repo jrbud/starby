@@ -232,13 +232,15 @@ function render() {
 }
 
 // ---- Try-on ----
-// Selecting an accessory shows it on Starby right away (not saved). Selecting anything else,
-// or the accessory he already wears, shows what he really has on. Closing or minimizing the
-// shop takes a try-on off again (main process → events/shop.js); only Buy/Equip keep it.
+// Selecting an accessory or a color (colorway/skin) shows it on Starby right away (not saved).
+// Selecting anything else, or what he already has on, shows what he really has on. Closing or
+// minimizing the shop takes a try-on off again (main process → events/shop.js); only
+// Buy/Equip keep it.
 function updateTryOn() {
   const item = selectedItem();
-  const tryOn = item && item.slot === 'accessory' && !isEquipped(item) ? item.value : null;
-  api.previewAccessory?.(tryOn);
+  const trying = item && !isEquipped(item);
+  api.previewAccessory?.(trying && item.slot === 'accessory' ? item.value : null);
+  api.previewColor?.(trying && item.slot === 'color' ? item.id : null);
 }
 
 // ---- Actions ----
@@ -301,6 +303,7 @@ async function boot() {
   // Start on what he's wearing.
   selectedId = state.equipped.color || catalog[0]?.id || null;
   api.previewAccessory?.(null); // fresh shop: no try-on left over
+  api.previewColor?.(null);
   api.onStateChanged((s) => { state = s; render(); });
   render();
 
