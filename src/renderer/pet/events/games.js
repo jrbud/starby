@@ -24,10 +24,11 @@ const CHIP_FOR = 4; // seconds the game buttons stay up after clicking him
 // you to play on his own (./invite.js picks one at random). `name` = the event name in
 // events/index.js; `ask` = what he says when he invites you to it.
 // To add a game: write its event, register it in events/index.js, add it here.
-// (The buttons popup has room for two games; with more, ./prompt.js needs more buttons.)
+// invite: false = never offered in his "wanna play?" invites (hide and seek: he doesn't announce it).
 export const GAMES = [
   { name: 'tag', label: 'Tag', ask: ['wanna play tag?', 'hey! play tag with me?', 'tag? pleeease?'] },
   { name: 'pong', label: 'Pong', ask: ['wanna play pong? i can be the ball!', 'pong? pleeease?', 'hey! bonk me around in pong?'] },
+  { name: 'hide-seek', label: 'Hide & Seek', invite: false },
 ];
 
 const LINES = {
@@ -92,13 +93,9 @@ function showChip(ctx) {
   if (pet.mode === 'drag' || pet.mode === 'toss') return;
   chipLeft = CHIP_FOR;
   chipPressed = null;
-  const [a, b] = GAMES; // prompt.js has room for two buttons
   chip.show({
     text: chipText(ctx),
-    yes: a.label,
-    no: b ? b.label : null,
-    onYes: () => { chipPressed = a.name; },
-    onNo: () => { if (b) chipPressed = b.name; },
+    buttons: GAMES.map((g) => ({ label: g.label, onClick: () => { chipPressed = g.name; } })),
   });
   chip.place(pet, ctx.area?.());
 }

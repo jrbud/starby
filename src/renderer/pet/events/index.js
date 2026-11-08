@@ -32,12 +32,14 @@ import tag from './tag.js';
 import pong from './pong.js';
 import invite from './invite.js';
 import starShower from './starShower.js';
+import hideSeek from './hideSeek.js';
 import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
 
 // invite = Starby asking you to play one of the games (picks from GAMES in games.js).
 // star-shower = a happening, started by the happenings timer (happenings.js).
-export const EVENTS = [tag, pong, invite, starShower];
+// hide-seek = a game (buttons) and a happening (he hides on his own); never in invites.
+export const EVENTS = [tag, pong, invite, starShower, hideSeek];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js);

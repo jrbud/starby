@@ -96,6 +96,16 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   zone). Catch them with the cursor or they fade at the bottom; then he says how many you caught. He isn't
   taken over (keeps wandering, extra hops). Low priority: never interrupts a game. DevTools:
   `starby.happening('star-shower')`, `starby.nextHappening()` (seconds until the next).
+- [x] **P1-11 (Nice) Hide and seek.** `events/hideSeek.js`: he runs off and hides without a word (no speech,
+  no countdown, no starbit drops, debug mood label hidden; `pet.hiding` tells `starbits.js` / `moodLabel.js`).
+  Spots: just inside an edge of your active window (needs the window rectangle: `activeWindow.js` now sends
+  `bounds`, and `active-window-bounds` when it moves), behind the taskbar, or past a screen edge / corner.
+  "Behind" is faked with a CSS clip on the pet element, so a peek shows only the part sticking out. The spot is
+  fixed once he hides (moving the window does nothing). Every 4–9s he peeks out ~30px for 1.5s; touch him (or
+  grab him) while he peeks → found: "you found me!" + 10 starbits. After a peek he sometimes moves to a new spot.
+  Not found in 150s → he comes out and wins. On the game buttons ([Tag] [Pong] [Hide & Seek]; `prompt.js` now
+  takes any number of buttons) and in `HAPPENINGS` (he hides on his own), never in invites (`invite: false`).
+  DevTools: `starby.startEvent('hide-seek')`, `starby.setHideWindow({ x, y, width, height })`.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors

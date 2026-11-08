@@ -15,6 +15,7 @@
 
 export const HAPPENINGS = [
   { name: 'star-shower', weight: 1 },
+  { name: 'hide-seek', weight: 1 }, // he quietly goes and hides (also a game on the buttons)
 ];
 
 const GAP = [20 * 60, 50 * 60]; // seconds between happenings
