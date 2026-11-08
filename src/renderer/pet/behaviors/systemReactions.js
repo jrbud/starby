@@ -147,12 +147,16 @@ const APP_SPECIFIC = lineBags({
   whatsapp: ['say hi from me!'],
   terminal: ['ooh, a terminal. very hacker', 'typing commands? beep boop... i mean, twinkle'],
   files: ['looking for something?', 'file adventure!'],
-  youtube: ['ooh, what are we watching?', 'youtube! anything with space in it?'],
+  // Social media (youtube, reddit, instagram, twitter, twitch) all get "we have ___ in space too!".
+  youtube: ['ooh, what are we watching?', 'youtube! anything with space in it?', 'we have youtube in space too!'],
   netflix: ['netflix! is it a space movie?', "movie time? i'll grab the starbits"],
-  twitch: ['twitch! who are we watching?'],
+  twitch: ['twitch! who are we watching?', 'we have twitch in space too!'],
   github: ['github! very official coder stuff'],
   gmail: ['checking emails? good luck in there'],
-  reddit: ['reddit! rabbit hole time?'],
+  // Twitter and reddit can also get a wary "oh...", "hmm..." or "*fog horn*".
+  reddit: ['reddit! rabbit hole time?', 'we have reddit in space too!', 'oh...', 'hmm...', '*fog horn*'],
+  instagram: ['you should follow seevi.art :0', 'mmmm doom scrolling...', 'so many pictures!', 'we have instagram in space too!'],
+  twitter: ['we have twitter in space too!', 'oh...', 'hmm...', '*fog horn*'], // X is still "twitter" to him
   wikipedia: ['wikipedia! looking up space facts? i know a few'],
   amazon: ['shopping? i have a shop too, you know'],
   nasa: ["nasa!! that's my neighborhood!", 'say hi to the astronauts for me!'],
