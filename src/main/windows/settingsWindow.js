@@ -12,11 +12,12 @@ function openSettingsWindow() {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 380,
-    height: 300,
+    width: 400,
+    height: 780, // Fling power + Starbits; scrolls on short screens (Starbits can be collapsed)
+    minHeight: 320,
     title: 'sprite.exe — settings',
     autoHideMenuBar: true,
-    resizable: false,
+    resizable: true, // tall now; let people shrink it (the page scrolls)
     // Shown once the page has painted (no blank window), and in front (see bringToFront.js).
     show: false,
     webPreferences: {

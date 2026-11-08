@@ -62,7 +62,8 @@ body {
    random). Collected by hovering, so it is NOT a .hit element.
    Position/rotation are set every frame by behaviors/starbits.js (inline transform), so
    transform is NOT transitioned here — that would make the floating lag and smear.
-   Size must match SIZE in starbits.js. */
+   Size: starbits.js sets width/height inline from Settings → Starbits → Size; the 20px
+   here is only the fallback before settings load. */
 .starbits {
   position: absolute;
   display: block;
@@ -82,13 +83,19 @@ body {
   opacity: 0;
 }
 
+/* Settings → Starbits → Visible off: starbits.js puts this class on the stage. Starbits and
+   their trails are hidden (still there and collectable); the count card still shows. */
+.starbits-hidden .starbits {
+  visibility: hidden;
+}
+
 /* Trail left behind a starbit zipping to the corner: copies of the starbit that fade out.
    starbits.js sets the opacity/transform transition inline. */
 .starbits-ghost {
   opacity: 0.55;
 }
 
-/* Starbits notification card (bottom right, above the taskbar). Slides in from the right edge
+/* Starbits notification card (top right of the usable screen). Slides in from the right edge
    when a starbit is picked up and back out a couple of seconds after the last one lands.
    Plain box + text, no icons or art. NOT a .hit element, so it stays click-through.
    starbits.js sets right/bottom. */

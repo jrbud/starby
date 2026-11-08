@@ -19,6 +19,50 @@
       <p id="fling-power-detail" class="detail">How hard throws fly and how much it bounces off the screen edges.</p>
     </section>
 
+    <!-- Collapsible: click the heading (or Enter/Space). Open/closed is remembered (settings.js). -->
+    <details class="group" data-key="starbits" open>
+      <summary><span class="group-title">Starbits</span></summary>
+      <div class="group-body">
+
+    <section class="setting switches">
+      <label class="switch-row">
+        <span class="switch-name">Spawning</span>
+        <input id="starbit-spawning" type="checkbox" role="switch" />
+      </label>
+      <label class="switch-row">
+        <span class="switch-name">Visible</span>
+        <input id="starbit-visible" type="checkbox" role="switch" />
+      </label>
+      <label class="switch-row">
+        <span class="switch-name">Shooting animation</span>
+        <input id="starbit-shoot" type="checkbox" role="switch" />
+      </label>
+    </section>
+
+    <section class="setting">
+      <div class="label-row">
+        <span class="label" id="starbit-colors-label">Color</span>
+        <output id="starbit-colors-count"></output>
+      </div>
+      <!-- One checkbox per color in renderer/shared/starbitArt.js (built by settings.js). -->
+      <div id="starbit-colors" class="color-grid" role="group" aria-labelledby="starbit-colors-label"></div>
+    </section>
+
+    <section class="setting">
+      <div class="label-row">
+        <label for="starbit-size">Size</label>
+        <output id="starbit-size-value" for="starbit-size">20 px</output>
+      </div>
+      <div class="size-row">
+        <input id="starbit-size" type="range" min="10" max="48" step="1" value="20" />
+        <!-- Live preview at the chosen size (team art). -->
+        <div class="size-preview"><img id="starbit-size-preview" alt="" draggable="false" /></div>
+      </div>
+    </section>
+
+      </div>
+    </details>
+
     <button id="reset" type="button">Reset to default</button>
 
     <script type="module" src="settings.js"></script>
