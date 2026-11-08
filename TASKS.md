@@ -57,7 +57,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
 - [x] **P1-6 (Nice) Tag event.** First *event* (`src/renderer/pet/events/`, see below). Starts from an invite
   (P1-9), the game buttons (P1-7), the menu ("Play tag") or `starby.startEvent('tag')`. He counts down in his
   bubble ("3...", "2...", "1...", "GO!", one per second, standing still) so you can get ready. Then real tag on a **15s clock** (top-right box, shows who's it): Starby starts as it and
-  chases the cursor (700–900px/s, pounces at 1350px/s within 160px); touching you = you're it, and he runs
+  chases the cursor (800–1040px/s, pounces at 1550px/s within 160px; uses his left/right walk art while running sideways); touching you = you're it, and he runs
   (450–780px/s, jukes at 1150px/s within 120px). Touch him = he's it again: he stands still 1s, then chases. No
   tag-backs for 1.2s after he tags you. **Whoever is it when time runs out loses.** You win → he shoots out 7
   starbits in a ring (`burstStarbits` in `starbits.js`); you lose → no reward, and he pulls back any starbits on
