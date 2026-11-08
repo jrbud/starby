@@ -90,6 +90,7 @@ function registerIpc() {
       { label: 'Play hide & seek', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'hide-seek' }) },
       { label: 'Play catch', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'catch' }) },
       { label: 'Play constellation quiz', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'constellation' }) },
+      { label: 'Play copycat', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'copycat' }) },
       { type: 'separator' },
       // Dev / demo helpers. 'starby' commands call window.starby.<fn>(...args) in the pet window
       // (the same debug helpers you can run in its DevTools console).
