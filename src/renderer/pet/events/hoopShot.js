@@ -20,8 +20,8 @@
 // While pulling, click-through is pinned off (ctx.setPinned) so the release isn't lost when the
 // cursor leaves him (see ../clickThrough.js).
 //
-// ART: the hoop is the team's halo PNG (assets/accessories/halo.png) as a PLACEHOLDER until a hoop
-// is drawn: swap HOOP_ART (and HOOP_ART_BOX, the visible part of the PNG) when it exists. The aim
+// ART: the hoop is the team's hoop PNG (assets/events/hoop.png): a pink rim with the net hanging
+// below it. The game sizes and scores by the RIM (HOOP_ART_BOX); the net just hangs under it. The aim
 // dots are the team's starbit PNGs. Nothing is drawn by code.
 //
 // Starts like the other games: his "wanna play hoop shot?" invite (./invite.js, via the games timer),
@@ -69,11 +69,12 @@ const OPENING = [0.14, 0.86]; // part of the hoop's width that counts as "throug
 const SCORE_REWARD = 10;
 const SUBSTEPS = 4; // physics steps per frame (fast shots don't skip through the hoop)
 
-// Placeholder hoop art: the halo accessory. HOOP_ART_BOX = where the drawing sits inside the PNG
-// (left, top, right, bottom in PNG px, out of HOOP_ART_SIZE), so the hoop is sized by the visible ring.
-const HOOP_ART = '../../../assets/accessories/halo.png'; // relative to src/renderer/pet/index.html
+// The hoop art. HOOP_ART_BOX = where the RIM sits inside the PNG (left, top, right, bottom in PNG px,
+// out of HOOP_ART_SIZE; measured from the pink rim), so the hoop is sized by its rim and "through"
+// means through the rim's middle line. The net below the rim is drawn too (it overflows the box).
+const HOOP_ART = '../../../assets/events/hoop.png'; // team art; relative to src/renderer/pet/index.html
 const HOOP_ART_SIZE = 2048;
-const HOOP_ART_BOX = [412, 25, 1576, 403];
+const HOOP_ART_BOX = [414, 130, 1560, 400];
 
 const LINES = {
   intro: 'hoop shot! right click or left click and drag me back, let go to shoot!',

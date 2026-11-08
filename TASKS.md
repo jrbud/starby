@@ -183,8 +183,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   opening → "SWISH!" + 10 starbits. A miss bounces on the floor and he flies back to try again. **15s** on the clock
   (countdown top right); a shot in the air at 0 still counts. Just a click (either button) → he stays put: "right
   click or left click and drag me!". During the game, presses on him and the right-click menu are caught by window
-  capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
-  (`HOOP_ART` / `HOOP_ART_BOX` in hoopShot.js; swap when a hoop is drawn).
+  capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art: `assets/events/hoop.png`** (the team's rim + net;
+  sized and scored by the pink rim, `HOOP_ART_BOX`, with the net hanging below).
 
 - [x] **P1-20 (Nice) Moon timer.** The game timer (`events/countdown.js`; tag, Starby Says, hoop shot) is a "moon"
   that **ticks** away: full at the start, one slice disappears each second (clockwise from the top, like a pie
