@@ -20,6 +20,9 @@
 
 import { approach, cancelJump } from '../behaviors/motion.js';
 
+// What he says after Settings → "Reset progress".
+const RESET_LINES = ['My accessories... :(', 'You lost your starbits! :(', "Where'd my stuff go? :("];
+
 const RUN_SPEED = 420; // px/s top speed on the way to the box
 const ACCEL = 6; // 1/s, how fast he gets up to speed
 const ARRIVE = 1.5; // px: close enough, snap into place
@@ -73,6 +76,10 @@ export default {
         ctx.previewColor?.(typeof cmd.color === 'string' ? cmd.color : null);
       } else if (cmd.type === 'shop-say' && typeof cmd.text === 'string') {
         ctx.say(cmd.text, 2800);
+      } else if (cmd.type === 'progress-reset') {
+        // Settings → "Reset progress" just wiped his starbits and shop items (src/main/ipc.js).
+        ctx.say(RESET_LINES[Math.floor(Math.random() * RESET_LINES.length)], 3500);
+        ctx.log('progress-reset', {});
       }
     });
   },

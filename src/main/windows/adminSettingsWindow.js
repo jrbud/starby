@@ -22,6 +22,7 @@ function openAdminSettingsWindow() {
       preload: path.join(__dirname, '..', '..', 'preload', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true, // pages can't reach the file system or Node, even if tricked (Electron's default, made explicit)
     },
   });
 

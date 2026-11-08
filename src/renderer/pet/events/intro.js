@@ -179,7 +179,9 @@ function greet(ctx) {
     });
   } else {
     const away = lastSeenBeforeThisRun == null ? Infinity : (Date.now() - lastSeenBeforeThisRun) / 1000;
-    const pick = GREETINGS.find(([under]) => away < under)[1];
+    // (No "last seen" record but a save file → away is Infinity, which isn't < Infinity: use the last
+    // bucket. Without this it threw and froze his whole update loop. Fixed by Person 3.)
+    const pick = (GREETINGS.find(([under]) => away < under) || GREETINGS[GREETINGS.length - 1])[1];
     ctx.say(pick(), GREETING_MS);
   }
   ctx.log('intro-greeting', { firstTime });

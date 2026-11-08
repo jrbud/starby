@@ -290,6 +290,30 @@ button {
   background-image: url('../../../assets/menuIcons/button-white-dark.png');
 }
 
+/* Restore default + Reset progress, side by side. */
+.reset-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Reset progress: red art (button-red-idle → button-red-hover), stretched to the same size as the
+   Restore default button. The label changes with each confirm click (settings.js). */
+#reset-progress {
+  width: 170px;
+  height: 56px;
+  padding: 0 10px 2px;
+  border: 0;
+  border-radius: 0;
+  background: url('../../../assets/menuIcons/button-red-idle.png') center / 100% 100% no-repeat;
+  font-weight: 700;
+  line-height: 1.1;
+}
+#reset-progress:hover,
+#reset-progress:focus-visible {
+  background-image: url('../../../assets/menuIcons/button-red-hover.png');
+}
+
 button:focus-visible,
 input:focus-visible {
   outline: 2px solid var(--accent);

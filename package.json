@@ -8,10 +8,10 @@
     "start": "node scripts/start.js"
   },
   "devDependencies": {
-    "electron": "^45.2.3"
+    "electron": "45.2.3"
   },
   "dependencies": {
-    "get-windows": "^10.0.0"
+    "get-windows": "10.0.0"
   },
   "allowScripts": {
     "get-windows@10.0.0": true
