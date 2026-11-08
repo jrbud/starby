@@ -24,6 +24,7 @@
 import idle from './idle.js';
 import walk from './walk.js';
 import drag from './drag.js';
+import slingshot from './slingshot.js'; // hold right-click on him, pull, let go
 import cursorReact from './cursorReact.js';
 import mood from './mood.js';
 import moodLabel from './moodLabel.js'; // DEBUG label under the star; remove before the demo
@@ -33,4 +34,4 @@ import systemReactions from './systemReactions.js';
 import sessionEvents from './sessionEvents.js';
 import shopOpener from './shopOpener.js';
 
-export const BEHAVIORS = [idle, walk, drag, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, shopOpener];
+export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, shopOpener];
