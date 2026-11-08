@@ -43,6 +43,7 @@ function setTarget(ctx, cmd) {
 
 export default {
   name: 'shop',
+  category: 'system',
   priority: 20,
 
   init(ctx) {

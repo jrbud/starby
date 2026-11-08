@@ -40,6 +40,7 @@ function cornerFor(ctx) {
 
 export default {
   name: 'hush',
+  category: 'system',
   priority: 15,
 
   init(ctx) {

@@ -2,18 +2,21 @@
 //
 // src/main/systemReads/music.js sends { type: 'music', playing } (true/false only, never the
 // song). While music plays and he's happy or playful, he dances in bursts: DANCE_FOR seconds of
-// dancing, then REST_FOR seconds of hanging out normally while the song keeps going, then again,
-// so it never gets repetitive. A new song (music stops, then starts) gets a dance right away.
+// dancing, then a DANCE_COOLDOWN (1 minute) of hanging out normally while the song keeps going,
+// then again, so it never gets repetitive. The cooldown counts from the end of every dance (done,
+// song over, interrupted...), so there's always at least a minute between dances.
 //
 // The moves are all MOTION on his existing frames (bounce, sway, side steps, hops, a spin) on a
 // steady beat. We can't hear the music, so the beat is a fixed pop tempo (BEAT). His face is the
 // 'dancing' face (frames.js: the excited happy-1/2 frames, swapping on the beat).
 //
-// It's a background thing, not all he does: lowest priority of all events (2), so a star shower,
-// an invite, a game or the shop window always wins. And YOU snap him out of it: clicking him
-// (talking to him), grabbing or throwing him, a swat or a flinch ends the dance. It also ends when
-// the song stops or his mood changes (mad, dizzy, sleepy...). He only starts dancing again once
-// things have been quiet for QUIET_FOR seconds: no interaction and no other event.
+// Its own category ('dance'): its own trigger (music) and cooldown, separate from the sky events
+// (./happenings.js) and the games (./games.js). It's a background thing, not all he does: lowest
+// priority of all events (2), so a sky event interrupts it and an invite, a game or the shop window
+// always wins. And YOU snap him out of it: clicking him (talking to him), grabbing or throwing him,
+// a swat or a flinch ends the dance. It also ends when the song stops or his mood changes (mad,
+// dizzy, sleepy...). He only dances again once DANCE_COOLDOWN (1 minute) has passed since the last
+// dance AND things have been quiet for QUIET_FOR seconds: no interaction and no other event.
 // Owns the star via pet.mode = 'dance' (behaviors stand down for modes they don't know).
 // In DevTools: starby.startEvent('dance') dances one burst even without music.
 import { rand, approach, clampToScreen, startJump, updateJump, cancelJump } from '../behaviors/motion.js';
@@ -23,7 +26,7 @@ import { chat, lineBag } from '../behaviors/chatter.js';
 const BEAT = 0.5; // seconds per beat (~120 bpm)
 const BEATS_PER_MOVE = 8; // each move lasts two bars
 const DANCE_FOR = [14, 24]; // seconds per dance burst...
-const REST_FOR = [12, 25]; // ...then this long hanging out normally while the song goes on
+const DANCE_COOLDOWN = 60; // seconds between dances (after any dance ends, however it ended)
 const MOODS_THAT_DANCE = ['happy', 'playful'];
 const MOVES = ['bounce', 'sway', 'step', 'hop', 'spin'];
 const STEP = 0.22; // side-step distance, in star-sizes
@@ -39,7 +42,7 @@ const LINES = {
 };
 
 let musicPlaying = false;
-let restUntil = 0; // session seconds: no new burst before this
+let restUntil = 0; // session seconds: no new dance before this (DANCE_COOLDOWN after the last)
 let busyAt = -Infinity; // session seconds of the last interaction or other event
 let endDance = null;
 let t = 0; // seconds into this burst
@@ -65,13 +68,13 @@ function nextMove() {
 
 export default {
   name: 'dance',
-  priority: 2, // below everything: star shower 3, invites 5, games 10, shop 20
+  category: 'dance',
+  priority: 2, // below everything: invites 5, games 10, sky events 14, hush 15, shop 20
 
   init(ctx) {
     ctx.events.onEntry((e) => {
       if (e.type === 'system' && e.data.type === 'music') {
         musicPlaying = Boolean(e.data.playing);
-        if (!musicPlaying) restUntil = 0; // the next song starts a dance (once it's quiet)
         return;
       }
       // You interacted with him, or something else happened: snap out of it, and wait for quiet.
@@ -120,7 +123,6 @@ export default {
       return finish('song over');
     }
     if (t >= danceFor) {
-      restUntil = ctx.clock.seconds + rand(...REST_FOR);
       return finish('rest');
     }
   },
@@ -185,6 +187,7 @@ export default {
   stop(ctx) {
     const { pet } = ctx;
     endDance = null;
+    restUntil = ctx.clock.seconds + DANCE_COOLDOWN; // 1 minute before the next dance
     cancelJump();
     pet.rotation = 0;
     pet.bob = 0;
