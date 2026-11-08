@@ -3,7 +3,8 @@
 //   setup   "i'm gonna throw myself! catch me in the box!" The catch box (BOX_STARBYS × BOX_STARBYS
 //           Starbys big; the team's tan box art, BOX_ART) appears on the right side of the usable
 //           screen; he goes to the far left. On top of the box sit STRIKES_OUT X icons (the team's
-//           x-idle.png); each strike swaps the next one to x-hover.png (the darker X).
+//           x-idle.png); each strike swaps the next one to x-hover.png (the darker X). Inside the box,
+//           at the top: "Catch Here!" in Sour Gummy, blue, as see-through as the box's inside.
 //   windup  he stretches out (squashed wide, winding up), announces "get ready to catch me!" and counts
 //           down "3... 2... 1... GO!" (createReady, ./games.js), then throws. Before every throw.
 //   fly     he flings himself at the box, fast (THROW_SPEED). Click / grab him WHILE HE'S INSIDE THE
@@ -42,6 +43,10 @@ const BOX_ART = '../../../assets/events/tan-translucent-box.png'; // team art; r
 const X_IDLE = '../../../assets/menuIcons/x-idle.png'; // a strike not used yet (team art)
 const X_STRUCK = '../../../assets/menuIcons/x-hover.png'; // a strike you've got (the darker X)
 const X_SIZE = 0.6; // each X is this many Starby sizes wide
+const LABEL_TEXT = 'Catch Here!';
+const LABEL_COLOR = '#0c218f'; // the blue from the shop's palette (shop.css --window-button-outline)
+const LABEL_OPACITY = 198 / 255; // = the box art's inside (alpha 198 of 255), so the text matches it
+const LABEL_SIZE = 0.11; // font size, as a fraction of the box's width
 
 const LINES = {
   intro: lineBag(["i'm gonna throw myself! catch me in the box!", 'catch me! but only in the box!']),
@@ -60,6 +65,7 @@ let laneY = 0; // center y of this throw
 let box = null; // { x, y, size } in pet-window coordinates
 let boxEl = null;
 let xEls = []; // the STRIKES_OUT X icons on top of the box
+let labelEl = null; // "Catch Here!" inside the box, at the top
 let wasInBox = false; // his center was inside the box last frame
 let leftBox = false; // he went through and out the far side this throw
 let grab = null; // { inBox } recorded on mousedown, judged at the next tick
@@ -103,6 +109,16 @@ function buildBox(ctx) {
     return img;
   });
   boxEl.appendChild(row);
+  // "Catch Here!" inside the box, near the top (just inside the art's border). Sour Gummy is
+  // declared in pet.css (@font-face), so it's ready here.
+  labelEl = document.createElement('div');
+  labelEl.textContent = LABEL_TEXT;
+  Object.assign(labelEl.style, {
+    position: 'absolute', left: '0', right: '0', top: '7%', textAlign: 'center',
+    fontFamily: "'Sour Gummy', 'Segoe UI', system-ui, sans-serif", fontWeight: '700',
+    color: LABEL_COLOR, opacity: String(LABEL_OPACITY), whiteSpace: 'nowrap', pointerEvents: 'none',
+  });
+  boxEl.appendChild(labelEl);
   // Under Starby, so he flies in front of the box.
   ctx.stage.insertBefore(boxEl, ctx.petEl);
   // A click in the box counts if he's under the cursor (incl. a little padding).
@@ -135,6 +151,7 @@ function placeBox(ctx) {
     left: `${box.x}px`, top: `${box.y}px`, width: `${size}px`, height: `${size}px`, display: 'block',
   });
   showStrikes(ctx); // all three back to x-idle for a new game
+  labelEl.style.fontSize = `${Math.round(size * LABEL_SIZE)}px`; // scales with the box
 }
 
 // Where he winds up for the next throw: far left, at a height that sends him through the box.
