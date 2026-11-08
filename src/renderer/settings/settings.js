@@ -187,5 +187,32 @@ slider.addEventListener('input', () => {
 
 document.getElementById('reset').addEventListener('click', async () => show(await api.resetSettings()));
 
+// ---- Reset progress: starbits + shop purchases ----
+// Each click moves to the next label; clicking "For real?" does the reset (main process:
+// starbits 0, only Sunny + no accessory; Starby then says something sad). If you stop clicking
+// partway, it backs out to "Reset progress" after CONFIRM_TIMEOUT_MS, so a stray click can't
+// leave it one click away from wiping everything.
+const resetProgressBtn = document.getElementById('reset-progress');
+const RESET_STEPS = ['Reset progress', 'Are you sure?', "You'll lose your starbits!", 'And your accessories!', 'Are you really sure?', 'For real?'];
+const CONFIRM_TIMEOUT_MS = 5000;
+let resetStep = 0;
+let resetTimer = null;
+
+function setResetStep(step) {
+  resetStep = step;
+  resetProgressBtn.textContent = RESET_STEPS[step];
+  clearTimeout(resetTimer);
+  if (step > 0) resetTimer = setTimeout(() => setResetStep(0), CONFIRM_TIMEOUT_MS);
+}
+
+resetProgressBtn.addEventListener('click', async () => {
+  if (resetStep < RESET_STEPS.length - 1) {
+    setResetStep(resetStep + 1);
+    return;
+  }
+  setResetStep(0);
+  await api.resetProgress();
+});
+
 api.onSettingsChanged(show);
 api.getSettings().then(show);

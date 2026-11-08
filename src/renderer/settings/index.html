@@ -14,6 +14,7 @@
     <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-idle.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-hover.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/button-white-dark.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-red-hover.png" />
   </head>
   <body class="menu-window">
     <!-- The background art (assets/backgrounds/settings.png) has "SETTINGS" written on it. -->
@@ -107,7 +108,11 @@
       </div>
     </details>
 
-    <button id="reset" type="button">Reset to default</button>
+    <div class="reset-row">
+      <button id="reset" type="button">Restore default</button>
+      <!-- Wipes starbits + shop progress after a few confirm clicks (settings.js). -->
+      <button id="reset-progress" type="button" aria-live="polite">Reset progress</button>
+    </div>
 
       </div>
     </main>
