@@ -6,6 +6,7 @@ const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
 const { openShopWindow } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const settingsStore = require('./settingsStore');
+const { listOpenWindows } = require('./systemReads/openWindows');
 const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
 const adminSettingsStore = require('./adminSettingsStore');
 
@@ -51,6 +52,9 @@ function registerIpc() {
   ipcMain.handle('settings:set', (_e, patch) => settingsStore.set(patch));
   ipcMain.handle('settings:reset', () => settingsStore.reset());
   ipcMain.on('settings:open', () => openSettingsWindow());
+
+  // ---- Read-only: rectangles of the open windows (hide and seek hides behind them) ----
+  ipcMain.handle('system:open-windows', () => listOpenWindows());
 
   // ---- Admin Settings (starbits tuning overrides; see renderer/shared/starbitsTuning.js) ----
   ipcMain.handle('admin:get', () => adminSettingsStore.get());
