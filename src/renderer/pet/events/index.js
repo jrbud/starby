@@ -35,6 +35,7 @@ import invite from './invite.js';
 import starShower from './starShower.js';
 import shootingStar from './shootingStar.js';
 import hideSeek from './hideSeek.js';
+import catchGame from './catchGame.js';
 import shop from './shop.js';
 import dance from './dance.js';
 import { gamesMenu } from './games.js';
@@ -45,8 +46,9 @@ import { happenings } from './happenings.js';
 // hide-seek = a game (buttons) and a happening (he hides on his own); never in invites.
 // shop = parks him in the shop window's display box while it's open (shop.js).
 // intro = the launch animation (title slam, Starby flies in, greeting); starts itself at launch.
+// catch = a game: he throws himself across the screen, catch him in the box (catchGame.js).
 // dance = dances in bursts while a song plays in Spotify (dance.js); lowest priority.
-export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, shop, dance];
+export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js);

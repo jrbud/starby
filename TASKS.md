@@ -98,18 +98,20 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   `starby.happening('star-shower')`, `starby.nextHappening()` (seconds until the next).
 - [x] **P1-11 (Nice) Hide and seek.** `events/hideSeek.js`: he runs off and hides without a word (no speech,
   no countdown, no starbit drops, debug mood label hidden; `pet.hiding` tells `starbits.js` / `moodLabel.js`).
-  Spots: just inside an edge of a **real open window** (when he goes to hide he asks for the current window
-  rectangles via `window.sprite.getOpenWindows()` → `main/systemReads/openWindows.js`: rectangles only, front-most
-  first, filtered to real app windows on the primary display; edges where a window in front would cover him are
-  skipped; refetched when he changes spots), else the active window's `bounds` (`activeWindow.js`), else behind
-  the taskbar or past a screen edge / corner. Real windows work on Windows out of the box; on macOS get-windows
-  needs the Screen Recording permission (without it: taskbar / screen edges only, one console warning).
-  "Behind" is faked with a CSS clip on the pet element, so a peek shows only the part sticking out. The spot is
-  fixed once he hides (moving the window does nothing). Every 4–9s he peeks out ~30px for 1.5s; touch him (or
-  grab him) while he peeks → found: "you found me!" + 10 starbits. After a peek he sometimes moves to a new spot.
-  Not found in 150s → he comes out and wins. On the game buttons ([Tag] [Pong] [Hide & Seek]; `prompt.js` now
-  takes any number of buttons) and in `HAPPENINGS` (he hides on his own), never in invites (`invite: false`).
-  DevTools: `starby.startEvent('hide-seek')`, `starby.setHideWindow({ x, y, width, height })`, `starby.hideTest()`.
+  He only hides just past an **edge of the usable screen** (behind the taskbar, or past the left / right / top
+  edge); no windows. "Behind the edge" is a CSS clip on the pet element, so a peek shows only the part sticking
+  out. Every 4–9s he peeks out ~30px for 1.5s, and **each peek comes from a new random edge spot** (he moves
+  there while fully hidden), so he isn't where you saw him hide. Touch him (or grab him) while he peeks → found:
+  "you found me!" + 10 starbits. Not found in 150s → he comes out and wins. On the game buttons, in `HAPPENINGS`
+  (he hides on his own) and the menu ("Play hide & seek"); never in invites (`invite: false`).
+- [x] **P1-14 (Nice) Catch.** `events/catchGame.js`, a game (buttons, invites, menu "Play catch"): "i'm gonna
+  throw myself! catch me in the box!" A dashed catch box (5 × 5 Starbys) appears on the right; he goes to the far
+  left, stretches out, says "ready?" and flings himself at the box (950px/s, ~0.35s inside it). Click/grab him
+  **inside the box** → "NICE!" + 10 starbits. Missed → "STRIKE n!", he bonks the edge, flies back, tries again;
+  3 strikes → out. He walks back to the left facing left (the 'left' art, via `pet.faceOverride`, which
+  `mood.js` honours) on one straight path. Clicking him before or after the box (or while winding up / flying back) → "CHEATER!", game
+  over. During the game the box is a `.hit` element, so a click with a still cursor still reaches us (the pet
+  window is otherwise click-through until the cursor moves over him). Clicks are judged at the next tick.
 - [x] **P1-13 (Nice) Shooting Star + slower random tosses.** `events/shootingStar.js`: a happening (shares the
   20–50 min timer with Star Shower and Hide & Seek): he yells "WATCH OUT! STARS INCOMING!", then 1.5s later
   10–16 starbits shoot across the screen from the left or right as one tight clump with trails (`shootStarbit` in
@@ -118,9 +120,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   now". Separately, Starby's own random tosses now default to every **30–60s** (`dropEveryMin/Max` in
   `shared/starbitsTuning.js`, was 8–15s; Admin Settings overrides still win).
 - [x] **P1-12 (Nice) Developer menu.** Right-click → *Play hide & seek*, and a *Developer* submenu (`ipc.js`):
-  Open pet DevTools, Start star shower now, Hide & seek behind a real window (`starby.hideReal()`: forces a real
-  window spot; if the list is empty he says why, e.g. macOS Screen Recording), Hide & seek behind a fake test window
-  (`starby.hideTest()`: a dashed pretend window, never real windows), Starby invites you to a game, Skip game rest (`starby.skipRest()`), Stop
+  Open pet DevTools, Start star shower now, Start shooting star now, Starby invites you to a game, Skip game rest (`starby.skipRest()`), Stop
   current event. Menu items send `{ type: 'starby', fn, args }` and `pet.js` calls `window.starby[fn](...args)`,
   so any new debug helper can be added to the menu without touching `pet.js`.
 

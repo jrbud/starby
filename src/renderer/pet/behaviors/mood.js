@@ -354,6 +354,8 @@ function faceFor(ctx) {
   const { pet } = ctx;
   if (pet.mood === 'sleepy') return 'sleepy';
   if (pet.mode === 'drag') return 'dragged';
+  // An event can ask for a specific face for a moment (e.g. catch: 'left' while he walks back).
+  if (pet.faceOverride) return pet.faceOverride;
   if (pet.mood === 'dizzy' || pet.mood === 'yawning' || pet.mood === 'mad' || pet.mood === 'sad') return pet.mood;
   if (pet.mode === 'dance') return 'dancing'; // events/dance.js (only runs while happy/playful)
   if (pet.mood === 'playful' || pet.mode === 'toss' || pet.mode === 'tag') return 'playful';

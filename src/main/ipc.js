@@ -6,7 +6,6 @@ const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
 const { openShopWindow, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const settingsStore = require('./settingsStore');
-const { listOpenWindows } = require('./systemReads/openWindows');
 const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
 const adminSettingsStore = require('./adminSettingsStore');
 
@@ -61,9 +60,6 @@ function registerIpc() {
   ipcMain.handle('settings:reset', () => settingsStore.reset());
   ipcMain.on('settings:open', () => openSettingsWindow());
 
-  // ---- Read-only: rectangles of the open windows (hide and seek hides behind them) ----
-  ipcMain.handle('system:open-windows', () => listOpenWindows());
-
   // ---- Admin Settings (starbits tuning overrides; see renderer/shared/starbitsTuning.js) ----
   ipcMain.handle('admin:get', () => adminSettingsStore.get());
   ipcMain.handle('admin:set', (_e, patch) => adminSettingsStore.set(patch));
@@ -92,6 +88,7 @@ function registerIpc() {
       { label: 'Play tag', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'tag' }) },
       { label: 'Play pong', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'pong' }) },
       { label: 'Play hide & seek', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'hide-seek' }) },
+      { label: 'Play catch', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'catch' }) },
       { type: 'separator' },
       // Dev / demo helpers. 'starby' commands call window.starby.<fn>(...args) in the pet window
       // (the same debug helpers you can run in its DevTools console).
@@ -102,8 +99,6 @@ function registerIpc() {
           { type: 'separator' },
           { label: 'Start star shower now', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'happening', args: ['star-shower'] }) },
           { label: 'Start shooting star now', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'happening', args: ['shooting-star'] }) },
-          { label: 'Hide & seek behind a real window', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'hideReal' }) },
-          { label: 'Hide & seek behind a fake test window', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'hideTest' }) },
           { label: 'Starby invites you to a game', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'invite' }) },
           { label: 'Skip game rest', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'skipRest' }) },
           { label: 'Stop current event', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'stopEvent' }) },
