@@ -7,11 +7,9 @@
 //                a while. No answer → "maybe later", no hard feelings.
 //                (starby.startEvent('tag') in DevTools skips the question.)
 //
-//   ASKING HIM: click Starby and a "Play tag?" button pops up next to him for a few seconds.
-//                Click it and, if he's up for it, the game starts right away (no question back).
-//                After a game he needs GAME_REST seconds to rest: asking (button or menu) gets
-//                "give me a little, i'm tired", escalating if you keep asking, and the button
-//                shows the time left ("resting… 0:42"). Mad or dizzy: he says no. Asleep: no button.
+//   ASKING HIM: click Starby → "Play a game? [Tag] [Pong]" (./games.js). Pressing Tag starts it
+//                right away (no question back). The rest between games, the tired / mad / dizzy
+//                answers and the 3-2-1 countdown are shared with pong, in ./games.js.
 //   ½. ready     once a game is agreed he stays put, faces you and counts down in his bubble:
 //                "3...", "2...", "1...", "GO!" (one per second), so you can get ready
 //   1. play      "GO!" starts the GAME_SECONDS clock. Starby starts as "it".
@@ -40,17 +38,13 @@ import { burstStarbits, reclaimStarbits } from '../behaviors/starbits.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { createCountdown } from './countdown.js';
 import { createPrompt } from './prompt.js';
+import { readyToPlay, markPlayed, createReady } from './games.js';
 
 // ---- Tuning ----
 const INVITE_FOR = 12; // seconds to answer the popup
-const GAME_REST = 60; // seconds after a game before he'll play again when asked
-const CHIP_FOR = 4; // seconds the "Play tag?" button stays up after clicking him
 const DECLINED_COOLDOWN = 600; // after a "no", don't ask again on his own for this long (seconds)
 const GAME_SECONDS = 15; // the game clock, from "GO!"
 const WIN_REWARD = 7; // starbits he shoots out when you win
-const READY_FROM = 3; // "3...", "2...", "1...", then "GO!"
-const READY_STEP = 1; // seconds between counts
-const READY_PAUSE = 1.2; // seconds to show "yay, let's play!" before the count starts
 const CHASE_SPEED = [700, 900]; // px/s while he's it: close ... far (his fastest normal walk is ~160)
 const CHASE_LEAD = 0.12; // seconds: aims where the cursor is heading, not where it is
 const POUNCE_RADIUS = 160; // cursor this close while he's it → pounce
@@ -82,10 +76,6 @@ const LINES = {
   start: lineBag(["yay! let's play!", 'hehe... tag time!', "yesss! ok, here i come!"]),
   declined: lineBag(['oh... ok.', 'aw... nevermind then', '*sniff* ok...']),
   accept: lineBag(["ooh, yes! let's play!", 'you wanna play? yay!', 'tag time! ✦']),
-  tired: lineBag(["give me a little, i'm tired", 'phew... let me catch my breath first', 'need a little break first!']),
-  veryTired: lineBag(["i'm tired! ask me in a bit", '*pant pant* not yet!', 'still resting!']),
-  mad: lineBag(['hmph. not playing with a poker.', "no games. i'm mad."]),
-  notNow: lineBag(['too dizzy right now @_@', 'wait... the room is spinning']),
   ignored: lineBag(['...maybe later then', 'oh, you\'re busy. ok!']),
   tag: lineBag(["tag! you're it!", 'tag! ✦ catch me!', "you're it! bye!"]),
   tagged: lineBag(["aw! you got me... my turn!", "no fair! ok, i'm it", "hey! ok... here i come!"]),
@@ -122,13 +112,8 @@ let countdown = null;
 let prompt = null;
 let answer = null; // 'yes' | 'no', set by the popup buttons, acted on at the next tick
 let inviteLeft = 0;
-let readyCount = 0; // next number to say (0 = say "GO!")
-let readyIn = 0; // seconds until the next count
+const ready = createReady(); // "3... 2... 1... GO!" (./games.js)
 let declinedAt = -Infinity; // session seconds of the last "no" (kept between games)
-let lastPlayedEndAt = -Infinity; // session seconds when the last actual game ended
-let chip = null; // the "Play tag?" button shown when you click him
-let chipLeft = 0;
-let chipPressed = false; // set by the button, acted on at the next tick
 
 // Cursor-presence tracking for random starts (updated even when tag isn't running).
 let lastCursor = { x: -9999, y: -9999 };
@@ -164,84 +149,19 @@ function awayFrom(ctx, from, dist) {
   return best;
 }
 
-const mmss = (s) => {
-  const whole = Math.ceil(s);
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
-};
-
-/** Seconds of rest he still needs after the last game (0 = ready to play). */
-export function restLeft(ctx) {
-  return Math.max(0, lastPlayedEndAt + GAME_REST - ctx.clock.seconds);
-}
-
-// Asked to play while still resting: tired, and a bit more insistent each time you ask.
-function sayTired(ctx) {
-  const asked = ctx.events.count('game-tired', GAME_REST);
-  const left = Math.ceil(restLeft(ctx));
-  let line;
-  if (asked === 0) line = LINES.tired();
-  else if (asked === 1) line = `still tired... give me ${left}s`;
-  else line = LINES.veryTired();
-  ctx.say(line, 2500);
-  ctx.log('game-tired', { left });
-}
-
-const restText = (ctx) => (restLeft(ctx) > 0 ? `resting… ${mmss(restLeft(ctx))}` : '');
-
-// Clicked him: offer a "Play tag?" button for a few seconds.
-function showChip(ctx) {
-  const { pet } = ctx;
-  if (ctx.activeEvent()) return; // already playing / asking
-  if (pet.mood === 'sleepy') return; // asleep: can't ask him anything
-  if (pet.mode === 'drag' || pet.mode === 'toss') return;
-  chipLeft = CHIP_FOR;
-  chipPressed = false;
-  chip.show({ text: restText(ctx), yes: 'Play tag?', no: null, onYes: () => { chipPressed = true; } });
-  chip.place(pet, ctx.area?.());
-}
-
-function hideChip() {
-  chipLeft = 0;
-  chipPressed = false;
-  chip?.hide();
-}
-
-// The user asked to play (the button).
-function askToPlay(ctx) {
-  const { pet } = ctx;
-  hideChip();
-  ctx.log('game-request', { mood: pet.mood });
-  if (ctx.activeEvent()) return;
-  if (pet.mood === 'mad') { ctx.say(LINES.mad(), 2000); return; }
-  if (pet.mood === 'dizzy') { ctx.say(LINES.notNow(), 2000); return; }
-  ctx.startEvent('tag', 'request'); // canStart says "i'm tired" if he still needs a rest
-}
-
-// Every tick (even when no game is running): run the button.
-function tickChip(ctx) {
-  if (!chip || chipLeft <= 0) return;
-  const { pet } = ctx;
-  if (chipPressed) { askToPlay(ctx); return; }
-  chipLeft -= TICK_SECONDS;
-  const busy = ctx.activeEvent() || pet.mode === 'drag' || pet.mode === 'toss' || pet.mood === 'sleepy';
-  if (chipLeft <= 0 || busy) { hideChip(); return; }
-  chip.setText(restText(ctx)); // live "resting… 0:42" countdown
-}
-
 // Yes! (or asked by the user / DevTools): get playful and go tag the cursor.
 function beginGame(ctx, line = LINES.start) {
   const { pet } = ctx;
   // Get ready: he stays put and counts down before racing in (see onTick, phase 'ready').
   phase = 'ready';
-  readyCount = READY_FROM;
-  readyIn = READY_PAUSE;
+  ready.start();
   target = { x: pet.x, y: pet.y };
   speedTarget = 0;
   moodSwapIn = rand(...MOOD_SWAP);
   requestMood(ctx, 'playful', 'tag');
   cancelJump();
   startJump({ height: rand(14, 22), air: 0.3 }); // excited hop
-  ctx.say(line(), READY_PAUSE * 1000);
+  ctx.say(line(), ready.pause * 1000);
   ctx.log('tag-ready', {});
 }
 
@@ -260,7 +180,6 @@ function startPlay(ctx) {
   accel = 10;
   cancelJump();
   startJump({ height: rand(16, 24), air: 0.3 });
-  ctx.say('GO!', 900);
   countdown.show('TAG', timeLeft, "Starby's it, run!");
   ctx.log('tag-go', { seconds: GAME_SECONDS });
 }
@@ -306,34 +225,14 @@ export default {
   priority: 10,
   auto: AUTO,
 
-  init(ctx) {
-    chip = createPrompt(ctx.stage);
-    ctx.petEl.addEventListener('pet:clicked', () => showChip(ctx));
-  },
-
-  // Every tick, even when not running: notice whether you're around (for random starts) and
-  // run the "Play tag?" button.
-  watch(ctx) {
-    trackCursor(ctx);
-    tickChip(ctx);
-  },
-
-  // Every frame: keep the button next to him while he walks.
-  watchFrame(ctx) {
-    if (chipLeft > 0) chip.place(ctx.pet, ctx.area?.());
-  },
+  watch: trackCursor, // every tick, so random starts know whether you're around
 
   canStart(ctx, reason) {
     const { pet, cursor } = ctx;
     if (cursor.x < -1000) return false; // no cursor to tag yet
     if (pet.mode === 'drag' || pet.mode === 'toss') return false; // being held / thrown
-    if (reason === 'devtools') return true;
-    // Asked for (button / menu) right after a game: he needs a rest first, and says so.
-    if (reason !== 'random' && restLeft(ctx) > 0) {
-      sayTired(ctx);
-      return false;
-    }
-    if (reason !== 'random') return true; // asked for: just play
+    if (!readyToPlay(ctx, reason)) return false; // asked right after a game: "i'm tired"
+    if (reason !== 'random') return true; // asked for (button / menu / DevTools): just play
     const relaxed = pet.mode === 'idle' || pet.mode === 'walk';
     const goodMood = pet.mood === 'happy' || pet.mood === 'playful';
     const userAround = ctx.clock.seconds - cursorMovedAt <= USER_AROUND;
@@ -359,7 +258,6 @@ export default {
 
     pet.mode = 'tag'; // behaviors stand down
     cancelJump();
-    hideChip();
     if (reason === 'devtools' || reason === 'request') {
       beginGame(ctx, reason === 'request' ? LINES.accept : LINES.start); // you asked: no question back
       return;
@@ -430,16 +328,7 @@ export default {
     // ---- ½. Get ready: "3... 2... 1... GO!" ----
     if (phase === 'ready') {
       if (cursor.x > -1000) pet.facing = cursor.x >= centerOf(pet).x ? 1 : -1; // eyes on you
-      readyIn -= TICK_SECONDS;
-      if (readyIn > 1e-6) return; // (tolerance: ten 0.1s ticks don't add up to exactly 1.0)
-      readyIn = READY_STEP;
-      if (readyCount > 0) {
-        ctx.say(`${readyCount}...`, READY_STEP * 1000);
-        if (!isJumping()) startJump({ height: rand(6, 10), air: 0.22 }); // little bounce per count
-        readyCount--;
-      } else {
-        startPlay(ctx);
-      }
+      if (ready.tick(ctx)) startPlay(ctx); // says the numbers, then "GO!"
       return;
     }
 
@@ -615,7 +504,7 @@ export default {
     // After an actual game he stays playful for a bit (not after a "no" or no answer), and
     // needs a rest before the next one.
     const played = phase === 'play'; // got past "GO!" (not a "no", or grabbed mid-count)
-    if (played) lastPlayedEndAt = ctx.clock.seconds;
+    if (played) markPlayed(ctx); // starts the rest between games (./games.js)
     if (played && (pet.mood === 'happy' || pet.mood === 'playful')) requestMood(ctx, 'playful', 'tag over');
   },
 };

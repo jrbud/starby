@@ -78,6 +78,7 @@ function registerIpc() {
       { type: 'separator' },
       // Scripted events run in the pet renderer (src/renderer/pet/events/).
       { label: 'Play tag', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'tag' }) },
+      { label: 'Play pong', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'pong' }) },
       { type: 'separator' },
       { label: 'Quit sprite.exe', click: () => app.quit() },
     ]).popup({ window: win });

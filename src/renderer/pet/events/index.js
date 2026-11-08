@@ -29,8 +29,15 @@
 // Start one from code with ctx.startEvent('tag'), from DevTools with starby.startEvent('tag'),
 // or from the right-click menu (see src/main/ipc.js). Logged as 'event-start' / 'event-end'.
 import tag from './tag.js';
+import pong from './pong.js';
+import { gamesMenu } from './games.js';
 
-export const EVENTS = [tag];
+export const EVENTS = [tag, pong];
+
+// Helpers: not events (they never start or take over), but they get the same init / watch /
+// watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js).
+const HELPERS = [gamesMenu];
+const WITH_HOOKS = [...EVENTS, ...HELPERS];
 
 export function createEventRunner(ctx) {
   let active = null; // { event, startedAt }
@@ -81,7 +88,7 @@ export function createEventRunner(ctx) {
   function initOnce() {
     if (initialized) return;
     initialized = true;
-    for (const event of EVENTS) event.init?.(ctx);
+    for (const m of WITH_HOOKS) m.init?.(ctx);
   }
 
   return {
@@ -90,13 +97,13 @@ export function createEventRunner(ctx) {
     active: () => (active ? active.event.name : null),
     onTick(tick) {
       initOnce();
-      for (const event of EVENTS) event.watch?.(ctx);
+      for (const m of WITH_HOOKS) m.watch?.(ctx);
       if (active) active.event.onTick?.(ctx, tick);
       else autoRoll();
     },
     update(dt) {
       if (!initialized) return;
-      for (const event of EVENTS) event.watchFrame?.(ctx, dt);
+      for (const m of WITH_HOOKS) m.watchFrame?.(ctx, dt);
       if (active) active.event.update?.(ctx, dt);
     },
   };
