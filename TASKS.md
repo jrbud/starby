@@ -27,7 +27,7 @@ Each teammate is **Person 1–4**. Tell Claude Code who you are ("I'm person 2")
 ## Person 1 — Movement & cursor
 
 **Owns:** `src/renderer/pet/behaviors/idle.js`, `walk.js`, `drag.js`, `cursorReact.js`.
-Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss'`.
+Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss' | 'tag'`.
 
 - [x] **P1-1 (Must) Roam anywhere on screen.** The star walks to targets anywhere on the screen (not just
   edges or the taskbar), mostly short wanders nearby with occasional long trips. Kept between a top margin
@@ -54,6 +54,21 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   jerks and fast swipes spin it. On release (`'toss'` mode) it keeps its speed and spin, glides, bounces
   off screen edges and wobbles back upright. "wheee!" on fast spins, dizzy wobble after 3+ turns.
   `pet.rotation` is rendered by `pet.js` (canvas only, so the speech bubble stays upright).
+- [x] **P1-6 (Nice) Tag event.** First *event* (`src/renderer/pet/events/`, see below). He first **asks**: stops,
+  says "wanna play tag?" and shows a Yes / No popup next to him (`events/prompt.js`, a clickable `.hit` box).
+  **No** → new `sad` mood (`moods.js` / `mood.js`: half walk speed, no hops, looks away, no "oh! hi"; 30s, or a
+  click cheers him up) and he won't ask on his own again for 10 min. No answer in 12s → "maybe later", not sad.
+  **Yes** → he races to the cursor (~560px/s), tags it, then runs away (450–780px/s, jukes sideways at 1150px/s
+  when the cursor gets within 120px) while a 20s countdown runs top-right. Touch or grab him to win; survive
+  the timer and he wins. Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
+  stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
+  skips the question. Random: every 60s, 20% chance, 4-min cooldown, only when happy/playful, relaxed and the
+  cursor moved in the last 10s. Tuning at the top of `events/tag.js`.
+
+> **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
+> sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
+> stand down for modes they don't know), then hand it back. One at a time; pet.js runs the active event
+> after the behaviors. Add one in `events/index.js`; the module contract is documented there.
 
 ---
 
@@ -66,7 +81,8 @@ before changing these — they're core).
 - [ ] **P2-1 (Must, do first) Windows test.** Run `npm install && npm start` on Windows and check:
   1. Clicks pass through everywhere except on the star (and work on the star: click, drag, right-click).
   2. The star stays visible above the taskbar (`setAlwaysOnTop(true, 'screen-saver')`).
-  3. The "ground" sits right on top of the taskbar (`groundY()` uses `screen.availHeight`).
+  3. He never walks, lands or gets thrown under the taskbar, wherever it is: drag the taskbar to the top,
+     left and right and check (`ctx.area()` in `pet.js` = the usable area; `starby.area()` in DevTools).
   4. Works at 125% and 150% display scaling.
   Fix what's broken (comment any Windows quirk you find), or report it to the team.
 - [ ] **P2-2 (Must) Show the count.** On pickup, spawn a small "+1" text element that floats up and fades
@@ -86,7 +102,8 @@ before changing these — they're core).
 
 **Owns:** `src/renderer/pet/behaviors/speech.js`, `src/renderer/pet/bubble.js`,
 `src/renderer/pet/behaviors/systemReactions.js`, `src/renderer/pet/behaviors/chatter.js`,
-`src/main/systemReads/*`.
+`src/renderer/pet/behaviors/mood.js`, `src/renderer/pet/behaviors/moods.js`, `src/main/systemReads/*`.
+Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with the team).
 
 > **Speech convention (for everyone):** lines that answer the user (click, flinch, drag) use plain
 > `ctx.say()` so they show instantly. Lines that come out of nowhere (idle chatter, system reactions,
@@ -122,8 +139,71 @@ before changing these — they're core).
   `'clipboard'` event no longer has a `preview`. `systemReads/clipboard.js` classifies the text in the main
   process and sends only `{ length, kind }`, with `kind` one of `'url' | 'number' | 'long' | 'text'`, so the
   copied text never reaches the renderer, the event log or DevTools. `systemReactions.js` has lines per kind.
-- [ ] **P3-5 (Nice) Sleepy at night.** Late `time-of-day` or long `'idle'` puts the star to sleep (closed
-  eyes, slow bob, "zzz"). Needs a new `'sleep'` mode — **agree with Person 1 first.**
+- [ ] **P3-5 (Nice) Sleepy at night.** Folded into P3-6: no new `'sleep'` mode needed. He yawns after
+  1 minute alone at night (2 minutes by day) and sleeps once he reaches a top corner.
+- [ ] **P3-6 (Must) Emotions.** Moods are a separate layer from `pet.mode`: **mode** = what the body is
+  doing (Person 1), **mood** = how he feels (`pet.mood`: happy, mad, playful, dizzy, yawning, sleepy),
+  **face** = which frames to show (`pet.face`: the mood, plus `dragged` while held and `talking` while happy
+  and speaking). Behaviors never check mood names: they read one rule from `rulesFor(ctx.pet)` in
+  `behaviors/moods.js` (`starbits`, `wander`, `follow`, `flee`, `hop`, `grabbable`, `quiet`, `bobSpeed`).
+  Every mood change is logged as `mood`. In DevTools: `starby.setMood('sleepy')`, `starby.mood()`.
+  - [x] **Phase 1 (Person 3): state machine + speech.** `mood.js` handles:
+    - **mad:** 4 clicks in 8s; 20s after the last poke he's happy again.
+    - **playful:** thrown at ≥500px/s; lasts 15s, and each throw or edge hit restarts it.
+    - **dizzy:** spun 3+ turns (`drag.js` logs `dizzy`), 3 throws within 20s, or the cursor circling him
+      3 times within 6s; lasts 5s.
+    - **yawning:** 2 minutes without interaction (1 at night) or the system `idle` event; sets `pet.goal`
+      to the nearest top corner.
+    - **sleepy:** reached that corner. **Only picking him up and shaking him wakes him**; clicks, the
+      cursor and throws don't, and he dangles asleep if held without shaking.
+    - **speech:** `speech.js` has click and idle lines for each mood. `chat()` drops unprompted lines while
+      he's asleep (the `quiet` rule), except low battery.
+    - Two lines added to the shared `behaviors/index.js` to register `mood.js`.
+  - [x] **Phase 2: hook behaviors up to the rules.** Done by Person 3 in Persons 1 and 2's files, with
+    them informed. Each file's header has a "MOODS" note listing exactly what was added.
+    - [x] **`idle.js`:**
+      - no walks or looking around when `!wander` (dizzy, asleep);
+      - when `wander === 'corner'`, the next walk goes to `pet.goal` at a slow plod with short rests;
+      - breathing speed from `bobSpeed`, and no hops when `!hop`;
+      - eyes stay shut while asleep (`eyesShut`, using the existing blink drawing).
+    - [x] **`walk.js`:**
+      - getting dizzy mid-walk stops him on the spot;
+      - starting to yawn mid-walk sends him to the corner right away;
+      - corner walks never turn back, and there are no random hops when `!hop`.
+    - [x] **`motion.js`:** `CORNER_WALK_SPEED` and a `hasGoalToReach()` helper.
+    - [x] **`cursorReact.js`:**
+      - no "oh! hi" and no following when `!follow`, and a follow in progress ends if the mood changes;
+      - no flinching when `!flee`;
+      - eyes look away from the cursor while mad (`lookAway`).
+    - [x] **`drag.js` (done by Person 3, with Person 1 informed):** edge hits are logged as `impact`
+      `{ side, speed }`, and `mood.js` listens for them. **Swat:** when `!grabbable` (mad), pressing and
+      dragging him cancels the grab. He recoils about 200px away from the cursor with a little spin, using
+      the normal throw physics, glares back and says something like "hands off!". It's logged as `swat`,
+      and `mood.js` counts it as another poke. A plain click on a mad star is still a poke. The real
+      cursor is never moved: that would be a system write, out of scope.
+    - [x] **`starbits.js`:**
+      - the drop timer runs at the `starbits` rate: playful drops about twice as fast (50 vs 25 in a
+        5-minute test), and rate 0 drops nothing;
+      - a mad star says "no starbits for you!" once per mad spell (`refuses`);
+      - hard wall hits (`impact` ≥900px/s) drop 1–3 starbits just off the wall, with a 2s cooldown, and
+        nothing while mad or asleep. **Person 4: please check these numbers against shop prices.**
+    - **New rules in `moods.js`:** `refuses`, `lookAway`, `eyesShut`. The table now builds every mood from
+      shared defaults, so each mood only lists what differs from happy.
+  - [ ] **Phase 3: faces (Person 4 + artists).** A new `renderer/shared/frames.js` loads
+    `assets/sprite/<face>/<face>_N.png`. `pet.js` `render()` draws the frames for `pet.face` (a shared file,
+    so ask first) and falls back to today's star for any face without art yet. The artists need these
+    folders, every frame on the same canvas size (suggest 128×128, with room above the head):
+    - `happy/` (plus a `blink` frame)
+    - `talking/`
+    - `mad/`
+    - `playful/`
+    - `dizzy/` (stars around the head are part of the art)
+    - `yawning/`
+    - `sleepy/` (zzz)
+    - `dragged/`
+    - optional `swat/`
+
+    Shop colors on the PNG art are a later slice.
 
 ---
 
@@ -158,6 +238,7 @@ before changing these — they're core).
 | `src/renderer/pet/behaviors/index.js` | One line per new behavior. Trivial conflicts. |
 | `src/renderer/pet/pet.js` | Shared render loop/`ctx`. Ask before changing. |
 | `src/renderer/pet/core/*` | Session clock, scheduler, event log. Shared; ask before changing. |
+| `src/renderer/pet/events/index.js` | Event runner + registry. Adding an event = one line; ask before changing the runner. |
 | `pet.mode` values | Person 1 owns. Ask before adding a mode. |
 | `src/shared/stateSchema.js` | Person 4 only. |
 | `src/main/main.js`, `src/main/windows/petWindow.js` | Core. Person 2 for Windows fixes; tell the team. |

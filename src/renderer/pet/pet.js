@@ -1,6 +1,7 @@
 // Pet renderer entry: builds the shared `ctx`, starts every behavior, runs the frame loop.
 // SHARED FILE — to add a behavior, create a file in ./behaviors and register it in
-// ./behaviors/index.js. You shouldn't need to edit this file for that.
+// ./behaviors/index.js; to add an event (a scripted sequence like tag), add it to
+// ./events/index.js. You shouldn't need to edit this file for either.
 import { drawSprite } from '../shared/sprite.js';
 import { createBubble } from './bubble.js';
 import { initClickThrough, setPinned } from './clickThrough.js';
@@ -8,6 +9,8 @@ import { BEHAVIORS } from './behaviors/index.js';
 import { createClock } from './core/clock.js';
 import { createScheduler } from './core/scheduler.js';
 import { createEventLog } from './core/eventLog.js';
+import { createEventRunner } from './events/index.js';
+import { clampToScreen } from './behaviors/motion.js';
 
 const api = window.sprite;
 const petEl = document.getElementById('pet');
@@ -19,7 +22,8 @@ const SIZE = 64;
 
 /**
  * Shared pet state. Behaviors read and write this; pet.js renders it every frame.
- * mode: 'idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss'  (add more as needed, e.g. 'sleep')
+ * mode: 'idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss' | 'tag'  (add more as needed)
+ *   'tag' is set by the tag event (./events/tag.js) while it runs.
  */
 const pet = {
   x: 200,
@@ -35,10 +39,28 @@ const pet = {
   look: { color: '#ffd84a', accessory: 'none' },
 };
 
-// "Ground" = just above the taskbar. screen.availHeight excludes the taskbar on Windows.
-// (Assumes the taskbar is at the bottom of the primary display.)
-const groundY = () => window.screen.availHeight - SIZE;
-const stageWidth = () => window.innerWidth;
+// Usable screen area: the whole display minus the taskbar, wherever the taskbar is (bottom,
+// top, left or right), in this window's coordinates: { left, top, right, bottom }.
+// WINDOWS QUIRK: the pet window covers the whole display, taskbar included, so its own size
+// says nothing about the taskbar. Chromium reports the work area as screen.availLeft/availTop/
+// availWidth/availHeight in screen coordinates; the window sits at the display's top-left, so
+// subtracting window.screenX/Y converts. Read live, so moving the taskbar while running is
+// picked up on the next call.
+function workArea() {
+  const s = window.screen;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const within = (v, max) => Math.max(0, Math.min(max, v));
+  const left = within(Number.isFinite(s.availLeft) ? s.availLeft - window.screenX : 0, W);
+  const top = within(Number.isFinite(s.availTop) ? s.availTop - window.screenY : 0, H);
+  const right = Math.min(W, left + (s.availWidth || W));
+  const bottom = Math.min(H, top + (s.availHeight || H));
+  return { left, top, right, bottom };
+}
+// Kept for existing code: "ground" = lowest y for the star's top-left (just above a bottom
+// taskbar), and the usable area's right edge. New code should prefer ctx.area() / petBounds().
+const groundY = () => workArea().bottom - SIZE;
+const stageWidth = () => workArea().right;
 
 // Session clock, timed events and event log (see ./core/). Session only: reset every launch.
 const clock = createClock();
@@ -54,6 +76,7 @@ const ctx = {
   catalog: [],
   groundY,
   stageWidth,
+  area: workArea, // usable screen area { left, top, right, bottom } (taskbar on any side)
   say: (text, ms) => {
     bubble.say(text, ms);
     log('say', { text });
@@ -68,10 +91,21 @@ const ctx = {
   // Event log
   log, // log(type, data)
   events, // events.last(type), .since(seconds), .count(type, withinSeconds), .all(), .onEntry(fn)
+  // Scripted events (./events/) — not to be confused with the event *log* above
+  startEvent: (name, reason) => eventRunner.start(name, reason), // → true if it started
+  stopEvent: (result) => eventRunner.stop(result),
+  activeEvent: () => eventRunner.active(), // → name or null
 };
 
-// Open DevTools on the pet window and inspect these, e.g. starby.events.all()
-window.starby = { clock, scheduler, events, pet };
+const eventRunner = createEventRunner(ctx);
+
+// Open DevTools on the pet window and inspect these, e.g. starby.events.all(), starby.startEvent('tag')
+window.starby = {
+  clock, scheduler, events, pet,
+  area: workArea, // usable screen area right now (taskbar excluded)
+  startEvent: (name = 'tag') => eventRunner.start(name, 'devtools'),
+  stopEvent: () => eventRunner.stop('devtools'),
+};
 
 // ---- Look (equipped shop items → what we draw) ----
 let prevState = null;
@@ -126,6 +160,7 @@ async function boot() {
   applyState(await api.getState());
   api.onStateChanged(applyState);
 
+  pet.x = workArea().left + 200;
   pet.y = groundY();
   initClickThrough();
   window.addEventListener('mousemove', (e) => {
@@ -136,6 +171,11 @@ async function boot() {
   // Every read-only system event (clipboard, idle, power, time of day) goes in the log.
   api.onSystemEvent((evt) => log('system', evt));
 
+  // Commands from the main process, e.g. the right-click menu's "Play tag".
+  api.onPetCommand?.((cmd) => {
+    if (cmd && cmd.type === 'start-event') eventRunner.start(cmd.name, 'menu');
+  });
+
   log('app-start', { at: new Date(clock.startedAt).toISOString() });
   for (const b of BEHAVIORS) b.init?.(ctx);
 
@@ -144,6 +184,7 @@ async function boot() {
   const onTick = (tick) => {
     scheduler.run(tick); // timed events first
     for (const b of BEHAVIORS) b.onTick?.(ctx, tick); // then behavior decisions
+    eventRunner.onTick(tick); // then the active event, which gets the final say
   };
 
   const frame = (now) => {
@@ -154,6 +195,13 @@ async function boot() {
     clock.advance(realDt, onTick);
     const dt = Math.min(0.05, realDt);
     for (const b of BEHAVIORS) b.update?.(ctx, dt);
+    eventRunner.update(dt);
+    // Taskbar moved (or the screen changed) while he was sitting still: step out from under it.
+    if (pet.mode === 'idle') {
+      const kept = clampToScreen(ctx, pet.x, pet.y);
+      pet.x = kept.x;
+      pet.y = kept.y;
+    }
 
     if (pet.mode !== lastMode) {
       // Skip routine idle↔walk switches (walks are logged as 'walk' already) to keep the log useful.

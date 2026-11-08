@@ -13,11 +13,32 @@ export const approach = (value, target, dt, speed = 12) =>
 // Leave room above the star so its speech bubble never goes off the top of the screen.
 export const TOP_MARGIN = 60;
 
-export function clampToScreen(ctx, x, y) {
+// Yawning: a slow, sleepy plod toward the nap corner (pet.goal), px/s. Used by idle.js and walk.js.
+export const CORNER_WALK_SPEED = [40, 55];
+
+/** True when there's a goal (set by mood.js) and the star isn't standing on it yet. */
+export const hasGoalToReach = (pet) =>
+  Boolean(pet.goal) && Math.hypot(pet.x - pet.goal.x, pet.y - pet.goal.y) >= 2;
+
+/**
+ * Where the star's top-left corner may go: inside the usable screen area (ctx.area(), which
+ * excludes the taskbar on any side), with TOP_MARGIN of room above him for his speech bubble.
+ */
+export function petBounds(ctx) {
+  const size = ctx.pet.size;
+  // ctx.area comes from pet.js; the fallback keeps older callers/tests working.
+  const a = ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + size };
   return {
-    x: clamp(x, 0, ctx.stageWidth() - ctx.pet.size),
-    y: clamp(y, TOP_MARGIN, ctx.groundY()),
+    minX: a.left,
+    maxX: Math.max(a.left, a.right - size),
+    minY: Math.min(a.top + TOP_MARGIN, a.bottom - size),
+    maxY: a.bottom - size,
   };
+}
+
+export function clampToScreen(ctx, x, y) {
+  const b = petBounds(ctx);
+  return { x: clamp(x, b.minX, b.maxX), y: clamp(y, b.minY, b.maxY) };
 }
 
 // ---- Jumps ----

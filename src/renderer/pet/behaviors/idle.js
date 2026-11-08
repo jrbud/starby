@@ -4,10 +4,19 @@
 // Split between ticks and frames:
 //   onTick (10/s)  → decisions: schedule the next walk, look around, roll for a hop
 //   update (every frame) → smooth visuals: breathing bob, squash easing, jump arc, blinking
+//
+// MOODS (hooked up by Person 3, P3-6; rules in ./moods.js):
+//   wander false  → no walks and no looking around (dizzy, asleep): he stays put
+//   wander 'corner' → the next walk goes to pet.goal (the nap corner) at a slow plod (yawning)
+//   hop false     → no random hops
+//   bobSpeed      → breathing speed (slow while asleep)
+//   eyesShut      → eyes stay closed (the existing blink drawing) while asleep
 import {
-  rand, chance, approach, clampToScreen, startJump, updateJump, cancelJump, isJumping,
+  rand, chance, approach, clampToScreen, petBounds, startJump, updateJump, cancelJump, isJumping,
+  CORNER_WALK_SPEED, hasGoalToReach,
 } from './motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
+import { rulesFor } from './moods.js';
 
 // Kinds of walk, picked at random. Speeds are px/s; walk.js eases in and out of them.
 const WALK_KINDS = [
@@ -31,6 +40,14 @@ function pickWeighted(items) {
 
 function planWalk(ctx) {
   const { pet } = ctx;
+  // Yawning: head for the nap corner instead of a random spot.
+  if (rulesFor(pet).wander === 'corner' && pet.goal) {
+    pet.targetX = pet.goal.x;
+    pet.targetY = pet.goal.y;
+    pet.walkSpeed = rand(...CORNER_WALK_SPEED);
+    pet.walkKind = 'to-corner';
+    return;
+  }
   const kind = pickWeighted(WALK_KINDS);
   let target;
   if (kind.dist) {
@@ -41,7 +58,8 @@ function planWalk(ctx) {
     const dist = rand(...kind.dist);
     target = clampToScreen(ctx, pet.x + Math.cos(angle) * dist, pet.y + Math.sin(angle) * dist);
   } else {
-    target = clampToScreen(ctx, rand(0, ctx.stageWidth()), rand(0, ctx.groundY()));
+    const b = petBounds(ctx); // anywhere in the usable screen area
+    target = { x: rand(b.minX, b.maxX), y: rand(b.minY, b.maxY) };
   }
   pet.targetX = target.x;
   pet.targetY = target.y;
@@ -57,7 +75,8 @@ function pickRest() {
   return rand(6, 10);
 }
 
-let t = 0;
+let bobPhase = 0; // advances at the mood's bobSpeed, so changing speed never jumps the bob
+let eyesWereShut = false;
 let blinkIn = rand(2, 5);
 let wasIdle = false;
 let walkTimer = null; // scheduler id for "start walking"
@@ -70,6 +89,12 @@ function scheduleWalk(ctx, seconds) {
     if (ctx.pet.mode !== 'idle') return;
     if (isJumping()) {
       scheduleWalk(ctx, 0.2); // let the hop land first
+      return;
+    }
+    // Mood says stay put (dizzy, asleep), or he's already in the nap corner: check again soon.
+    const { wander } = rulesFor(ctx.pet);
+    if (!wander || (wander === 'corner' && !hasGoalToReach(ctx.pet))) {
+      scheduleWalk(ctx, 1);
       return;
     }
     planWalk(ctx);
@@ -94,16 +119,17 @@ export default {
       wasIdle = false;
       return;
     }
+    const rules = rulesFor(pet);
     if (!wasIdle) {
-      // Just stopped: rest for a bit, then walk.
+      // Just stopped: rest for a bit, then walk. (Short rests on the way to the nap corner.)
       wasIdle = true;
-      scheduleWalk(ctx, pickRest());
+      scheduleWalk(ctx, rules.wander === 'corner' ? rand(0.8, 2) : pickRest());
     }
     if (isJumping()) return;
 
-    if (chance(LOOK_AROUND_PER_SEC, TICK_SECONDS)) pet.facing *= -1;
+    if (rules.wander && chance(LOOK_AROUND_PER_SEC, TICK_SECONDS)) pet.facing *= -1;
 
-    if (chance(HOP_PER_SEC, TICK_SECONDS)) {
+    if (rules.hop && chance(HOP_PER_SEC, TICK_SECONDS)) {
       const double = Math.random() < DOUBLE_HOP_CHANCE;
       startJump({ then: double ? () => startJump({ height: rand(10, 18), air: 0.3 }) : undefined });
       ctx.log('jump', { while: 'idle', double });
@@ -112,20 +138,32 @@ export default {
 
   update(ctx, dt) {
     const { pet } = ctx;
-    t += dt;
+    const rules = rulesFor(pet);
+    bobPhase += dt * rules.bobSpeed;
 
-    // Blink regardless of mode (sometimes a quick double blink). Per frame: it's visual.
-    blinkIn -= dt;
-    if (blinkIn <= 0) {
-      pet.blink = !pet.blink;
-      blinkIn = pet.blink ? 0.12 : Math.random() < 0.2 ? 0.15 : rand(2, 5);
+    if (rules.eyesShut) {
+      // Asleep: eyes stay closed (even while dangling from the cursor).
+      pet.blink = true;
+      eyesWereShut = true;
+    } else if (eyesWereShut) {
+      // Just woke up: eyes open.
+      eyesWereShut = false;
+      pet.blink = false;
+      blinkIn = rand(2, 5);
+    } else {
+      // Blink regardless of mode (sometimes a quick double blink). Per frame: it's visual.
+      blinkIn -= dt;
+      if (blinkIn <= 0) {
+        pet.blink = !pet.blink;
+        blinkIn = pet.blink ? 0.12 : Math.random() < 0.2 ? 0.15 : rand(2, 5);
+      }
     }
 
     if (pet.mode !== 'idle') return;
     if (updateJump(pet, dt)) return;
 
     // Breathing bob; ease squash so landing squishes are visible.
-    pet.bob = Math.sin(t * 3) * 3;
-    pet.squash = approach(pet.squash, 1 + Math.sin(t * 3) * 0.03, dt, 8);
+    pet.bob = Math.sin(bobPhase) * 3;
+    pet.squash = approach(pet.squash, 1 + Math.sin(bobPhase) * 0.03, dt, 8);
   },
 };

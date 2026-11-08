@@ -1,0 +1,89 @@
+// EVENTS: scripted sequences that take over the star for a while, at high priority.
+//
+// Behaviors (../behaviors/) are always-on habits that each run every tick/frame. An event is
+// different: it starts, takes control of the star (usually by setting its own pet.mode, so
+// behaviors stand down — they only act on modes they know), plays out, then hands control back.
+// Only one event runs at a time. pet.js runs the active event AFTER the behaviors every tick
+// and frame, so the event gets the final say.
+//
+// An event module:
+//
+//   export default {
+//     name: 'tag',
+//     priority: 10,                      // a higher-priority event may interrupt a lower one
+//     canStart(ctx, reason) {},          // optional: false = not now
+//     auto: { every, chance, cooldown }, // optional: roll `chance` every `every` seconds, at most
+//                                        //   once per `cooldown` seconds (canStart still applies)
+//     watch(ctx) {},                     // optional, every tick even when NOT running (e.g. to
+//                                        //   notice things canStart needs)
+//     start(ctx, end, reason) {},        // take over; call end(result) when finished. reason:
+//                                        //   'menu' | 'random' | 'devtools' | whatever the caller passed
+//     onTick(ctx, tick) {},              // 10x per second: decisions (on the session clock)
+//     update(ctx, dt) {},                // every frame: smooth motion/visuals
+//     stop(ctx, result) {},              // clean up and hand the star back (always called once)
+//   };
+//
+// Start one from code with ctx.startEvent('tag'), from DevTools with starby.startEvent('tag'),
+// or from the right-click menu (see src/main/ipc.js). Logged as 'event-start' / 'event-end'.
+import tag from './tag.js';
+
+export const EVENTS = [tag];
+
+export function createEventRunner(ctx) {
+  let active = null; // { event, startedAt }
+  const lastEnded = {}; // name → session seconds
+  const nextRoll = {}; // name → session seconds of the next auto-start roll
+
+  function finish(result) {
+    if (!active) return;
+    const { event, startedAt } = active;
+    active = null;
+    lastEnded[event.name] = ctx.clock.seconds;
+    event.stop?.(ctx, result);
+    ctx.log('event-end', { name: event.name, result, seconds: Math.round((ctx.clock.seconds - startedAt) * 10) / 10 });
+  }
+
+  function start(name, reason = 'manual') {
+    const event = EVENTS.find((e) => e.name === name);
+    if (!event) return false;
+    if (active) {
+      if ((active.event.priority || 0) >= (event.priority || 0)) return false;
+      finish('interrupted');
+    }
+    if (event.canStart && !event.canStart(ctx, reason)) return false;
+    active = { event, startedAt: ctx.clock.seconds };
+    ctx.log('event-start', { name, reason });
+    const mine = active;
+    // `end` only works for this run, so a stale callback can't end a later event.
+    event.start(ctx, (result) => { if (active === mine) finish(result); }, reason);
+    return true;
+  }
+
+  function autoRoll() {
+    const now = ctx.clock.seconds;
+    for (const event of EVENTS) {
+      const { auto } = event;
+      if (!auto) continue;
+      if (nextRoll[event.name] === undefined) nextRoll[event.name] = now + auto.every;
+      if (now < nextRoll[event.name]) continue;
+      nextRoll[event.name] = now + auto.every;
+      const sinceLast = now - (lastEnded[event.name] ?? -Infinity);
+      if (sinceLast >= auto.cooldown && Math.random() < auto.chance) start(event.name, 'random');
+      if (active) return;
+    }
+  }
+
+  return {
+    start,
+    stop: (result = 'stopped') => finish(result),
+    active: () => (active ? active.event.name : null),
+    onTick(tick) {
+      for (const event of EVENTS) event.watch?.(ctx);
+      if (active) active.event.onTick?.(ctx, tick);
+      else autoRoll();
+    },
+    update(dt) {
+      if (active) active.event.update?.(ctx, dt);
+    },
+  };
+}

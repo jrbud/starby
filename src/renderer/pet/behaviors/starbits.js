@@ -10,6 +10,20 @@
 //   2. Floating: once it's slowed to drifting speed it settles where it is and floats like
 //      it's in zero gravity — slow wandering drift, gentle bob, slow spin that changes over
 //      time — leashed loosely to the spot where it settled.
+//
+// MOODS (hooked up by Person 3, P3-6; rules in ./moods.js):
+//   starbits  drop-rate multiplier: 2 = drops come twice as fast (playful), 0 = no drops at all
+//             (mad, dizzy, yawning, asleep), including wall-hit drops
+//   refuses   when a drop is skipped, say "no starbits for you!" once per mood spell (mad)
+//
+// WALL HITS: a throw that hits a screen edge hard (drag.js logs 'impact') throws 1–3 starbits
+// out from the wall he hit. Balance guard: only hits of at least IMPACT_DROP_SPEED count, with
+// a cooldown, so throwing him around can't farm starbits much faster than normal play.
+// (Agree the numbers with Person 4 — shop prices assume ~5 starbits per minute.)
+//
+// SCREEN EDGES: uses ctx.area() (the usable screen minus the taskbar, wherever the taskbar is).
+import { rulesFor } from './moods.js';
+import { chat, lineBag } from './chatter.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const PICKUP_RADIUS = 22;
@@ -33,6 +47,15 @@ const THROW_SPIN = 360; // deg/s, max spin right out of the throw (eases down af
 const BURST_MIN = 1;
 const BURST_MAX = 4;
 const BURST_STAGGER = 0.07; // s between starbits in one burst
+
+// Wall-hit drops (see WALL HITS above). They're thrown out from the star, fanned across
+// IMPACT_ARC degrees centered on "away from the wall".
+const IMPACT_DROP_SPEED = 900; // px/s into the wall
+const IMPACT_DROP_COOLDOWN = 2; // seconds between wall-hit drop bursts
+const IMPACT_DROPS = [1, 3]; // how many per hit (inclusive)
+const IMPACT_ARC = 120; // degrees
+
+const REFUSE_LINES = lineBag(['no starbits for you!', 'hmph. no sparkles.', 'not dropping anything for a poker']);
 
 // Floating drift: velocity wanders a little each frame, capped so it stays slow and dreamy.
 const DRIFT_MAX = 9; // px/s
@@ -60,6 +83,14 @@ const MAGNET_STEER = 7; // 1/s, how quickly velocity turns toward the cursor
 //   retargetIn, bob, x, y }  — px/py = position without bob; x/y = live position (for pickup)
 const drops = [];
 let nextDropIn = rand(8, 15);
+let lastImpactDropAt = -Infinity; // session seconds
+let refusedThisSpell = false;
+
+// Usable screen area { left, top, right, bottom }, taskbar excluded wherever it is.
+const area = (ctx) =>
+  ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + ctx.pet.size };
+// Standing on the bottom edge of the usable area (e.g. on a bottom taskbar).
+const onGround = (ctx) => ctx.pet.y + ctx.pet.size >= area(ctx).bottom - 2;
 
 function throwVelocity(petRadius, deg) {
   // With exponential drag, a starbit launched at speed v travels (v - DRIFT_MAX) / DRAG before
@@ -73,15 +104,20 @@ function throwVelocity(petRadius, deg) {
 // Throw directions for a burst of n: split the arc into n equal slices and pick a random
 // angle inside each one, so they fan out but still look random. Shuffled so the stagger
 // doesn't always sweep left-to-right.
-function burstAngles(n, onGround) {
+function burstAngles(n, grounded) {
   // Screen y points down, so "up" is negative. Upper arc: -160° (up-left) to -20° (up-right).
-  // On the taskbar a downward throw would hit the floor right under him, so always go up.
-  const up = onGround || Math.random() < THROW_UP_CHANCE;
+  // On the ground a downward throw would hit the floor right under him, so always go up.
+  const up = grounded || Math.random() < THROW_UP_CHANCE;
   const [from, to] = up ? [-160, -20] : [0, 360];
   const offset = up ? 0 : rand(0, 360); // full circle: random starting point
+  return fanAngles(n, from + offset, to + offset);
+}
+
+// n angles fanned across [from, to]: one random angle inside each equal slice.
+function fanAngles(n, from, to) {
   const slice = (to - from) / n;
   const angles = [];
-  for (let i = 0; i < n; i++) angles.push(from + offset + slice * (i + rand(0.15, 0.85)));
+  for (let i = 0; i < n; i++) angles.push(from + slice * (i + rand(0.15, 0.85)));
   for (let i = angles.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [angles[i], angles[j]] = [angles[j], angles[i]];
@@ -89,13 +125,33 @@ function burstAngles(n, onGround) {
   return angles;
 }
 
-function throwBurst(ctx) {
-  const n = BURST_MIN + Math.floor(Math.random() * (BURST_MAX - BURST_MIN + 1));
-  const onGround = ctx.pet.y >= ctx.groundY() - 2;
-  burstAngles(n, onGround).forEach((deg, i) => {
+const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+
+// Throw one starbit per angle, BURST_STAGGER apart. Returns how many it will try to throw.
+function throwAngles(ctx, angles) {
+  angles.forEach((deg, i) => {
     if (i === 0) spawn(ctx, deg);
     else ctx.after(i * BURST_STAGGER, () => spawn(ctx, deg), 'starbits burst');
   });
+  return angles.length;
+}
+
+// The regular timed drop.
+function throwBurst(ctx) {
+  throwAngles(ctx, burstAngles(randInt(BURST_MIN, BURST_MAX), onGround(ctx)));
+}
+
+// A hard wall hit during a throw: a little burst of starbits flung out from the wall he hit.
+function impactDrops(ctx, impact) {
+  const now = ctx.clock.seconds;
+  if (rulesFor(ctx.pet).starbits === 0) return; // mad / asleep etc. drop nothing
+  if (impact.speed < IMPACT_DROP_SPEED || now - lastImpactDropAt < IMPACT_DROP_COOLDOWN) return;
+  lastImpactDropAt = now;
+  // Direction pointing away from the wall (screen y points down).
+  const away = { left: 0, right: 180, top: 90, bottom: -90 }[impact.side] ?? -90;
+  const n = randInt(IMPACT_DROPS[0], IMPACT_DROPS[1]);
+  const count = throwAngles(ctx, fanAngles(n, away - IMPACT_ARC / 2, away + IMPACT_ARC / 2));
+  ctx.log('impact-drops', { count, side: impact.side });
 }
 
 function spawn(ctx, deg) {
@@ -201,12 +257,13 @@ function move(ctx, d, dt) {
     }
   }
 
-  // Walls: keep it on screen and above the taskbar. A throw bounces off (losing some speed);
-  // a floating starbit just turns gently back.
-  const minX = EDGE_MARGIN;
-  const maxX = ctx.stageWidth() - EDGE_MARGIN;
-  const minY = EDGE_MARGIN;
-  const maxY = ctx.groundY() + ctx.pet.size - EDGE_MARGIN;
+  // Walls: keep it in the usable screen area (off the taskbar, wherever it is). A throw
+  // bounces off (losing some speed); a floating starbit just turns gently back.
+  const a = area(ctx);
+  const minX = a.left + EDGE_MARGIN;
+  const maxX = a.right - EDGE_MARGIN;
+  const minY = a.top + EDGE_MARGIN;
+  const maxY = a.bottom - EDGE_MARGIN;
   const bounce = d.thrown || d.attracted ? 0.5 : 1;
   if (d.px < minX) { d.px = minX; d.vx = Math.abs(d.vx) * bounce; }
   if (d.px > maxX) { d.px = maxX; d.vx = -Math.abs(d.vx) * bounce; }
@@ -251,7 +308,7 @@ const COLLECT_STYLE = 'zip';
 const ZIP_TIME = 0.5; // s, flight time to the corner
 const ZIP_ARC = 70; // px, how far the path bows out sideways (sign is random)
 const ZIP_SPIN = 900; // deg/s while zipping
-const TOAST_MARGIN = 16; // px from the right edge and from the top of the taskbar
+const TOAST_MARGIN = 16; // px in from the bottom-right corner of the usable screen area
 const TRAIL_FADE_MS = 260; // how long each trail ghost takes to fade out
 const COUNTER_SHOW_SEC = 2; // how long the card stays up after the last arrival
 // Pulse when the number goes up: a quick springy pop (overshoots, settles back).
@@ -286,10 +343,11 @@ function ensureToast(ctx) {
 
 function placeToast(ctx) {
   const t = ensureToast(ctx);
-  // Sit just above the taskbar. The stage covers the whole screen, taskbar included.
-  const taskbar = window.innerHeight - (ctx.groundY() + ctx.pet.size);
-  t.el.style.right = `${TOAST_MARGIN}px`;
-  t.el.style.bottom = `${Math.max(0, taskbar) + TOAST_MARGIN}px`;
+  // Bottom-right of the usable area, so it's never under the taskbar (bottom or right side).
+  // The stage covers the whole screen, taskbar included, so convert to right/bottom offsets.
+  const a = area(ctx);
+  t.el.style.right = `${Math.max(0, window.innerWidth - a.right) + TOAST_MARGIN}px`;
+  t.el.style.bottom = `${Math.max(0, window.innerHeight - a.bottom) + TOAST_MARGIN}px`;
 }
 
 function slideToastIn(ctx) {
@@ -333,7 +391,8 @@ function zipTarget(ctx) {
   const r = ensureToast(ctx).countEl.getBoundingClientRect();
   if (r.width === 0 && r.height === 0) {
     // Not laid out yet: aim at the bottom-right corner.
-    return { x: ctx.stageWidth() - TOAST_MARGIN - 40, y: ctx.groundY() + ctx.pet.size - TOAST_MARGIN - 16 };
+    const a = area(ctx);
+    return { x: a.right - TOAST_MARGIN - 40, y: a.bottom - TOAST_MARGIN - 16 };
   }
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
@@ -416,6 +475,9 @@ export default {
     ctx.api.onStateChanged((s) => {
       if (s && Number.isFinite(s.starbits)) total = s.starbits;
     });
+    ctx.events.onEntry((e) => {
+      if (e.type === 'impact') impactDrops(ctx, e.data);
+    });
   },
 
   update(ctx, dt) {
@@ -438,11 +500,21 @@ export default {
       }
     }
 
+    const rules = rulesFor(ctx.pet);
+    if (!rules.refuses) refusedThisSpell = false; // next mad spell may refuse again
     if (ctx.pet.mode === 'drag') return;
-    nextDropIn -= dt;
+
+    // Playful (rate 2) counts down twice as fast. Rate 0 still counts at normal speed,
+    // so a mad star "refuses" at about the moment he'd have dropped some.
+    nextDropIn -= dt * Math.max(1, rules.starbits);
     if (nextDropIn <= 0) {
       nextDropIn = rand(8, 15);
-      throwBurst(ctx);
+      if (rules.starbits > 0) {
+        throwBurst(ctx);
+      } else if (rules.refuses && !refusedThisSpell) {
+        refusedThisSpell = true;
+        chat(ctx, REFUSE_LINES(), 2000, { wait: 4 });
+      }
     }
   },
 };

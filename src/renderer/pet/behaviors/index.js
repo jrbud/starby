@@ -15,18 +15,22 @@
 //     clock,                         // clock.tick, clock.seconds since app opened
 //     after(sec, fn, label), every(sec, fn, label), cancel(id),   // timed events
 //     log(type, data), events }      // session event log (see ../core/eventLog.js)
-// Behaviors coordinate through `ctx.pet.mode` ('idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss').
+// Behaviors coordinate through `ctx.pet.mode` ('idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss' | 'tag').
+// 'tag' (and any other mode a behavior doesn't know) belongs to a scripted event (../events/): stand down.
 // Only change the mode for states you own, and respect 'drag' (the user is holding the pet).
+// Emotions live in `ctx.pet.mood` (mood.js); read their rules with rulesFor() from ./moods.js.
 //
 // Order matters a little: within a tick and within a frame, behaviors run in this order.
 import idle from './idle.js';
 import walk from './walk.js';
 import drag from './drag.js';
 import cursorReact from './cursorReact.js';
+import mood from './mood.js';
+import moodLabel from './moodLabel.js'; // DEBUG label under the star; remove before the demo
 import speech from './speech.js';
 import starbits from './starbits.js';
 import systemReactions from './systemReactions.js';
 import sessionEvents from './sessionEvents.js';
 import shopOpener from './shopOpener.js';
 
-export const BEHAVIORS = [idle, walk, drag, cursorReact, speech, starbits, systemReactions, sessionEvents, shopOpener];
+export const BEHAVIORS = [idle, walk, drag, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, shopOpener];

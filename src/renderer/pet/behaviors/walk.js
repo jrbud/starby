@@ -13,8 +13,17 @@
 // Split between ticks and frames:
 //   onTick (10/s)  → decisions: pause, turn back, hop, pause countdown
 //   update (every frame) → smooth motion: moving, easing, hop cycle, jump arc
-import { rand, chance, approach, clampToScreen, startJump, updateJump, isJumping } from './motion.js';
+//
+// MOODS (hooked up by Person 3, P3-6; rules in ./moods.js), ordinary walks only:
+//   wander false    → stop where he is (e.g. got dizzy mid-walk)
+//   wander 'corner' → started yawning mid-walk: head for the nap corner (pet.goal) right away.
+//                     Corner walks ('to-corner') never turn back; pauses stay (they read as yawns).
+//   hop false       → no random hops
+import {
+  rand, chance, approach, clampToScreen, startJump, updateJump, isJumping, CORNER_WALK_SPEED,
+} from './motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
+import { rulesFor } from './moods.js';
 
 const MOVING_MODES = ['walk', 'flee', 'follow'];
 
@@ -39,8 +48,28 @@ function startWalk(pet) {
     willTurnBackAt = null;
   } else {
     speedNow = 0;
-    willTurnBackAt = Math.random() < TURN_BACK_CHANCE ? rand(0.6, 1.8) : null;
+    const mayTurnBack = pet.walkKind !== 'to-corner';
+    willTurnBackAt = mayTurnBack && Math.random() < TURN_BACK_CHANCE ? rand(0.6, 1.8) : null;
   }
+}
+
+// Mood check for ordinary walks. Returns false if the walk was stopped.
+function followMood(ctx) {
+  const { pet } = ctx;
+  const { wander } = rulesFor(pet);
+  if (!wander) {
+    pet.mode = 'idle'; // stay put right here (idle.js lands any hop in progress)
+    return false;
+  }
+  if (wander === 'corner' && pet.goal && pet.walkKind !== 'to-corner') {
+    pet.targetX = pet.goal.x;
+    pet.targetY = pet.goal.y;
+    pet.walkSpeed = rand(...CORNER_WALK_SPEED);
+    pet.walkKind = 'to-corner';
+    willTurnBackAt = null;
+    ctx.log('walk', { kind: 'to-corner', toX: Math.round(pet.goal.x), toY: Math.round(pet.goal.y) });
+  }
+  return true;
 }
 
 // Set up a fresh walk whenever we enter a moving mode or switch between them (e.g. a walk
@@ -83,6 +112,7 @@ export default {
     const { pet } = ctx;
     if (!syncMode(pet)) return;
     if (pet.mode !== 'walk') return; // random events only on ordinary walks
+    if (!followMood(ctx)) return;
 
     // ---- Paused: count down, maybe glance around ----
     if (pauseLeft > 0) {
@@ -107,7 +137,7 @@ export default {
       ctx.log('pause', { seconds: Math.round(pauseLeft * 10) / 10 });
       return;
     }
-    if (!isJumping() && chance(JUMP_PER_SEC, TICK_SECONDS)) {
+    if (rulesFor(pet).hop && !isJumping() && chance(JUMP_PER_SEC, TICK_SECONDS)) {
       startJump();
       ctx.log('jump', { while: 'walk' });
     }
@@ -138,7 +168,7 @@ export default {
     }
 
     // Ease in (speed builds up) and ease out (slow down over the last ~40px).
-    const cruise = pet.walkSpeed || DEFAULT_SPEED;
+    const cruise = (pet.walkSpeed || DEFAULT_SPEED) * (rulesFor(pet).speed ?? 1); // sad = slower
     const target = cruise * Math.min(1, 0.25 + dist / 40);
     speedNow = approach(speedNow, target, dt, fleeing ? 12 : 5);
 
