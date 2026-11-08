@@ -102,6 +102,10 @@ const SITE_KEYS = [
   { key: 'youtube', test: /youtube/i }, { key: 'netflix', test: /netflix/i }, { key: 'twitch', test: /twitch/i },
   { key: 'github', test: /github/i }, { key: 'gmail', test: /gmail|inbox \(\d+\)/i }, { key: 'reddit', test: /reddit/i },
   { key: 'wikipedia', test: /wikipedia/i }, { key: 'amazon', test: /amazon/i }, { key: 'nasa', test: /\bnasa\b/i },
+  { key: 'instagram', test: /instagram/i },
+  // X / Twitter: x.com tab titles end in "/ X" ("Home / X", "Someone (@them) / X"), then the
+  // browser's own suffix. Capital X after "/ " and before a space or the end, so "Xbox" etc. don't match.
+  { key: 'twitter', test: /\/ X(?=\s|$)|\b[Tt]witter\b/ },
   { key: 'pdf', test: /\.pdf\b/i },
 ];
 

@@ -28,6 +28,7 @@ const IDLE_LINES = [
   'beep boop. jk, i\'m a star',
   'stretch break? no? ok',
   ':3',
+  'i\'ve gotta tell Collin about this place!',
   // Space stuff: he's made of starlight and has seen it all, so he's got stories (and opinions).
   "the martians are throwing another party tonight. i'm not invited. again.",
   "fun fact: the sun is my cousin. we don't really talk.",
