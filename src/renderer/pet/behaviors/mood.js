@@ -34,7 +34,7 @@
 // Everything is logged as 'mood' { from, to, reason }. In DevTools: starby.setMood('sleepy').
 import { chat, lineBag } from './chatter.js';
 import { MOODS } from './moods.js';
-import { petBounds, CORNER_WALK_SPEED } from './motion.js';
+import { petBounds, CORNER_WALK_SPEED, startJump, isJumping } from './motion.js';
 import { setSpeechGate } from '../talkbox.js';
 
 // ---- Tuning ----
@@ -48,6 +48,14 @@ const PLAYFUL_FOR = 5; // seconds after the last throw (shown as a countdown on 
 const DIZZY_FOR = 5;
 const SAD_FOR = 5; // seconds; a click cheers him up sooner
 const HOVER_FOR = 0.8; // seconds the cursor rests on a happy star before he turns playful
+// PETTING: rub the cursor slowly back and forth over him → sparkly eyes, a tiny happy hop, a line.
+// (Fast circles still make him dizzy, see trackCircle.) A grumpy (mad) star calms down when petted.
+const RUB_TURNS = 3; // direction changes...
+const RUB_WINDOW = 2.5; // ...within this many seconds, while over him...
+const RUB_SPEED = [30, 900]; // ...at a gentle speed (px/s)
+const PET_COOLDOWN = 20; // seconds
+const TICK_DT = 0.1; // onTick runs 10x a second
+const PET_LINES = lineBag(['hehe, that\'s nice', 'aww, pets!', '*happy twinkle*', 'more pets please', 'ooh, right there']);
 const DIZZY_TOSSES = 3; // throws...
 const DIZZY_TOSS_WINDOW = 20; // ...within this many seconds
 const CIRCLE_RADIUS = 200; // cursor must circle within this distance of his center...
@@ -290,6 +298,38 @@ function trackHover(ctx, now) {
   }
 }
 
+// ---- Petting: a slow back-and-forth rub over him (checked per tick) ----
+let rubLastX = null;
+let rubDir = 0;
+const rubTurns = [];
+let pettedAt = -Infinity;
+function trackRub(ctx, now) {
+  const { pet, cursor } = ctx;
+  const free = pet.mode === 'idle' || pet.mode === 'walk' || pet.mode === 'follow' || pet.mode === 'fidget';
+  const over = free && pet.mood !== 'sleepy' && cursor.x >= pet.x && cursor.x <= pet.x + pet.size
+    && cursor.y >= pet.y && cursor.y <= pet.y + pet.size;
+  if (!over) { rubLastX = null; rubDir = 0; return; }
+  if (rubLastX !== null) {
+    const dx = cursor.x - rubLastX;
+    const speed = Math.abs(dx) / TICK_DT;
+    const dir = Math.sign(dx);
+    if (dir && speed >= RUB_SPEED[0] && speed <= RUB_SPEED[1]) {
+      if (rubDir && dir !== rubDir) rubTurns.push(now);
+      rubDir = dir;
+    }
+  }
+  rubLastX = cursor.x;
+  while (rubTurns.length && now - rubTurns[0] > RUB_WINDOW) rubTurns.shift();
+  if (rubTurns.length < RUB_TURNS || now - pettedAt < PET_COOLDOWN) return;
+  rubTurns.length = 0;
+  pettedAt = now;
+  if (pet.mood === 'mad') setMood(ctx, 'happy', 'petted'); // pets fix grumpiness
+  strikePose(ctx, 'glistening', 1.8);
+  if (!isJumping() && (pet.mode === 'idle' || pet.mode === 'walk')) startJump({ height: 0.12 * pet.size, air: 0.3 });
+  ctx.say(PET_LINES(), 2200);
+  ctx.log('petted', {});
+}
+
 // ---- Cursor circling him (checked per tick) ----
 function trackCircle(ctx, now) {
   const { pet, cursor } = ctx;
@@ -508,6 +548,7 @@ export default {
     }
     trackHover(ctx, now);
     trackCircle(ctx, now);
+    trackRub(ctx, now);
     maybeFlourish(ctx, now);
 
     const relaxed = pet.mode === 'idle' || pet.mode === 'walk';

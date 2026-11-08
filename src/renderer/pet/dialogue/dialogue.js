@@ -451,7 +451,7 @@ function openDialogue(ctx, id = null) {
   if (!root) build(ctx);
   clearAll(); // anything still animating away from last time
   // Hold him still while you talk (only if he was just hanging around).
-  if (pet.mode === 'idle' || pet.mode === 'walk' || pet.mode === 'follow') {
+  if (pet.mode === 'idle' || pet.mode === 'walk' || pet.mode === 'follow' || pet.mode === 'fidget') {
     pet.mode = 'dialogue';
     froze = true;
   } else if (HOLD.includes(active)) {

@@ -11,7 +11,9 @@
 //            vertically (team-approved: the art is tall and its tail long) down to MIN_SQUISH of
 //            its natural height, so short lines get a short, wide bubble without empty white space.
 //   boil     the artist drew two frames of each bubble; frame 1 and frame 2 swap every BOIL_EVERY
-//            ms (one class on <html> flips, every talkbox follows it).
+//            ms (one class on <html> flips, every talkbox follows it). On top of that, the same
+//            subtle noise wobble as the dialogue's answer boxes (an SVG displacement filter on the
+//            bubble ART only, cycling BOIL_SEEDS; the text stays crisp and the size doesn't change).
 //   flip     a bubble can be flipped upside down (tail pointing UP) for when there's no room
 //            above him; the text stays the right way up.
 //   loading  each 4096px PNG is decoded, cropped to its bubble and shrunk ONCE to TALK_RES wide,
@@ -22,6 +24,9 @@
 const ASSETS = '../../../assets'; // relative to src/renderer/pet/index.html
 const TALK_RES = 720; // px wide each cropped frame is shrunk to
 const BOIL_EVERY = 140; // ms between frame swaps (matches the dialogue boxes' boil)
+const BOIL_SEEDS = [5, 17, 29]; // noise patterns for the wobble, one per step
+const BOIL_STRENGTH = 2.4; // px the outline wobbles (subtle)
+const BOIL_GRAIN = 0.045; // noise frequency: lower = broader, gentler waves
 const MIN_SQUISH = 0.55; // a bubble may be squished down to this share of its natural height
 const MIN_W = 96; // px: never narrower than this
 const LOAD_DELAY = 600; // ms after startup before loading (don't compete with the first frames)
@@ -104,6 +109,7 @@ function injectStyles() {
     /* (direct children only: canvases INSIDE the text area, e.g. dreamed items, are content) */
     .talkbox > canvas {
       position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none;
+      filter: var(--talk-boil, none); /* the wobble (art only; see BOIL_SEEDS) */
     }
     .talkbox.flipped > canvas { transform: scaleY(-1); }
     /* Boil frame swap with OPACITY, not visibility: 'visibility: visible' on a child overrides a hidden
@@ -124,6 +130,22 @@ function injectStyles() {
     }
   `;
   document.head.appendChild(style);
+}
+
+// SVG noise filters for the wobble: same strength, different noise each, cycled with the frames.
+function injectBoilFilters() {
+  if (document.getElementById('talkbox-boil-filters')) return;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'talkbox-boil-filters';
+  svg.setAttribute('width', '0');
+  svg.setAttribute('height', '0');
+  svg.style.position = 'absolute';
+  svg.innerHTML = BOIL_SEEDS.map((seed, i) => `
+    <filter id="talkbox-boil-${i}" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="${BOIL_GRAIN}" numOctaves="2" seed="${seed}" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="${BOIL_STRENGTH}" xChannelSelector="R" yChannelSelector="G" />
+    </filter>`).join('');
+  document.body.appendChild(svg);
 }
 
 /** Start loading the art (once). Resolves when done. */
@@ -150,7 +172,14 @@ export function loadTalkbox() {
       }
       if (frames.length === 2) art[size] = frames;
       if (talkboxReady() && !boilTimer) {
-        boilTimer = setInterval(() => document.documentElement.classList.toggle('talk-alt'), BOIL_EVERY);
+        injectBoilFilters();
+        let step = 0;
+        boilTimer = setInterval(() => {
+          const root = document.documentElement;
+          root.classList.toggle('talk-alt'); // the artist's frame 1 <-> 2
+          step = (step + 1) % BOIL_SEEDS.length;
+          root.style.setProperty('--talk-boil', `url(#talkbox-boil-${step})`); // + the noise wobble
+        }, BOIL_EVERY);
       }
     }
   })();
