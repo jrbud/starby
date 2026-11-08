@@ -219,9 +219,11 @@ function renderAction() {
     btn.disabled = true;
   } else if (isOwned(item)) {
     btn.textContent = 'Equip';
+    btn.classList.add('equip'); // white button art
   } else {
     btn.textContent = 'Buy';
-    if (missing(item) > 0) btn.classList.add('grey'); // still clickable: Starby explains
+    // Enough starbits: green button art. Not enough: white art, still clickable (Starby explains).
+    btn.classList.add(missing(item) > 0 ? 'grey' : 'buy');
   }
 }
 

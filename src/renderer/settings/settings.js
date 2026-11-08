@@ -117,8 +117,24 @@ function showSwitches(settings) {
   for (const { box, key } of SWITCHES) box.checked = settings[key] === undefined || Number(settings[key]) !== 0;
 }
 
+// ---- Starby size (px; pet.js resizes him live) ----
+const starbySlider = document.getElementById('starby-size');
+const starbyOut = document.getElementById('starby-size-value');
+
+function showStarbySize(px) {
+  const v = Number(px) || 96;
+  starbySlider.value = v;
+  starbyOut.textContent = `${v} px`;
+}
+
+starbySlider.addEventListener('input', () => {
+  showStarbySize(starbySlider.value);
+  api.setSettings({ starbySize: Number(starbySlider.value) });
+});
+
 function show(settings) {
   showSwitches(settings);
+  showStarbySize(settings.starbySize);
   slider.value = settings.flingPower;
   valueOut.textContent = settings.flingPower;
   detail.textContent = describe(settings.flingPower);

@@ -9,6 +9,7 @@ const path = require('path');
 
 const DEFAULTS = {
   flingPower: 50, // 0–100: how hard throws fly and how bouncy the walls are (50 = original feel)
+  starbySize: 96, // Starby's size on screen in px (Settings slider, 48–144; pet.js applies it live)
   // Starbit colors switched ON in Settings (names from renderer/shared/starbitArt.js).
   // Default: yellow only. Must match DEFAULT_STARBIT_COLORS in starbitArt.js.
   starbitColors: ['yellow'],
@@ -17,6 +18,11 @@ const DEFAULTS = {
   starbitSpawning: 1, // drop starbits at all (timed, wall hits, tag rewards)
   starbitVisible: 1, // show starbits on screen (off = hidden, still collectable)
   starbitShootAnimation: 1, // collected starbits zip to the count card (off = just fade)
+};
+
+// Number settings are kept within 0–100 unless listed here as [min, max].
+const RANGES = {
+  starbySize: [48, 144], // keep in sync with SIZE_MIN / SIZE_MAX in src/renderer/pet/pet.js
 };
 
 // List settings: arrays of short lowercase names (e.g. color names), nothing else.
@@ -66,7 +72,8 @@ function set(patch) {
       continue;
     }
     const value = Number(patch[key]);
-    if (Number.isFinite(value)) settings[key] = Math.max(0, Math.min(100, value));
+    const [min, max] = RANGES[key] || [0, 100];
+    if (Number.isFinite(value)) settings[key] = Math.max(min, Math.min(max, value));
   }
   scheduleSave();
   for (const win of BrowserWindow.getAllWindows()) {

@@ -45,16 +45,17 @@ button {
   align-items: flex-start;
 }
 
+/* All buttons below are drawn with the team's art (assets/menuIcons/button-*.png), stretched to
+   the button's box. Hover files are preloaded in index.html so swapping never flickers. */
 .wallet {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 92px;
-  height: 30px;
-  padding: 0 14px;
-  border: 1.5px solid var(--outline);
-  border-radius: 999px;
-  background: var(--button-selected-bg);
+  min-width: 100px;
+  height: 36px; /* art ratio ~2.7:1 */
+  padding: 0 16px;
+  background: url('../../../assets/menuIcons/button-idle.png') center / 100% 100% no-repeat;
+  color: var(--yellow); /* light text on the dark purple art */
   font-size: 15px;
   font-weight: 700;
 }
@@ -74,33 +75,42 @@ button {
   background: var(--display-bg);
 }
 
+/* Buy / Equip. States set by renderAction() in shop.js:
+     .buy    enough starbits  → green art (green-hover on hover)
+     .grey   not enough       → white art (white-dark on hover); still clickable, Starby explains
+     .equip  owned, not worn  → white art (white-dark on hover)
+     .done   already wearing  → white art, faded, no hover */
 .action-button {
   align-self: center;
-  margin: 18px 0 0 -14px; /* centered under the box */
-  width: 120px;
-  height: 32px;
-  border: 2px solid var(--window-button-outline);
-  border-radius: 999px;
-  background: #ffffff;
+  margin: 16px 0 0 -14px; /* centered under the box */
+  width: 130px;
+  height: 46px; /* art ratio ~2.4:1 */
+  padding: 0 0 2px;
+  border: 0;
+  background: url('../../../assets/menuIcons/button-white-light.png') center / 100% 100% no-repeat;
   color: var(--ink);
   font-size: 20px;
   font-weight: 800;
 }
-.action-button:hover {
-  filter: brightness(0.95);
+.action-button.buy {
+  background-image: url('../../../assets/menuIcons/button-green-idle.png');
 }
-/* Not enough starbits: grey, but still clickable so Starby can tell you how many you need. */
+.action-button.buy:hover,
+.action-button.buy:focus-visible {
+  background-image: url('../../../assets/menuIcons/button-green-hover.png');
+}
+.action-button.grey:hover,
+.action-button.grey:focus-visible,
+.action-button.equip:hover,
+.action-button.equip:focus-visible {
+  background-image: url('../../../assets/menuIcons/button-white-dark.png');
+}
 .action-button.grey {
-  background: #a3a3a3;
-  border-color: var(--outline);
   color: #555555;
   cursor: not-allowed;
 }
-/* Already wearing it. */
 .action-button.done {
-  background: var(--button-bg);
-  border-color: var(--outline);
-  color: var(--ink);
+  opacity: 0.75;
   cursor: default;
 }
 
@@ -158,26 +168,28 @@ button {
   display: none;
 }
 
+/* Item rows: tan button art (button-tan-idle → button-tan-hover on hover). The selected row uses
+   the hover art plus a soft yellow glow that follows the art's hand-drawn edge. */
 .item {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  height: 40px;
-  padding: 0 8px 0 10px;
-  border: 1.5px solid var(--outline);
-  background: var(--button-bg);
+  height: 42px;
+  padding: 0 14px 0 14px; /* clear of the art's drawn border */
+  border: 0;
+  background: url('../../../assets/menuIcons/button-tan-idle.png') center / 100% 100% no-repeat;
   color: var(--ink);
   font-size: 20px;
   text-align: left;
 }
-.item:hover {
-  background: var(--button-selected-bg);
+.item:hover,
+.item:focus-visible,
+.item.selected {
+  background-image: url('../../../assets/menuIcons/button-tan-hover.png');
 }
 .item.selected {
-  background: var(--button-selected-bg);
-  border-color: var(--yellow);
-  box-shadow: 0 0 0 1.5px var(--yellow); /* thicker yellow outline without shifting layout */
+  filter: drop-shadow(0 0 3px var(--yellow)) drop-shadow(0 0 1px var(--yellow));
 }
 
 /* Item art (team PNGs). Hidden when the file doesn't exist yet. */

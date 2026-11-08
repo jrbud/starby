@@ -176,39 +176,29 @@ label,
   font-weight: 600;
 }
 
-/* A plain CSS toggle switch (flat UI chrome, no image assets). */
-input[type="checkbox"][role="switch"] {
+/* Spawning / Visible / Shooting animation: real checkboxes (keyboard + screen readers work as
+   usual), drawn with the team's art: assets/menuIcons/{unchecked,checked}-box-{idle,hover}.png.
+   Hovering anywhere on the row shows the hover art. (Hover files are preloaded in index.html.) */
+input[type="checkbox"].art-check {
   appearance: none;
   flex: none;
-  position: relative;
-  width: 36px;
-  height: 20px;
+  width: 26px;
+  height: 26px; /* art is square (617×617) */
   margin: 0;
-  border-radius: 999px;
-  background: var(--line);
+  border: 0;
+  background: url('../../../assets/menuIcons/unchecked-box-idle.png') center / contain no-repeat;
   cursor: pointer;
-  transition: background 150ms;
 }
-
-input[type="checkbox"][role="switch"]::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  transition: transform 150ms;
+.switch-row:hover input.art-check,
+input.art-check:focus-visible {
+  background-image: url('../../../assets/menuIcons/unchecked-box-hover.png');
 }
-
-input[type="checkbox"][role="switch"]:checked {
-  background: var(--accent);
+input.art-check:checked {
+  background-image: url('../../../assets/menuIcons/checked-box-idle.png');
 }
-
-input[type="checkbox"][role="switch"]:checked::after {
-  transform: translateX(16px);
+.switch-row:hover input.art-check:checked,
+input.art-check:checked:focus-visible {
+  background-image: url('../../../assets/menuIcons/checked-box-hover.png');
 }
 
 /* Starbits → Size: slider with a live preview box on the right (fits the largest size). */
