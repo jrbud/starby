@@ -85,6 +85,10 @@ export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideS
 const HELPERS = [gamesMenu, happenings, dialogue, howTo];
 const WITH_HOOKS = [...EVENTS, ...HELPERS];
 
+// Reasons that mean "Starby decided to do this himself" — held while he's drowsy (see start()).
+const DROWSY_HOLD_REASONS = new Set(['random', 'due', 'timer', 'happening', 'music']);
+export const isDrowsy = (pet) => pet.mood === 'yawning' || pet.mood === 'sleepy';
+
 export function createEventRunner(ctx) {
   let active = null; // { event, startedAt }
   let initialized = false;
@@ -103,6 +107,10 @@ export function createEventRunner(ctx) {
   function start(name, reason = 'manual') {
     const event = EVENTS.find((e) => e.name === name);
     if (!event) return false;
+    // Drowsy hold: while he's yawning (walking off to nap) or asleep, nothing he'd start on his
+    // own goes (invites, the games timer, copycat, sky events, random dances). Things YOU start
+    // (dialogue, menus, DevTools) and a new song ('song' wakes him to dance) still work.
+    if (DROWSY_HOLD_REASONS.has(reason) && isDrowsy(ctx.pet)) return false;
     if (active) {
       if ((active.event.priority || 0) >= (event.priority || 0)) return false;
       finish('interrupted');

@@ -92,9 +92,12 @@ function trackCursor(ctx) {
 // It's been MUST_ASK_AFTER seconds with no game: ask now, no matter what (see above).
 function askIfDue(ctx) {
   const now = ctx.clock.seconds;
-  if (lastGameAt === null) lastGameAt = now; // counted from launch
-  if (now - lastGameAt < MUST_ASK_AFTER || ctx.activeEvent()) return false;
   const { pet } = ctx;
+  if (lastGameAt === null) lastGameAt = now; // counted from launch
+  // Drowsy (yawning or asleep): the 4 minutes start over, so he doesn't pounce with an invite
+  // the moment he wakes up. (events/index.js also holds every self-started event while drowsy.)
+  if (pet.mood === 'yawning' || pet.mood === 'sleepy') { lastGameAt = now; return false; }
+  if (now - lastGameAt < MUST_ASK_AFTER || ctx.activeEvent()) return false;
   if (pet.mode === 'drag' || pet.mode === 'toss') return false; // let go of him first
   const invitable = GAMES.filter((g) => g.invite !== false);
   if (!invitable.length) return false;
@@ -198,7 +201,7 @@ export const gamesMenu = {
     // DevTools / Developer menu: forget the last game, so he'll play again right away.
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.skipRest = () => { lastPlayedEndAt = -Infinity; return 'rested'; };
-      // Dialogue → Developer stuff → "No game rest (5 min)": no rest between games for N minutes.
+      // Hidden developer menu (3 Shift+right-clicks on him) → "No game rest (5 min)": no rest between games for N minutes.
       window.starby.noRest = (minutes = 5) => {
         noRestUntil = ctx.clock.seconds + Number(minutes) * 60;
         lastPlayedEndAt = -Infinity;

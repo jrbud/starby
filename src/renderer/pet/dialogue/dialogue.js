@@ -65,6 +65,10 @@ const FAN = 16; // px each higher row sits further out (the horseshoe opens upwa
 const SAY_GAP = 4; // px between his line's tail tip and his head (or the top boxes)
 const EDGE = 10; // px kept clear of the usable screen's edges
 const AUTO_CLOSE = 20; // seconds with no hover before it closes on its own
+const SECRET_CLICKS = 3; // Shift+right-clicks in a row that open the hidden developer menu
+const SECRET_GAP = 1.5; // seconds allowed between them
+let secretClicks = 0;
+let lastSecretAt = -Infinity;
 const ROOM_SPEED = 18; // how snappily he slides away from an edge (approach rate)
 const ROOM_MAX_MS = 450; // ...and the longest that may take before the boxes burst anyway
 const IN_MS = 230; // burst out: each box flies to its spot with a little overshoot
@@ -620,8 +624,23 @@ export const dialogue = {
     });
     loadTalkbox(); // (bubble.js already started it; this just makes sure)
     // drag.js turns a right-click on him into this event (instead of the old native menu).
-    ctx.petEl.addEventListener('pet:right-clicked', () => {
+    ctx.petEl.addEventListener('pet:right-clicked', (e) => {
       if (open?.menu) return; // an event is asking you something: answer with the boxes
+      // HIDDEN DEVELOPER MENU: Shift+right-click him SECRET_CLICKS times in a row (each within
+      // SECRET_GAP of the last) → the 'dev' node (tree.js: admin settings, sky events...). Shift
+      // right-clicks never open the normal dialogue, so the menu stays out of sight.
+      if (e.detail?.shift) {
+        const now = performance.now();
+        secretClicks = now - lastSecretAt <= SECRET_GAP * 1000 ? secretClicks + 1 : 1;
+        lastSecretAt = now;
+        if (secretClicks >= SECRET_CLICKS) {
+          secretClicks = 0;
+          if (open) close(ctx);
+          openDialogue(ctx, 'dev');
+        }
+        return;
+      }
+      secretClicks = 0; // a plain right-click breaks the streak
       if (open) close(ctx);
       else openDialogue(ctx);
     });

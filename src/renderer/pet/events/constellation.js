@@ -1,9 +1,10 @@
 // CONSTELLATION QUIZ — a game: Starby draws a constellation out of starbits and quizzes you on it.
 //
-//   intro   "quiz time! guess my constellation!"
+//   intro   "quiz time! guess my constellation!" while he glides to the middle of the screen
 //   place   he throws one starbit per star, every PLACE_EVERY seconds; each flies to its spot and
 //           stays there (placeStarbit in ../behaviors/starbits.js: held, can't be collected yet)
-//   lines   the constellation's lines draw in, one after another (LINE_FOR seconds each)
+//   lines   the constellation's lines draw in, one after another (LINE_FOR seconds each), while he
+//           glides out of the way to the roomier side, so his question never covers the drawing
 //   ask     "which constellation is this? (20s)" in a talkbox, with 4 answers bursting out around him
 //           (the same menu as the right-click dialogue, showMenu): the right one and 3 others
 //           from CONSTELLATIONS (./constellations.js), shuffled. ANSWER_FOR seconds to choose.
@@ -22,7 +23,7 @@
 // "supplementary lines" exception in CLAUDE.md (plain lines connecting existing art). The stars
 // themselves are the team's starbit PNGs. No other shapes are drawn.
 //
-// Owns the star via pet.mode = 'quiz' (he stays put, faces the drawing, hops now and then).
+// Owns the star via pet.mode = 'quiz' (only this event moves him; faces the drawing, hops now and then).
 // Decisions (timers, answers) on ticks; the line drawing and the popup position every frame.
 import { rand, chance, startJump, cancelJump, isJumping, updateJump } from '../behaviors/motion.js';
 import { lineBag } from '../behaviors/chatter.js';
@@ -43,8 +44,10 @@ const RESULT_FOR = 2.5; // seconds the result shows before the lines fade and th
 const LINE_FADE = 0.8; // seconds for the lines to fade out
 const BOX = [260, 400]; // px: the drawing's longest side (fraction of the screen, clamped to this)
 const BOX_OF_SCREEN = 0.32; // ...as a fraction of the usable screen's smaller side
-const GAP = 60; // px between him and the drawing
 const MARGIN = 70; // px kept clear around the drawing inside the usable screen (top: room for his bubble)
+const GLIDE_RATE = 4.5; // how snappily he glides to the middle / out of the way (approach rate)
+const ARRIVED = 3; // px: close enough to his spot
+const STAR_PAD = 24; // px around the stars (half a starbit) when finding the free space beside the drawing
 const CHOICES = 4;
 const LINE_COLOR = '#ffffff'; // white, like a star chart
 const LINE_WIDTH = 2.5;
@@ -96,10 +99,58 @@ function pickShape() {
   return choices[Math.floor(Math.random() * choices.length)];
 }
 
-// Where the drawing goes: beside him on the roomier side, scaled to fit, inside the usable screen.
+// WHERE HE STANDS: the drawing goes in the middle of the screen, so first he glides there and puts
+// the stars down around himself; then, while the lines draw, he glides out of the way into the
+// middle of the roomier free space beside it, so his question + answer boxes never cover it.
+let target = null; // { x, y } his top-left he's gliding to, or null
+
+function middleSpot(ctx) {
+  const a = areaOf(ctx);
+  const S = ctx.pet.size;
+  return { x: (a.left + a.right) / 2 - S / 2, y: (a.top + a.bottom) / 2 - S / 2 };
+}
+
+function asideSpot(ctx) {
+  const a = areaOf(ctx);
+  const S = ctx.pet.size;
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const minX = Math.min(...xs) - STAR_PAD; const maxX = Math.max(...xs) + STAR_PAD;
+  const midY = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const roomLeft = minX - a.left;
+  const roomRight = a.right - maxX;
+  const cx = roomRight >= roomLeft ? (maxX + a.right) / 2 : (a.left + minX) / 2;
+  const y = Math.max(a.top + MARGIN * 2, Math.min(a.bottom - S - MARGIN, midY - S / 2));
+  return { x: cx - S / 2, y };
+}
+
+const arrived = () => !target;
+
+// Every frame: glide toward `target`, facing where he's going; once there, face the drawing.
+function glide(ctx, dt) {
+  if (!target) return;
+  const { pet } = ctx;
+  const dx = target.x - pet.x;
+  const dy = target.y - pet.y;
+  if (Math.hypot(dx, dy) <= ARRIVED) {
+    pet.x = target.x; pet.y = target.y;
+    target = null;
+    if (points.length) {
+      const cx = points.reduce((s, p) => s + p.x, 0) / points.length;
+      pet.facing = cx >= pet.x + pet.size / 2 ? 1 : -1;
+    }
+    return;
+  }
+  const k = 1 - Math.exp(-GLIDE_RATE * dt);
+  if (Math.abs(dx) > 1) pet.facing = dx > 0 ? 1 : -1;
+  pet.x += dx * k;
+  pet.y += dy * k;
+}
+
+// Where the drawing goes: centered on the middle of the usable screen (where he's standing),
+// scaled to fit.
 function layout(ctx, c) {
   const a = areaOf(ctx);
-  const { pet } = ctx;
   const longest = Math.max(BOX[0], Math.min(BOX[1], Math.min(a.right - a.left, a.bottom - a.top) * BOX_OF_SCREEN));
   const xs = c.stars.map((s) => s[0]);
   const ys = c.stars.map((s) => s[1]);
@@ -108,15 +159,10 @@ function layout(ctx, c) {
   const scale = longest / Math.max(spanX, spanY);
   const w = spanX * scale;
   const h = spanY * scale;
-  const cx = pet.x + pet.size / 2;
-  const cy = pet.y + pet.size / 2;
-  const roomRight = a.right - (pet.x + pet.size);
-  const roomLeft = pet.x - a.left;
-  let x = roomRight >= roomLeft ? pet.x + pet.size + GAP : pet.x - GAP - w;
-  let y = cy - h / 2;
+  let x = (a.left + a.right) / 2 - w / 2;
+  let y = (a.top + a.bottom) / 2 - h / 2;
   x = Math.max(a.left + MARGIN, Math.min(a.right - MARGIN - w, x));
   y = Math.max(a.top + MARGIN, Math.min(a.bottom - MARGIN - h, y));
-  pet.facing = x + w / 2 >= cx ? 1 : -1;
   return c.stars.map(([sx, sy]) => ({ x: x + (sx - minX) * scale, y: y + (sy - minY) * scale }));
 }
 
@@ -222,7 +268,8 @@ export default {
     drawT = 0;
     phase = 'intro';
     phaseLeft = INTRO_FOR;
-    pet.mode = 'quiz'; // behaviors stand down; he stays put
+    pet.mode = 'quiz'; // behaviors stand down; he only moves when this event moves him
+    target = middleSpot(ctx); // glide to the middle of the screen during "quiz time!"
     cancelJump();
     startJump({ height: rand(10, 14), air: 0.26 });
     requestMood(ctx, 'playful', 'constellation quiz');
@@ -240,7 +287,7 @@ export default {
 
     if (phase === 'intro') {
       phaseLeft -= TICK_SECONDS;
-      if (phaseLeft <= 0) {
+      if (phaseLeft <= 0 && arrived()) {
         points = layout(ctx, shape);
         phase = 'place';
         phaseLeft = 0;
@@ -258,12 +305,13 @@ export default {
       phaseLeft -= TICK_SECONDS;
       if (phaseLeft <= 0) {
         buildLines(ctx);
+        target = asideSpot(ctx); // out of the way while the lines draw
         phase = 'lines';
         drawing = 0;
         drawT = 0;
       }
     } else if (phase === 'lines') {
-      if (drawing >= lineEls.length) {
+      if (drawing >= lineEls.length && arrived()) {
         phase = 'ask';
         played = true;
         left = ANSWER_FOR;
@@ -304,6 +352,7 @@ export default {
     const { pet } = ctx;
     if (pet.mode !== 'quiz' || phase === 'done') return;
     updateJump(pet, dt);
+    glide(ctx, dt);
     if (phase === 'lines' && drawing < lineEls.length) {
       drawT += dt;
       growLine(drawing, Math.min(1, drawT / LINE_FOR));
@@ -314,6 +363,7 @@ export default {
   stop(ctx, result) {
     const { pet } = ctx;
     endGame = null;
+    target = null;
     const leftover = held.filter(Boolean);
     if (leftover.length) reclaimStarbits(ctx, leftover); // ended early: he takes the stars back
     held = [];

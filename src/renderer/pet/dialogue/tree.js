@@ -149,8 +149,23 @@ export const TREE = {
       { label: "That's Jupiter's moon, right?", next: 'chatMoonJupiter' },
       { label: 'Say it again!', next: 'chatMoonAgain' },
       { label: 'What about our moon?', next: 'chatMoonOurs' },
+      { label: 'Was our moon landing faked?', next: 'chatMoonLanding' },
       { label: 'Back', next: 'chat' },
     ],
+  },
+  chatMoonLanding: {
+    line: 'nah, that was real. wrong moon tho',
+    pose: 'wink',
+    options: [
+      // He clams up and the dialogue closes.
+      { label: 'What?', action: 'close', say: "i've said too much" },
+      { label: 'Which one is made of cheese?', next: 'chatMoonCheese' },
+    ],
+  },
+  chatMoonCheese: {
+    line: 'idk, ask wallace and gromit',
+    pose: 'playful',
+    options: end('Haha, okay!', 'Talk to you later!'),
   },
   chatMoonJupiter: {
     line: 'look at you! the volcano one. very spicy. 10/10 moon.',
@@ -267,23 +282,22 @@ export const TREE = {
     options: [
       { label: 'Feeling sleepy?', action: 'starby:getSleepy' }, // "yeah... *yawn*" → sleepy walk to the taskbar
       { label: 'Open settings', action: 'settings' },
-      { label: 'Admin settings', action: 'admin' },
-      { label: 'Developer stuff', next: 'dev' },
       { label: 'bye starby!', next: 'quit' },
       { label: 'Back', next: 'start' },
     ],
   },
 
+  // HIDDEN: only opens with 3 Shift+right-clicks on him in a row (dialogue.js), not from Settings.
   // (Also in the tray menu's Developer submenu, with a couple more, e.g. "invite you to a game".)
   dev: {
-    line: ['beep boop. developer mode!'],
+    line: ['beep boop. developer mode!', 'psst... secret menu!'],
     options: [
-      { label: 'Open pet DevTools', action: 'devtools' },
+      { label: 'Admin settings', action: 'admin' },
       { label: 'Star shower now', action: 'starby:happening:star-shower' },
       { label: 'Shooting star now', action: 'starby:happening:shooting-star' },
       { label: 'No game rest (5 min)', action: 'starby:noRest:5', say: 'no breaks for 5 minutes!' },
       { label: 'Stop current event', action: 'stop-event' },
-      { label: 'Back', next: 'settings' },
+      { label: 'Close', action: 'close' },
     ],
   },
 
