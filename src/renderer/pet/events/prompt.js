@@ -1,4 +1,5 @@
-// A small yes/no popup next to the star, for events that ask before they start (tag uses it).
+// A small popup next to the star with one or two buttons, for events: tag uses it for its
+// Yes / No invite and for the "Play tag?" button that appears when you click him.
 //
 // Plain HTML box + buttons: UI chrome, not character art. It has the `hit` class, so
 // click-through switches off while the cursor is over it (see ../clickThrough.js) and the
@@ -6,6 +7,8 @@
 //
 //   const prompt = createPrompt(ctx.stage);
 //   prompt.show({ text: 'Play tag?', yes: 'Yes!', no: 'No', onYes, onNo });
+//   prompt.show({ text: '', yes: 'Play tag?', no: null, onYes });   // one button, no text line
+//   prompt.setText('resting… 0:42');   // update the text line in place (empty = hide it)
 //   prompt.place(pet, ctx.area());   // every frame: keep it next to the star, off the taskbar
 //   prompt.hide();
 
@@ -70,13 +73,21 @@ export function createPrompt(stage) {
   }
 
   return {
-    show({ text, yes = 'Yes', no = 'No', onYes, onNo }) {
+    show({ text = '', yes = 'Yes', no = 'No', onYes, onNo }) {
       if (!el) build();
       textEl.textContent = text;
+      textEl.style.display = text ? '' : 'none';
       yesBtn.textContent = yes;
-      noBtn.textContent = no;
+      noBtn.textContent = no || '';
+      noBtn.style.display = no ? '' : 'none'; // no = null → a single button
       handlers = { onYes, onNo };
       el.style.display = 'block';
+      size = { w: el.offsetWidth, h: el.offsetHeight };
+    },
+    setText(text = '') {
+      if (!el || textEl.textContent === text) return;
+      textEl.textContent = text;
+      textEl.style.display = text ? '' : 'none';
       size = { w: el.offsetWidth, h: el.offsetHeight };
     },
     /**

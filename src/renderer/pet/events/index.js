@@ -14,8 +14,11 @@
 //     canStart(ctx, reason) {},          // optional: false = not now
 //     auto: { every, chance, cooldown }, // optional: roll `chance` every `every` seconds, at most
 //                                        //   once per `cooldown` seconds (canStart still applies)
+//     init(ctx) {},                      // optional, once before the first tick (listeners, UI)
 //     watch(ctx) {},                     // optional, every tick even when NOT running (e.g. to
 //                                        //   notice things canStart needs)
+//     watchFrame(ctx, dt) {},            // optional, every frame even when NOT running (e.g. to
+//                                        //   keep a button next to the moving star)
 //     start(ctx, end, reason) {},        // take over; call end(result) when finished. reason:
 //                                        //   'menu' | 'random' | 'devtools' | whatever the caller passed
 //     onTick(ctx, tick) {},              // 10x per second: decisions (on the session clock)
@@ -31,6 +34,7 @@ export const EVENTS = [tag];
 
 export function createEventRunner(ctx) {
   let active = null; // { event, startedAt }
+  let initialized = false;
   const lastEnded = {}; // name → session seconds
   const nextRoll = {}; // name → session seconds of the next auto-start roll
 
@@ -73,16 +77,26 @@ export function createEventRunner(ctx) {
     }
   }
 
+  // Events set up on the first tick, so pet.js doesn't need an extra init call.
+  function initOnce() {
+    if (initialized) return;
+    initialized = true;
+    for (const event of EVENTS) event.init?.(ctx);
+  }
+
   return {
     start,
     stop: (result = 'stopped') => finish(result),
     active: () => (active ? active.event.name : null),
     onTick(tick) {
+      initOnce();
       for (const event of EVENTS) event.watch?.(ctx);
       if (active) active.event.onTick?.(ctx, tick);
       else autoRoll();
     },
     update(dt) {
+      if (!initialized) return;
+      for (const event of EVENTS) event.watchFrame?.(ctx, dt);
       if (active) active.event.update?.(ctx, dt);
     },
   };
