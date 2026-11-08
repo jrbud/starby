@@ -12,6 +12,10 @@
 // at the impact point. Balance guard: only hits of at least IMPACT_DROP_SPEED count, with a
 // cooldown, so throwing him around can't farm stardust much faster than normal play.
 // (Agree the numbers with Person 4 — shop prices assume ~5 stardust per minute.)
+// GAME REWARDS (called by events, e.g. ../events/tag.js):
+//   burstStardust(ctx, 7)   he shoots stardust out in a ring; it flies, slows down and lands,
+//                           then is collected by hovering like any other drop
+//   reclaimStardust(ctx)    every drop on screen flies back into him and disappears (not counted)
 import { rulesFor } from './moods.js';
 import { chat, lineBag } from './chatter.js';
 
@@ -20,26 +24,105 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const PICKUP_RADIUS = 22;
 const MAX_ON_SCREEN = 8;
 
+// Reward bursts / reclaiming
+const BURST_SPEED = [380, 620]; // px/s launch speed
+const FLY_FRICTION = 4; // per second: how fast a flying drop slows down
+const LAND_SPEED = 15; // px/s: below this it has landed
+const PICKUP_DELAY = 0.35; // seconds after launch before a burst drop can be collected
+const RECLAIM_SPEED = 700; // px/s minimum while flying back into him
+
 const IMPACT_DROP_SPEED = 900; // px/s into the wall
 const IMPACT_DROP_COOLDOWN = 2; // seconds between wall-hit drop bursts
 const IMPACT_DROPS = [1, 3]; // how many per hit (inclusive)
 
 const REFUSE_LINES = lineBag(['no stardust for you!', 'hmph. no sparkles.', 'not dropping anything for a poker']);
 
-const drops = []; // { el, x, y }
+const drops = []; // { el, x, y, vx, vy, bornAt, reclaiming }
 let nextDropIn = rand(8, 15);
 let lastImpactDropAt = -Infinity; // session seconds
 let refusedThisSpell = false;
 
-function spawnAt(ctx, x, y) {
-  if (drops.length >= MAX_ON_SCREEN) return false;
+// opts: { vx, vy } to launch it flying; { ignoreCap: true } for rewards (always all of them).
+function spawnAt(ctx, x, y, { vx = 0, vy = 0, ignoreCap = false } = {}) {
+  if (!ignoreCap && drops.length >= MAX_ON_SCREEN) return false;
   const el = document.createElement('div');
   el.className = 'stardust';
   el.style.left = `${x - 4}px`;
   el.style.top = `${y - 4}px`;
   ctx.stage.appendChild(el);
-  drops.push({ el, x, y });
+  drops.push({ el, x, y, vx, vy, bornAt: ctx.clock.seconds, reclaiming: false });
   return true;
+}
+
+const areaOf = (ctx) => (ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + ctx.pet.size });
+
+/** Reward: shoot `count` stardust out of him in a ring. Returns how many were made. */
+export function burstStardust(ctx, count = 7) {
+  const { pet } = ctx;
+  const cx = pet.x + pet.size / 2;
+  const cy = pet.y + pet.size / 2;
+  const turn = rand(0, Math.PI * 2);
+  let made = 0;
+  for (let i = 0; i < count; i++) {
+    const angle = turn + (i / count) * Math.PI * 2 + rand(-0.2, 0.2);
+    const speed = rand(...BURST_SPEED);
+    if (spawnAt(ctx, cx, cy, { vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, ignoreCap: true })) made++;
+  }
+  ctx.log('stardust-burst', { count: made });
+  return made;
+}
+
+/** Take back every drop on screen: they fly into him and vanish (not added to the count). */
+export function reclaimStardust(ctx) {
+  let n = 0;
+  for (const d of drops) {
+    if (!d.reclaiming) {
+      d.reclaiming = true;
+      n++;
+    }
+  }
+  ctx.log('stardust-reclaimed', { count: n });
+  return n;
+}
+
+// Every frame: flying drops slow down and land (bouncing off the usable area's edges);
+// reclaimed drops fly back into him and disappear.
+function animateDrops(ctx, dt) {
+  const { pet } = ctx;
+  const a = areaOf(ctx);
+  const px = pet.x + pet.size / 2;
+  const py = pet.y + pet.size / 2;
+  for (let i = drops.length - 1; i >= 0; i--) {
+    const d = drops[i];
+    if (d.reclaiming) {
+      const dx = px - d.x;
+      const dy = py - d.y;
+      const dist = Math.hypot(dx, dy);
+      const step = Math.max(RECLAIM_SPEED, dist * 6) * dt;
+      if (dist <= step + 4) {
+        drops.splice(i, 1);
+        d.el.classList.add('collected'); // same little fade as a pickup
+        setTimeout(() => d.el.remove(), 250);
+        continue;
+      }
+      d.x += (dx / dist) * step;
+      d.y += (dy / dist) * step;
+    } else if (Math.hypot(d.vx, d.vy) > LAND_SPEED) {
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+      const slow = Math.exp(-FLY_FRICTION * dt);
+      d.vx *= slow;
+      d.vy *= slow;
+      if (d.x < a.left + 6 || d.x > a.right - 6) { d.x = clamp(d.x, a.left + 6, a.right - 6); d.vx = -d.vx * 0.5; }
+      if (d.y < a.top + 6 || d.y > a.bottom - 6) { d.y = clamp(d.y, a.top + 6, a.bottom - 6); d.vy = -d.vy * 0.5; }
+    } else {
+      d.vx = 0;
+      d.vy = 0;
+      continue; // resting: nothing to redraw
+    }
+    d.el.style.left = `${d.x - 4}px`;
+    d.el.style.top = `${d.y - 4}px`;
+  }
 }
 
 function spawn(ctx) {
@@ -84,8 +167,11 @@ export default {
 
   init(ctx) {
     window.addEventListener('mousemove', (e) => {
+      const now = ctx.clock.seconds;
       for (let i = drops.length - 1; i >= 0; i--) {
-        if (Math.hypot(e.clientX - drops[i].x, e.clientY - drops[i].y) < PICKUP_RADIUS) {
+        const d = drops[i];
+        if (d.reclaiming || now - d.bornAt < PICKUP_DELAY) continue; // flying back / just launched
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < PICKUP_RADIUS) {
           collect(ctx, i);
         }
       }
@@ -96,6 +182,7 @@ export default {
   },
 
   update(ctx, dt) {
+    animateDrops(ctx, dt); // always, even while he's held
     const rules = rulesFor(ctx.pet);
     if (!rules.refuses) refusedThisSpell = false; // next mad spell may refuse again
     if (ctx.pet.mode === 'drag') return;

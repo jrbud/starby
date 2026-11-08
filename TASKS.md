@@ -62,7 +62,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   you can get ready. Then real tag on a **15s clock** (top-right box, shows who's it): Starby starts as it and
   chases the cursor (700–900px/s, pounces at 1350px/s within 160px); touching you = you're it, and he runs
   (450–780px/s, jukes at 1150px/s within 120px). Touch him = he's it again: he stands still 1s, then chases. No
-  tag-backs for 1.2s after he tags you. **Whoever is it when time runs out loses.** Touches are spotted every
+  tag-backs for 1.2s after he tags you. **Whoever is it when time runs out loses.** You win → he shoots out 7
+  stardust in a ring (`burstStardust` in `stardust.js`); you lose → no reward, and he pulls back any stardust on
+  screen (`reclaimStardust`). Touches are spotted every
   frame (fast moves can pass between ticks) and acted on at the tick. Grabbing him mid-game = foul, game over.
   Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
   stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`

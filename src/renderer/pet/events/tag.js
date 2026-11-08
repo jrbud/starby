@@ -22,6 +22,8 @@
 //                close. Touch him = tag: now he's it; he stands still for TAGGED_FREEZE seconds
 //                ("aw! my turn"), then chases you.
 //   end          clock runs out: whoever is it loses ('star-won' if you're it, 'user-won' if he is)
+//                you win → he shoots out WIN_REWARD stardust for you to collect
+//                you lose → no reward, and he takes back any stardust still on screen
 //                grabbing him during the game is cheating: game over ('foul')
 //                something else takes over (made dizzy, etc.) → ends quietly
 //
@@ -34,6 +36,7 @@
 import { rand, clamp, approach, chance, clampToScreen, startJump, cancelJump, isJumping, updateJump } from '../behaviors/motion.js';
 import { chat, lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
+import { burstStardust, reclaimStardust } from '../behaviors/stardust.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { createCountdown } from './countdown.js';
 import { createPrompt } from './prompt.js';
@@ -44,6 +47,7 @@ const GAME_REST = 60; // seconds after a game before he'll play again when asked
 const CHIP_FOR = 4; // seconds the "Play tag?" button stays up after clicking him
 const DECLINED_COOLDOWN = 600; // after a "no", don't ask again on his own for this long (seconds)
 const GAME_SECONDS = 15; // the game clock, from "GO!"
+const WIN_REWARD = 7; // stardust he shoots out when you win
 const READY_FROM = 3; // "3...", "2...", "1...", then "GO!"
 const READY_STEP = 1; // seconds between counts
 const READY_PAUSE = 1.2; // seconds to show "yay, let's play!" before the count starts
@@ -463,10 +467,16 @@ export default {
     if (timeLeft <= 0) {
       // Whoever is it when the clock runs out loses.
       if (it === 'user') {
+        // You lose: no reward, and he takes back any stardust lying around.
         ctx.say(LINES.starWon(), 2500);
+        reclaimStardust(ctx);
         finish('star-won');
       } else {
+        // You win: he bursts out stardust for you to sweep up.
         ctx.say(LINES.userWon(), 2500);
+        cancelJump();
+        startJump({ height: rand(16, 22), air: 0.3 });
+        burstStardust(ctx, WIN_REWARD);
         finish('user-won');
       }
       return;
