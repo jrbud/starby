@@ -4,7 +4,7 @@
 //
 //   const fx = createEffects({ stage, petEl });
 //   fx.play('impact', { x, y, size, rotate, mirror, life: 0.45, every: 0.07, front: true });
-//   fx.update(dt)   // every frame (wallImpact.js calls it)
+//   fx.update(dt)   // every frame (behaviors/fx.js calls it)
 //
 // x, y      where the CENTER of the effect goes (screen px)
 // size      width/height of the effect in css px (the art is square, 2048×2048)
@@ -61,6 +61,7 @@ export function createEffects({ stage, petEl }) {
         pointerEvents: 'none', opacity: '0', willChange: 'transform, opacity',
       });
       el.className = 'effect';
+      el.dataset.fx = name; // which effect (handy in DevTools)
       if (front) stage.appendChild(el);
       else stage.insertBefore(el, petEl); // behind him
       live.push({ el, frames, t: 0, life, every, x, y, size, rotate, mirror, drift, grow, shown: null });

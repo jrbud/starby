@@ -156,6 +156,26 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   frame (leaving/re-entering the screen) are ignored. Ends after **30s** ("ok i'm bored now"), or as soon as a
   copied move would push him **into the edge** of the usable screen: he stops short, "hey! i'm not walking into a
   wall!". Moving along an edge or away from it is fine. Grabbed → ends. No reward; shares the rest between games.
+- [x] **P1-18 (Nice) Starby Says.** `events/starbySays.js`, a game (invite "wanna play starby says?", game
+  buttons, menu "Play starby says"), like Simon says. After a short intro the clock runs **15s** (countdown top
+  right). He gives commands one after another, in his bubble and under the countdown, 60% of them starting with
+  "Starby says": tap me (`click`), pick me up (`grab`), throw me (`toss`), throw me into the wall (`impact`), spin me
+  (`spin`), tap me N times (`click` ×N, N = 2–5; progress like "(2/4)" in his bubble and under the countdown;
+  without "Starby says" even one tap counts as doing it). **With "Starby says"**: do it within 4s or you lose ("too
+  slow!"). **Without**: doing it loses ("i didn't say starby says!"); leaving it alone is safe. Only the current
+  command's action counts. After a done command he waits until he's landed (+0.6s) before the next. Last the 15s →
+  win, 8 starbits; lose → nothing taken. (There's no "open the shop" command: the shop takes him over and would
+  end the game.) He isn't taken over (no `pet.mode`), so grabbing and
+  throwing work as usual.
+- [x] **P1-19 (Nice) Hoop Shot.** `events/hoopShot.js`, a game (invite "wanna play hoop shot?", game buttons,
+  menu "Play hoop shot"). He flies to a launch spot on his side; a hoop appears on the far side (random height).
+  **Right-click and drag** him back like a slingshot (he's pulled toward the cursor, max 170px) and let go: he
+  flies the other way in an **arc** (gravity 1500px/s², this game only), spinning, bouncing off the screen edges.
+  While pulling, 6 small starbit PNGs show only the **first 0.4s** of the arc. Passing down through the hoop's
+  opening → "SWISH!" + 10 starbits. A miss bounces on the floor and he flies back to try again. **15s** on the clock
+  (countdown top right); a shot in the air at 0 still counts. The right-click menu is blocked only while the game
+  runs (window capture listener; drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
+  (`HOOP_ART` / `HOOP_ART_BOX` in hoopShot.js; swap when a hoop is drawn).
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
@@ -404,6 +424,41 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - two small twinkling star clouds drifting away.
 
     Harder hits get bigger, longer effects. DevTools: `starby.impactFx('left', 2000)`.
+  - **Update:** `wallImpact.js` became `behaviors/fx.js`. It also plays small crash lines on a swat, a
+    star-cloud burst when he's shaken or thrown awake, and a bigger burst on a shop buy/equip. Wind
+    effects were tried and removed. A throw of 300px/s or more wakes a sleeping Starby (`mood.js`).
+- [x] **P3-12 Right-click dialogue + focus mode + tray menu.** (Functionality only; visuals come later.)
+  - **Right-click Starby:** a dialogue box opens beside him, on his right when he's on the left half of the
+    screen and on his left otherwise. It shows his line and a list of answers.
+    - The answers are: Let's chat! / Wanna shop? / Do you want to play a game? / Sorry, I gotta focus /
+      Settings / Never mind.
+    - Settings leads to Open settings / Admin settings / Developer stuff / Quit (asks to confirm).
+  - **Files:** the tree is plain data in `src/renderer/pet/dialogue/tree.js` (edit this to write the chat).
+    `dialogue/dialogue.js` shows the box and runs the actions.
+  - **While the box is open:** he stands still. The box closes on an answer, on another right-click, when
+    he's picked up, when an event takes over, or after 20s untouched.
+  - **Right-click during an event:**
+    - a game or sky event shows the "busy" node (Keep going / Let's stop);
+    - a dance or invite is stopped first;
+    - during the intro or the shop window, right-click does nothing.
+  - **Left-click is only a poke now:** the "Play a game?" buttons were removed from `events/games.js`, which
+    now exports `requestGame` for the dialogue.
+  - **`events/focus.js` (new, priority 16):** he's happy and supportive, walks to the bottom-left corner
+    (standing on the taskbar line) and goes fully quiet.
+    - Once parked he's built not to distract: no movement at all, and the new `calm` face (`frames.js`:
+      idle-1 only, arms down, no arm wave). Every 12-30s he winks or his eyes glisten.
+    - He stays happy: `mood.js` skips the "user away" yawn during focus.
+    - While focusing, nothing else happens: no speech, starbit drops, invites, sky events or dancing.
+    - It ends when you click or grab him (he says hi, happy) or pick "Okay, I'm done focusing!".
+  - **Tray icon (`src/main/tray.js`, new):** right-clicking it shows the old native menu. The icon uses the
+    existing `assets/sprite/sunny/idle-1.png`, shrunk at runtime; the team should draw a dedicated tray icon.
+  - **New IPC:** `app:quit`, `pet:devtools`. The old `pet:context-menu` channel is kept and now shows the
+    tray menu.
+  - **Shared / other people's files touched:**
+    - `drag.js` (P1): right-click dispatches `pet:right-clicked`.
+    - `games.js`: chip removed.
+    - `starbits.js` (P2): no drops in `focus` mode.
+    - `events/index.js`, `main.js`, `ipc.js`, `preload.js`.
 
 ---
 
