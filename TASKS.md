@@ -63,8 +63,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   chases the cursor (700–900px/s, pounces at 1350px/s within 160px); touching you = you're it, and he runs
   (450–780px/s, jukes at 1150px/s within 120px). Touch him = he's it again: he stands still 1s, then chases. No
   tag-backs for 1.2s after he tags you. **Whoever is it when time runs out loses.** You win → he shoots out 7
-  stardust in a ring (`burstStardust` in `stardust.js`); you lose → no reward, and he pulls back any stardust on
-  screen (`reclaimStardust`). Touches are spotted every
+  starbits in a ring (`burstStarbits` in `starbits.js`); you lose → no reward, and he pulls back any starbits on
+  screen (`reclaimStarbits`). Touches are spotted every
   frame (fast moves can pass between ticks) and acted on at the tick. Grabbing him mid-game = foul, game over.
   Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
   stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
@@ -83,9 +83,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
 
 ---
 
-## Person 2 — Stardust & Windows testing
+## Person 2 — Starbits & Windows testing
 
-**Owns:** `src/renderer/pet/behaviors/stardust.js`, `src/renderer/pet/pet.css`.
+**Owns:** `src/renderer/pet/behaviors/starbits.js`, `src/renderer/pet/pet.css`.
 Windows fixes only in: `src/main/windows/petWindow.js`, `src/renderer/pet/clickThrough.js` (tell the team
 before changing these — they're core).
 
@@ -100,7 +100,7 @@ before changing these — they're core).
   (CSS transition, plain text). Also show the total: e.g. a small plain-text badge near the star while the
   cursor is over it. Get the total from `ctx.api.getState()` / `ctx.api.onStateChanged`.
   Badge/float text must not have class `hit` (keep them click-through).
-- [ ] **P2-3 (Must) Old stardust fades.** Each drop gets a spawn time; after ~60s fade it out and remove it
+- [ ] **P2-3 (Must) Old starbits fade.** Each drop gets a spawn time; after ~60s fade it out and remove it
   from `drops`.
 - [ ] **P2-4 (Nice) Drop animation.** Spawn at the star's center and fall/bounce to its feet with a CSS
   transition or per-frame update before it becomes collectable.
@@ -156,7 +156,7 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
   doing (Person 1), **mood** = how he feels (`pet.mood`: happy, mad, playful, dizzy, yawning, sleepy),
   **face** = which frames to show (`pet.face`: the mood, plus `dragged` while held and `talking` while happy
   and speaking). Behaviors never check mood names: they read one rule from `rulesFor(ctx.pet)` in
-  `behaviors/moods.js` (`stardust`, `wander`, `follow`, `flee`, `hop`, `grabbable`, `quiet`, `bobSpeed`).
+  `behaviors/moods.js` (`starbits`, `wander`, `follow`, `flee`, `hop`, `grabbable`, `quiet`, `bobSpeed`).
   Every mood change is logged as `mood`. In DevTools: `starby.setMood('sleepy')`, `starby.mood()`.
   - [x] **Phase 1 (Person 3): state machine + speech.** `mood.js` handles:
     - **mad:** 4 clicks in 8s; 20s after the last poke he's happy again.
@@ -192,11 +192,11 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
       the normal throw physics, glares back and says something like "hands off!". It's logged as `swat`,
       and `mood.js` counts it as another poke. A plain click on a mad star is still a poke. The real
       cursor is never moved: that would be a system write, out of scope.
-    - [x] **`stardust.js`:**
-      - the drop timer runs at the `stardust` rate: playful drops about twice as fast (50 vs 25 in a
+    - [x] **`starbits.js`:**
+      - the drop timer runs at the `starbits` rate: playful drops about twice as fast (50 vs 25 in a
         5-minute test), and rate 0 drops nothing;
-      - a mad star says "no stardust for you!" once per mad spell (`refuses`);
-      - hard wall hits (`impact` ≥900px/s) drop 1–3 stardust just off the wall, with a 2s cooldown, and
+      - a mad star says "no starbits for you!" once per mad spell (`refuses`);
+      - hard wall hits (`impact` ≥900px/s) drop 1–3 starbits just off the wall, with a 2s cooldown, and
         nothing while mad or asleep. **Person 4: please check these numbers against shop prices.**
     - **New rules in `moods.js`:** `refuses`, `lookAway`, `eyesShut`. The table now builds every mood from
       shared defaults, so each mood only lists what differs from happy.
@@ -226,11 +226,11 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
 - [ ] **P4-1 (Must) Fill out and balance the catalog.** Add more colors and accessories in
   `shopCatalog.js` (the star has one shape, so no shape items); new accessories need a draw function in `sprite.js`. **Flat fills and simple
   primitives only — no gradients, glow, shading or images.** Price so the first purchase takes ~5 minutes
-  of play (drops are every 8–15s in `stardust.js`, so roughly 25 stardust).
+  of play (drops are every 8–15s in `starbits.js`, so roughly 25 starbits).
 - [x] **P4-2 (Must) Shop polish.** Make owned / equipped / can't-afford states obvious at a glance
   (e.g. lock label, dimmed card, "need N more"). Show a short confirmation after buying.
 - [ ] **P4-3 (Must) Demo shortcut.** A hidden key combo in the shop window (e.g. Ctrl+Shift+D) that adds
-  50 stardust via `window.sprite.collectStardust(50)`. Keep it simple and obvious in code so it can be
+  50 starbits via `window.sprite.collectStarbits(50)`. Keep it simple and obvious in code so it can be
   removed later.
 - [ ] **P4-4 (Nice) Another way into the shop.** Double-click on the star → `window.sprite.openShop()`.
   The listener lives in the pet renderer — put it in a new behavior file (e.g. `behaviors/shopOpener.js`)

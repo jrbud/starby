@@ -1,4 +1,4 @@
-// Shop UI: buy and equip cosmetic items with stardust.
+// Shop UI: buy and equip cosmetic items with starbits.
 // Equipping goes through the main process, which persists it and broadcasts 'state:changed',
 // so the on-screen sprite updates immediately.
 import { drawSprite } from '../shared/sprite.js';
@@ -19,12 +19,12 @@ const $ = (id) => document.getElementById(id);
 // Each card is in exactly one state. Plain-text labels only (no icons, per the art rule).
 //   equipped: owned and worn right now
 //   owned:    bought, not worn → "Equip"
-//   buyable:  not owned, enough stardust → "Buy · N"
+//   buyable:  not owned, enough starbits → "Buy · N"
 //   locked:   not owned, not enough → dimmed, "Need N more"
 function cardState(item) {
   if (state.equipped[item.slot] === item.id) return 'equipped';
   if (state.owned.includes(item.id)) return 'owned';
-  return state.stardust >= item.price ? 'buyable' : 'locked';
+  return state.starbits >= item.price ? 'buyable' : 'locked';
 }
 
 const TAG_TEXT = { equipped: 'Wearing', owned: 'Owned', buyable: '', locked: 'Locked' };
@@ -66,8 +66,8 @@ function itemCard(item) {
     btn.textContent = `Buy · ${item.price}`;
     btn.onclick = () => buy(item);
   } else {
-    btn.textContent = `Need ${item.price - state.stardust} more`;
-    btn.title = `Costs ${item.price} stardust`;
+    btn.textContent = `Need ${item.price - state.starbits} more`;
+    btn.title = `Costs ${item.price} starbits`;
     btn.disabled = true;
   }
 
@@ -108,7 +108,7 @@ async function equip(item) {
 }
 
 function render() {
-  $('balance').textContent = state.stardust;
+  $('balance').textContent = state.starbits;
   drawSprite($('preview'), equippedLook());
 
   const sections = $('sections');

@@ -15,7 +15,7 @@
 //                             cursor circling him 3 times within 6s. Lasts 5s, then back to
 //                             playful (if he was playful) or happy.
 //   happy → yawning           2 min without interaction (1 min at night), or the system 'idle' event.
-//                             Interaction = click, grab, throw, edge hit, flinch, stardust pickup,
+//                             Interaction = click, grab, throw, edge hit, flinch, starbits pickup,
 //                             or the cursor within 120px.
 //   yawning → happy           any interaction
 //   yawning → sleepy          reached the top corner in pet.goal
@@ -60,7 +60,7 @@ const CAN_GET_DIZZY = ['happy', 'playful', 'mad'];
 const LINES = {
   dizzy: lineBag(['@_@ the world is spinning', 'whoa... wobbly...', 'which way is up?']),
   yawning: lineBag(['*yaaawn*', 'getting sleepy...', "think i'll find a nap spot"]),
-  sleepy: lineBag(['zzz...', '*snore*', 'zzz... mm... stardust...']),
+  sleepy: lineBag(['zzz...', '*snore*', 'zzz... mm... starbits...']),
   wake: lineBag(["huh?! i'm up, i'm up!", 'whoa! good morning?', 'okay okay, no more naps']),
   roused: lineBag(["oh! hi, i'm awake", 'hm? oh, hi!', "i wasn't sleeping!"]),
   calmDown: lineBag(['hmph. fine.', "ok... i'm not mad anymore", 'we good.']),
@@ -204,8 +204,8 @@ function onEntry(ctx, e) {
     case 'flinch':
       interacted(ctx, 'flinch');
       break;
-    case 'stardust':
-      if (e.data.delta > 0) interacted(ctx, 'stardust');
+    case 'starbits':
+      if (e.data.delta > 0) interacted(ctx, 'starbits');
       break;
     case 'system':
       if (e.data.type === 'time-of-day') isNight = e.data.part === 'night';

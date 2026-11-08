@@ -5,12 +5,13 @@
 const { getItem } = require('./shopCatalog');
 
 // v2: removed the 'shape' slot (the star has one shape). migrate() drops old shape items.
-const SCHEMA_VERSION = 2;
+// v3: currency renamed `stardust` -> `starbits`. migrate() carries old `stardust` counts over.
+const SCHEMA_VERSION = 3;
 
 function createDefaultState() {
   return {
     version: SCHEMA_VERSION,
-    stardust: 0,
+    starbits: 0,
     // Item ids from shopCatalog.js. The free starter items are always owned.
     owned: ['color-sunny', 'accessory-none'],
     equipped: {
@@ -32,11 +33,16 @@ function migrate(raw) {
     const id = raw.equipped?.[slot];
     if (owned.includes(id) && getItem(id).slot === slot) equipped[slot] = id;
   }
+  // v2 saves stored the currency as `stardust`; drop that key so it isn't saved again.
+  const { stardust: oldStardust, ...rest } = raw;
+  let starbits = 0;
+  if (Number.isFinite(raw.starbits)) starbits = raw.starbits;
+  else if (Number.isFinite(oldStardust)) starbits = oldStardust;
   return {
     ...defaults,
-    ...raw,
+    ...rest,
     version: SCHEMA_VERSION,
-    stardust: Number.isFinite(raw.stardust) ? raw.stardust : 0,
+    starbits,
     owned,
     equipped,
   };

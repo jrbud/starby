@@ -110,12 +110,12 @@ window.starby = {
 // ---- Look (equipped shop items → what we draw) ----
 let prevState = null;
 
-// Log stardust, purchases and equips by comparing each new state with the previous one.
-// Done here so stardust.js / the shop don't each need their own logging.
+// Log starbits, purchases and equips by comparing each new state with the previous one.
+// Done here so starbits.js / the shop don't each need their own logging.
 function logStateChanges(prev, next) {
   if (!prev) return;
-  if (next.stardust !== prev.stardust) {
-    log('stardust', { delta: next.stardust - prev.stardust, total: next.stardust });
+  if (next.starbits !== prev.starbits) {
+    log('starbits', { delta: next.starbits - prev.starbits, total: next.starbits });
   }
   for (const id of next.owned) if (!prev.owned.includes(id)) log('buy', { item: id });
   for (const slot of Object.keys(next.equipped)) {

@@ -1,8 +1,8 @@
 // The pet window. SHARED/CORE FILE (window config) — flag changes before editing.
 //
 // Design: ONE frameless, transparent, always-on-top window covering the whole primary
-// display. The sprite, speech bubble and stardust are all DOM elements moved around
-// inside it. That way walking/dragging/dropping stardust never has to move OS windows.
+// display. The sprite, speech bubble and starbits are all DOM elements moved around
+// inside it. That way walking/dragging/dropping starbits never has to move OS windows.
 const { BrowserWindow, screen } = require('electron');
 const path = require('path');
 
@@ -47,7 +47,7 @@ function createPetWindow() {
   // CLICK-THROUGH: start fully click-through. `forward: true` still delivers mousemove
   // events to the renderer, which is how we (a) detect hovering over the sprite and
   // flip click-through off (see renderer/pet/clickThrough.js), (b) do cursor-awareness,
-  // and (c) collect stardust by hover. `forward` only works on Windows/macOS.
+  // and (c) collect starbits by hover. `forward` only works on Windows/macOS.
   petWindow.setIgnoreMouseEvents(true, { forward: true });
 
   petWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'pet', 'index.html'));
