@@ -4,19 +4,19 @@
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
     <title>sprite.exe — shop</title>
+    <link rel="stylesheet" href="../shared/menuFrame.css" />
     <link rel="stylesheet" href="shop.css" />
   </head>
-  <body>
-    <!-- Frameless window: this bar is the drag handle (see shop.css, -webkit-app-region). -->
-    <header class="titlebar">
-      <h1>Shop</h1>
-      <div class="window-buttons">
-        <button id="minimize" class="window-button" title="Minimize" aria-label="Minimize">_</button>
-        <button id="close" class="window-button" title="Close" aria-label="Close">✕</button>
-      </div>
-    </header>
+  <body class="menu-window">
+    <!-- The background art (assets/backgrounds/shop.png) has "SHOP" written on it. -->
+    <h1 class="sr-only">Shop</h1>
+    <div class="menu-drag"></div>
+    <button id="close" class="close-button" title="Close" aria-label="Close shop">
+      <img class="idle" src="../../../assets/menuIcons/x-idle.png" alt="" draggable="false" />
+      <img class="hover" src="../../../assets/menuIcons/x-hover.png" alt="" draggable="false" />
+    </button>
 
-    <main class="panel">
+    <main class="panel menu-panel">
       <section class="left">
         <div class="wallet" title="Your starbits">
           <img class="starbit-icon" src="../../../assets/starbits/cluster.png" alt="" />

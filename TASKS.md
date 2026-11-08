@@ -72,7 +72,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   0:42". Mad / dizzy: he refuses. Asleep: no buttons. Sad: the click cheers him up, so he says yes.
   `games.js` also has `createReady()` (the 3-2-1-GO countdown) used by tag and pong.
 - [x] **P1-8 (Nice) Pong event.** `events/pong.js`: Starby is the ball. He glides to the middle; a paddle
-  appears on each side (plain CSS bars labelled YOU / AI): left = yours, follows the mouse up and down; right =
+  appears on each side (plain CSS bars; only yours is labelled "YOU" in a big label that fades out 1.5s after "GO!"; every paddle hit plays the wall-hit effect via `behaviors/fx.js`): left = yours, follows the mouse up and down; right =
   the AI. "3... 2... 1... GO!", served toward you; bounces off the top/bottom of the usable area and off the
   paddles (hit position sets the angle, max 55°; +9% speed per hit, max 1500px/s), spinning. The AI predicts
   where he'll arrive but misjudges more as he speeds up (and tops out at 430px/s), so a decent player wins about
@@ -105,8 +105,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   "you found me!" + 10 starbits. Not found in 150s → he comes out and wins. On the game buttons, the games timer
   (he hides on his own, P1-15) and the menu ("Play hide & seek"); never in invites (`invite: false`).
 - [x] **P1-14 (Nice) Catch.** `events/catchGame.js`, a game (buttons, invites, menu "Play catch"): "i'm gonna
-  throw myself! catch me in the box!" A dashed catch box (5 × 5 Starbys) appears on the right; he goes to the far
-  left, stretches out, says "ready?" and flings himself at the box (950px/s, ~0.35s inside it). Click/grab him
+  throw myself! catch me in the box!" A catch box (5 × 5 Starbys, the team's tan box art `assets/events/tan-translucent-box.png`, with 3 strike X's on top: `assets/menuIcons/x-idle.png`, each strike swaps the next to `x-hover.png`; "Catch Here!" inside at the top in Sour Gummy, blue, at the box's opacity) appears on the right; he goes to the far
+  left, stretches out, says "get ready to catch me!", counts down "3... 2... 1... GO!" (before every throw) and flings himself at the box (950px/s, ~0.35s inside it). Click/grab him
   **inside the box** → "NICE!" + 10 starbits. Missed → "STRIKE n!", he bonks the edge, flies back, tries again;
   3 strikes → out. He walks back to the left facing left (the 'left' art, via `pet.faceOverride`, which
   `mood.js` honours) on one straight path. Clicking him before or after the box (or while winding up / flying back) → "CHEATER!", game
@@ -149,13 +149,15 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   Needs **held starbits** in `behaviors/starbits.js` (P2's file): `placeStarbit(ctx, x, y)` (fly to a spot and
   stay: no drift/magnet/pickup/fade, not counted in the on-screen cap), `releaseStarbits(ctx, list)`, and
   `reclaimStarbits(ctx, list)` (optional list; no list = all, as before). No random drops while `pet.mode === 'quiz'`.
-- [x] **P1-17 (Nice) Copycat.** `events/copycat.js`, a game that **starts silently** (`invite: false`, like hide
-  and seek): the games timer starts it on his own (relaxed, happy/playful, rested), or the game buttons / menu
-  "Play copycat". "hehe, i'm copying you!" and then every move your cursor makes, he makes too (same distance and
-  direction, from where he is: he mirrors you, doesn't follow you). Max 1400px/s; cursor jumps over 250px in one
-  frame (leaving/re-entering the screen) are ignored. Ends after **30s** ("ok i'm bored now"), or as soon as a
-  copied move would push him **into the edge** of the usable screen: he stops short, "hey! i'm not walking into a
-  wall!". Moving along an edge or away from it is fine. Grabbed → ends. No reward; shares the rest between games.
+- [x] **P1-17 (Nice) Copycat.** `events/copycat.js`, **its own category** (`'copycat'`, priority 3), like dance: not
+  a game (not on the game buttons or in the games timer, no shared rest). **Its own timer: every 3 minutes** (from
+  the end of the last one, or launch) he tries to start one, silently; only when nothing else is running, he's
+  relaxed and happy/playful, and you're moving the mouse (moved in the last 3s); otherwise he retries every 15s.
+  "hehe, i'm copying you!" and then every move your cursor makes, he makes too (same distance and direction, from
+  where he is: he mirrors you, doesn't follow you). Max 1400px/s; cursor jumps over 250px in one frame are ignored.
+  Ends after **30s** ("ok i'm bored now"), or as soon as a copied move would push him **into the edge** of the
+  usable screen ("hey! i'm not walking into a wall!"). Grabbed → ends. Sky events, invites and games take over.
+  No reward. Tray menu → Developer → "Start copycat now".
 - [x] **P1-18 (Nice) Starby Says.** `events/starbySays.js`, a game (invite "wanna play starby says?", game
   buttons, menu "Play starby says"), like Simon says. After a short intro the clock runs **15s** (countdown top
   right). He gives commands one after another, in his bubble and under the countdown, 60% of them starting with
@@ -169,12 +171,13 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   throwing work as usual.
 - [x] **P1-19 (Nice) Hoop Shot.** `events/hoopShot.js`, a game (invite "wanna play hoop shot?", game buttons,
   menu "Play hoop shot"). He flies to a launch spot on his side; a hoop appears on the far side (random height).
-  **Right-click and drag** him back like a slingshot (he's pulled toward the cursor, max 170px) and let go: he
+  **Right- or left-click and drag** him back like a slingshot (he's pulled toward the cursor, max 170px) and let go: he
   flies the other way in an **arc** (gravity 1500px/s², this game only), spinning, bouncing off the screen edges.
   While pulling, 6 small starbit PNGs show only the **first 0.4s** of the arc. Passing down through the hoop's
   opening → "SWISH!" + 10 starbits. A miss bounces on the floor and he flies back to try again. **15s** on the clock
-  (countdown top right); a shot in the air at 0 still counts. The right-click menu is blocked only while the game
-  runs (window capture listener; drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
+  (countdown top right); a shot in the air at 0 still counts. Just a click (either button) → he stays put: "right
+  click or left click and drag me!". During the game, presses on him and the right-click menu are caught by window
+  capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
   (`HOOP_ART` / `HOOP_ART_BOX` in hoopShot.js; swap when a hoop is drawn).
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted

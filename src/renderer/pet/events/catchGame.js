@@ -1,9 +1,12 @@
 // CATCH — a game: Starby throws himself across the screen and you catch him in the box.
 //
-//   setup   "i'm gonna throw myself! catch me in the box!" A dashed catch box (BOX_STARBYS × BOX_STARBYS
-//           Starbys big) appears on the right side of the usable screen, labelled with the strikes;
-//           he goes to the far left.
-//   windup  he stretches out (squashed wide, winding up) and says "ready?"
+//   setup   "i'm gonna throw myself! catch me in the box!" The catch box (BOX_STARBYS × BOX_STARBYS
+//           Starbys big; the team's tan box art, BOX_ART) appears on the right side of the usable
+//           screen; he goes to the far left. On top of the box sit STRIKES_OUT X icons (the team's
+//           x-idle.png); each strike swaps the next one to x-hover.png (the darker X). Inside the box,
+//           at the top: "Catch Here!" in Sour Gummy, blue, as see-through as the box's inside.
+//   windup  he stretches out (squashed wide, winding up), announces "get ready to catch me!" and counts
+//           down "3... 2... 1... GO!" (createReady, ./games.js), then throws. Before every throw.
 //   fly     he flings himself at the box, fast (THROW_SPEED). Click / grab him WHILE HE'S INSIDE THE
 //           BOX → "NICE!" and WIN_REWARD starbits. He leaves the box uncaught → "STRIKE!"; he bonks
 //           into the edge, walks back to the left (facing left) and winds up again. STRIKES_OUT strikes → you're out.
@@ -22,13 +25,13 @@ import { lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
 import { burstStarbits } from '../behaviors/starbits.js';
 import { TICK_SECONDS } from '../core/clock.js';
-import { readyToPlay, markPlayed } from './games.js';
+import { readyToPlay, markPlayed, createReady } from './games.js';
 
 // ---- Tuning ----
 const BOX_STARBYS = 5; // the box is this many Starbys wide and tall
 const BOX_INSET = 60; // px from the usable area's right edge
 const START_INSET = 20; // px from the usable area's left edge where he winds up
-const WINDUP_FOR = 1.3; // seconds of "ready?" before each throw
+const ANNOUNCE_FOR = 1.5; // seconds of "get ready to catch me!" before the 3-2-1 countdown
 const THROW_SPEED = 950; // px/s
 const WALK_SPEED = 650; // px/s walking back to the left (at the start and after a strike)
 const STEP_RATE = 14; // rad/s of the little step bounce while walking back
@@ -36,10 +39,18 @@ const STEP_HOP = 5; // px of that bounce
 const STRIKES_OUT = 3;
 const WIN_REWARD = 10;
 const CATCH_PAD = 12; // px around him that still counts as clicking him (from inside the box)
+const BOX_ART = '../../../assets/events/tan-translucent-box.png'; // team art; relative to src/renderer/pet/index.html
+const X_IDLE = '../../../assets/menuIcons/x-idle.png'; // a strike not used yet (team art)
+const X_STRUCK = '../../../assets/menuIcons/x-hover.png'; // a strike you've got (the darker X)
+const X_SIZE = 0.6; // each X is this many Starby sizes wide
+const LABEL_TEXT = 'Catch Here!';
+const LABEL_COLOR = '#0c218f'; // the blue from the shop's palette (shop.css --window-button-outline)
+const LABEL_OPACITY = 198 / 255; // = the box art's inside (alpha 198 of 255), so the text matches it
+const LABEL_SIZE = 0.11; // font size, as a fraction of the box's width
 
 const LINES = {
   intro: lineBag(["i'm gonna throw myself! catch me in the box!", 'catch me! but only in the box!']),
-  ready: lineBag(['ready?', 'ready? ✦', 'here i go... ready?']),
+  ready: lineBag(['get ready to catch me!', 'get ready to catch me! here i go...']),
   strike: (n) => (n >= STRIKES_OUT ? `STRIKE ${n}! you're out!` : `STRIKE ${n}!`),
   nice: lineBag(['NICE! ✦', 'NICE! great catch!', 'NICE!! you got me!']),
   cheater: lineBag(['CHEATER! that was outside the box!', "CHEATER! no catching outside the box!", 'hey! CHEATER! game over']),
@@ -48,12 +59,13 @@ const LINES = {
 // ---- State ----
 let endGame = null;
 let phase = 'setup'; // setup | windup | fly | bonk | return | done
+const ready = createReady({ pause: ANNOUNCE_FOR }); // the countdown before each throw
 let strikes = 0;
-let phaseLeft = 0;
 let laneY = 0; // center y of this throw
 let box = null; // { x, y, size } in pet-window coordinates
 let boxEl = null;
-let labelEl = null;
+let xEls = []; // the STRIKES_OUT X icons on top of the box
+let labelEl = null; // "Catch Here!" inside the box, at the top
 let wasInBox = false; // his center was inside the box last frame
 let leftBox = false; // he went through and out the far side this throw
 let grab = null; // { inBox } recorded on mousedown, judged at the next tick
@@ -73,16 +85,38 @@ const inBoxNow = (pet) => {
 function buildBox(ctx) {
   boxEl = document.createElement('div');
   boxEl.className = 'catch-box hit'; // .hit: catches clicks during the game (see CLICK-THROUGH above)
+  // The box is the team's hand-drawn tan box PNG (translucent inside), stretched to the box's size.
   Object.assign(boxEl.style, {
     position: 'absolute', boxSizing: 'border-box', display: 'none',
-    border: '3px dashed rgba(255, 255, 255, 0.95)', outline: '2px solid rgba(43, 43, 58, 0.55)',
-    borderRadius: '12px', background: 'rgba(108, 92, 231, 0.10)',
+    backgroundImage: `url("${BOX_ART}")`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat',
   });
+  const probe = new Image(); // warn in DevTools if the art is missing (a background-image fails silently)
+  probe.onerror = () => console.warn(`[catch] missing box art: ${BOX_ART}`);
+  probe.src = BOX_ART;
+  new Image().src = X_STRUCK; // preload, so the first strike swaps instantly
+  // The strike X's: a row centered on top of the box.
+  const row = document.createElement('div');
+  Object.assign(row.style, {
+    position: 'absolute', left: '50%', bottom: '100%', transform: 'translateX(-50%)', marginBottom: '4px',
+    display: 'flex', gap: '6px', pointerEvents: 'none',
+  });
+  xEls = Array.from({ length: STRIKES_OUT }, () => {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.draggable = false;
+    img.onerror = () => console.warn(`[catch] missing strike art: ${img.src}`);
+    row.appendChild(img);
+    return img;
+  });
+  boxEl.appendChild(row);
+  // "Catch Here!" inside the box, near the top (just inside the art's border). Sour Gummy is
+  // declared in pet.css (@font-face), so it's ready here.
   labelEl = document.createElement('div');
+  labelEl.textContent = LABEL_TEXT;
   Object.assign(labelEl.style, {
-    position: 'absolute', left: '50%', bottom: '100%', transform: 'translateX(-50%)', marginBottom: '6px',
-    font: '700 12px "Segoe UI", system-ui, sans-serif', color: '#2b2b3a', background: 'rgba(255,255,255,0.92)',
-    border: '1px solid #2b2b3a', borderRadius: '6px', padding: '2px 8px', whiteSpace: 'nowrap', pointerEvents: 'none',
+    position: 'absolute', left: '0', right: '0', top: '7%', textAlign: 'center',
+    fontFamily: "'Sour Gummy', 'Segoe UI', system-ui, sans-serif", fontWeight: '700',
+    color: LABEL_COLOR, opacity: String(LABEL_OPACITY), whiteSpace: 'nowrap', pointerEvents: 'none',
   });
   boxEl.appendChild(labelEl);
   // Under Starby, so he flies in front of the box.
@@ -97,10 +131,15 @@ function buildBox(ctx) {
   });
 }
 
-function showLabel() {
-  if (!labelEl) return;
-  const dots = Array.from({ length: STRIKES_OUT }, (_, i) => (i < strikes ? '●' : '○')).join(' ');
-  labelEl.textContent = `CATCH ZONE · strikes ${dots}`;
+// X icons: one per strike you've got (x-hover), the rest still x-idle.
+function showStrikes(ctx) {
+  const w = Math.round(ctx.pet.size * X_SIZE);
+  xEls.forEach((img, i) => {
+    const src = i < strikes ? X_STRUCK : X_IDLE;
+    if (img.getAttribute?.('data-src') !== src) { img.src = src; img.setAttribute?.('data-src', src); }
+    img.style.width = `${w}px`;
+    img.style.height = 'auto';
+  });
 }
 
 function placeBox(ctx) {
@@ -111,7 +150,8 @@ function placeBox(ctx) {
   Object.assign(boxEl.style, {
     left: `${box.x}px`, top: `${box.y}px`, width: `${size}px`, height: `${size}px`, display: 'block',
   });
-  showLabel();
+  showStrikes(ctx); // all three back to x-idle for a new game
+  labelEl.style.fontSize = `${Math.round(size * LABEL_SIZE)}px`; // scales with the box
 }
 
 // Where he winds up for the next throw: far left, at a height that sends him through the box.
@@ -145,12 +185,12 @@ function windUp(ctx) {
   ctx.pet.faceOverride = null;
   ctx.pet.bob = 0;
   phase = 'windup';
-  phaseLeft = WINDUP_FOR;
   wasInBox = false;
   leftBox = false;
   grab = null;
   ctx.pet.facing = 1;
-  ctx.say(LINES.ready(), WINDUP_FOR * 1000);
+  ready.start(); // "get ready to catch me!", then 3... 2... 1... GO!
+  ctx.say(LINES.ready(), ANNOUNCE_FOR * 1000);
 }
 
 // Say the result line, and remember it: the click that caught him also makes speech.js answer the
@@ -234,8 +274,7 @@ export default {
     if (pet.mode !== 'catch') { finish(ctx, `interrupted:${pet.mode}`); return; }
 
     if (phase === 'windup') {
-      phaseLeft -= TICK_SECONDS;
-      if (phaseLeft <= 0) {
+      if (ready.tick(ctx)) { // said "GO!"
         phase = 'fly';
         thrown = true;
         startJump({ height: 6, air: 0.15 }); // a little push-off
@@ -244,7 +283,7 @@ export default {
     } else if (phase === 'fly' && leftBox) {
       // Out the far side of the box without being caught.
       strikes++;
-      showLabel();
+      showStrikes(ctx); // the next X turns dark
       ctx.say(LINES.strike(strikes), 1600);
       ctx.log('catch-strike', { strikes });
       phase = 'bonk'; // keeps flying to the edge (update), then comes back or the game ends

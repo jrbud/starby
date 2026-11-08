@@ -20,8 +20,9 @@
 // Owns the star via pet.mode = 'pong' (behaviors stand down for modes they don't know).
 // Decisions (AI aim, scoring, ending) run on ticks; motion runs every frame.
 //
-// ART: the paddles are plain flat CSS bars with "YOU" / "AI" text labels, i.e. UI chrome like
-// the countdown box, not character art. Swap in team art here if wanted.
+// ART: the paddles are plain flat CSS bars, i.e. UI chrome like the countdown box, not character
+// art. Only YOUR paddle gets a "YOU" label, and it fades out YOU_LABEL_FOR seconds after "GO!" (the
+// other paddle is obviously the AI's, so it has no label). Swap in team art here if wanted.
 import { rand, clamp, approach, startJump, cancelJump, updateJump } from '../behaviors/motion.js';
 import { chat, lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
@@ -43,6 +44,8 @@ const SPEEDUP = 1.09; // speed multiplier per paddle hit
 const MAX_SPEED = 1500; // px/s
 const MAX_BOUNCE = 55; // degrees: hitting the very end of a paddle
 const AI_SPEED = 430; // px/s top speed of the AI paddle
+const YOU_LABEL_FOR = 1.5; // seconds after "GO!" before the "YOU" label fades out
+const YOU_LABEL_FADE = 0.6; // seconds the fade takes
 const AI_ERROR_BASE = 40; // px of aiming error per rally hit...
 const AI_ERROR_PER_SPEED = 0.09; // ...plus this much per px/s of ball speed
 const SPIN_PER_SPEED = 1 / 120; // rad/s of spin per px/s of speed
@@ -70,7 +73,7 @@ let hits = 0;
 let scored = null; // 'user' | 'ai', set in update when he gets past a paddle; acted on at the tick
 let spin = 0; // his spin angle as the ball (radians). Kept here and written to pet.rotation every
 // frame, because drag.js resets pet.rotation to 0 each frame while he isn't held.
-let els = null; // { left, right, leftLabel, rightLabel }
+let els = null; // { left, right, youLabel }
 const ready = createReady();
 
 const areaOf = (ctx) => (ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + ctx.pet.size });
@@ -93,9 +96,11 @@ function injectStyles() {
       pointer-events: none; display: none; will-change: transform;
     }
     .pong-label {
-      position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 6px;
-      font: 700 11px "Segoe UI", system-ui, sans-serif; color: #2b2b3a; background: rgba(255,255,255,0.92);
-      border: 1px solid #2b2b3a; border-radius: 5px; padding: 1px 6px; white-space: nowrap;
+      position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
+      font: 800 20px "Segoe UI", system-ui, sans-serif; color: #2b2b3a; background: rgba(255,255,255,0.95);
+      border: 2px solid #2b2b3a; border-radius: 8px; padding: 3px 12px; white-space: nowrap; margin-bottom: 10px;
+      letter-spacing: 1px; box-shadow: 0 2px 6px rgba(0,0,0,0.35); /* big + shadowed: readable at any resolution */
+      transition: opacity ${YOU_LABEL_FADE}s ease-out;
     }
   `;
   document.head.appendChild(style);
@@ -103,17 +108,18 @@ function injectStyles() {
 
 function buildPaddles(stage) {
   injectStyles();
-  const make = (label) => {
+  const make = () => {
     const el = document.createElement('div');
     el.className = 'pong-paddle';
-    const tag = document.createElement('div');
-    tag.className = 'pong-label';
-    tag.textContent = label;
-    el.appendChild(tag);
     stage.appendChild(el);
     return el;
   };
-  return { left: make('YOU'), right: make('AI') };
+  const left = make();
+  const youLabel = document.createElement('div'); // only your paddle is labelled
+  youLabel.className = 'pong-label';
+  youLabel.textContent = 'YOU';
+  left.appendChild(youLabel);
+  return { left, right: make(), youLabel };
 }
 
 function drawPaddles(ctx) {
@@ -200,6 +206,7 @@ export default {
     rightY = leftY;
     aiTargetY = rightY;
     els = els || buildPaddles(ctx.stage);
+    els.youLabel.style.opacity = '1'; // shown again for each new game
     drawPaddles(ctx);
     showPaddles(true);
     pet.mode = 'pong'; // behaviors stand down
@@ -247,6 +254,9 @@ export default {
       if (ready.tick(ctx)) {
         phase = 'play';
         serve(ctx);
+        // You know which paddle is yours by now: fade the "YOU" label out.
+        const label = els.youLabel;
+        ctx.after(YOU_LABEL_FOR, () => { label.style.opacity = '0'; }, 'pong: hide YOU label');
       }
       return;
     }
