@@ -11,6 +11,7 @@ import { createScheduler } from './core/scheduler.js';
 import { createEventLog } from './core/eventLog.js';
 import { createEventRunner } from './events/index.js';
 import { clampToScreen } from './behaviors/motion.js';
+import { createFrames, DEFAULT_SET } from './frames.js';
 
 const api = window.sprite;
 const petEl = document.getElementById('pet');
@@ -19,6 +20,17 @@ const stage = document.getElementById('stage');
 const bubble = createBubble(document.getElementById('bubble'));
 
 const SIZE = 64;
+
+// The canvas is SIZE css px on screen but drawn at a higher internal resolution, so the PNG
+// art stays crisp at 125%/150%/200% display scaling.
+const RES = Math.round(SIZE * Math.max(2, window.devicePixelRatio || 1));
+canvas.width = RES;
+canvas.height = RES;
+canvas.style.width = `${SIZE}px`;
+canvas.style.height = `${SIZE}px`;
+
+// Starby's hand-drawn PNG frames (see ./frames.js for file names and speeds).
+const frames = createFrames(RES);
 
 /**
  * Shared pet state. Behaviors read and write this; pet.js renders it every frame.
@@ -30,13 +42,16 @@ const pet = {
   y: 0,
   size: SIZE,
   mode: 'idle',
-  facing: 1, // 1 = right, -1 = left
+  facing: 1, // 1 = right, -1 = left (direction logic only; the art isn't mirrored, see render)
   bob: 0, // vertical offset in px (idle bobbing, hops)
   squash: 1, // 1 = normal; <1 squashed, >1 stretched
   rotation: 0, // radians, clockwise, around the star's center (drag/toss spin)
-  lookX: 0, // -1..1 eye direction
-  blink: false,
-  look: { color: '#ffd84a', accessory: 'none' },
+  lookX: 0, // -1..1 eye direction (only the old drawn star used it; the PNGs have painted eyes)
+  blink: false, // (old drawn star only; blinks/closed eyes are in the PNG frames now)
+  face: 'happy', // which PNG frames to show; set every frame by behaviors/mood.js
+  lookUp: false, // set by events (e.g. a star shower) to make him look up
+  // colorSet = folder in assets/sprite/ for the equipped color ('sunny' for 'color-sunny').
+  look: { color: '#ffd84a', colorSet: DEFAULT_SET, accessory: 'none' },
 };
 
 // Usable screen area: the whole display minus the taskbar, wherever the taskbar is (bottom,
@@ -127,30 +142,61 @@ function applyState(state) {
   logStateChanges(prevState, state);
   prevState = structuredClone(state);
   const byId = (id) => ctx.catalog.find((item) => item.id === id);
+  const colorId = state.equipped.color || `color-${DEFAULT_SET}`;
   pet.look = {
-    color: byId(state.equipped.color)?.value ?? pet.look.color,
+    color: byId(colorId)?.value ?? pet.look.color,
+    colorSet: colorId.replace(/^color-/, ''), // each shop color is a PNG set: assets/sprite/<set>/
     accessory: byId(state.equipped.accessory)?.value ?? pet.look.accessory,
   };
+  // Load that color's frames in the background (missing files fall back to sunny meanwhile).
+  frames.loadAll(pet.look.colorSet);
 }
 
 // ---- Render ----
-let lastDrawKey = '';
-function render() {
-  const { x, y, bob, squash, facing, look, lookX, blink, rotation } = pet;
+let shownFace = null; // face currently on screen...
+let faceSince = 0; // ...since this time (ms), so its frames alternate from the start
+let lastFrame = null; // last image drawn into the canvas
+let lastFallbackKey = '';
+
+function render(now) {
+  const { x, y, bob, squash, look, rotation } = pet;
   petEl.style.transform = `translate(${x}px, ${y + bob}px)`;
   // The canvas's transform-origin is its bottom-center (squash from the feet, see pet.css).
   // Rotation goes around the center instead: shift up half a size, rotate, shift back.
   // Only the canvas rotates, so the speech bubble stays upright.
+  // No mirroring by pet.facing: the PNGs face the viewer, and walking left/right has its own
+  // frames (frames.js 'left' / 'right'). Mirroring would flip the wink and tongue to the wrong side.
   const half = SIZE / 2;
   canvas.style.transform =
     `translateY(${-half}px) rotate(${rotation}rad) translateY(${half}px) ` +
-    `scale(${(1 / Math.sqrt(squash)) * facing}, ${squash})`;
+    `scale(${1 / Math.sqrt(squash)}, ${squash})`;
 
-  // Only redraw the canvas when something visual changed.
-  const key = `${look.color}|${look.accessory}|${lookX.toFixed(1)}|${blink}`;
-  if (key !== lastDrawKey) {
-    lastDrawKey = key;
-    drawSprite(canvas, { ...look, lookX: lookX * facing, blink });
+  // Which frame: pet.face (mood.js), alternating from when that face appeared.
+  const face = pet.face || 'happy';
+  if (face !== shownFace) {
+    shownFace = face;
+    faceSince = now;
+  }
+  const img = frames.frameFor(face, look.colorSet, (now - faceSince) / 1000);
+  if (img) {
+    if (img !== lastFrame) {
+      lastFrame = img;
+      const c = canvas.getContext('2d');
+      c.clearRect(0, 0, RES, RES);
+      // Frames come out of frames.js already lined up, with his feet on the bottom edge
+      // (squash pivots there, and he stands right on the taskbar).
+      c.drawImage(img, 0, 0, RES, RES);
+    }
+    return;
+  }
+
+  // No PNG loaded (art missing or failed to load): fall back to the old drawn star so he's
+  // never invisible. Should only ever happen if assets/sprite/ is missing.
+  lastFrame = null;
+  const key = `${look.color}|${look.accessory}`;
+  if (key !== lastFallbackKey) {
+    lastFallbackKey = key;
+    drawSprite(canvas, { ...look });
   }
 }
 
@@ -159,6 +205,12 @@ async function boot() {
   ctx.catalog = await api.getCatalog();
   applyState(await api.getState());
   api.onStateChanged(applyState);
+
+  // Load his standing frames before he first appears (no flash of an empty or old star);
+  // the rest of the faces keep loading in the background.
+  await frames.loadEssentials(pet.look.colorSet);
+  await frames.loadEssentials(DEFAULT_SET);
+  frames.loadAll(DEFAULT_SET);
 
   pet.x = workArea().left + 200;
   pet.y = groundY();
@@ -210,7 +262,7 @@ async function boot() {
       lastMode = pet.mode;
     }
 
-    render();
+    render(now);
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

@@ -58,12 +58,23 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   says "wanna play tag?" and shows a Yes / No popup next to him (`events/prompt.js`, a clickable `.hit` box).
   **No** → new `sad` mood (`moods.js` / `mood.js`: half walk speed, no hops, looks away, no "oh! hi"; 30s, or a
   click cheers him up) and he won't ask on his own again for 10 min. No answer in 12s → "maybe later", not sad.
-  **Yes** → he races to the cursor (~560px/s), tags it, then runs away (450–780px/s, jukes sideways at 1150px/s
-  when the cursor gets within 120px) while a 20s countdown runs top-right. Touch or grab him to win; survive
-  the timer and he wins. Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
+  **Yes** → he counts down in his bubble ("3...", "2...", "1...", "GO!", one per second, standing still) so
+  you can get ready. Then real tag on a **15s clock** (top-right box, shows who's it): Starby starts as it and
+  chases the cursor (700–900px/s, pounces at 1350px/s within 160px); touching you = you're it, and he runs
+  (450–780px/s, jukes at 1150px/s within 120px). Touch him = he's it again: he stands still 1s, then chases. No
+  tag-backs for 1.2s after he tags you. **Whoever is it when time runs out loses.** You win → he shoots out 7
+  starbits in a ring (`burstStarbits` in `starbits.js`); you lose → no reward, and he pulls back any starbits on
+  screen (`reclaimStarbits`). Touches are spotted every
+  frame (fast moves can pass between ticks) and acted on at the tick. Grabbing him mid-game = foul, game over.
+  Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
   stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
   skips the question. Random: every 60s, 20% chance, 4-min cooldown, only when happy/playful, relaxed and the
   cursor moved in the last 10s. Tuning at the top of `events/tag.js`.
+- [x] **P1-7 (Nice) Ask Starby to play.** Clicking him also pops up a "Play tag?" button next to him for 4s
+  (`events/tag.js` + `events/prompt.js`). Pressing it starts the game right away (no question back). After a
+  game he needs a 60s rest (`GAME_REST`): asking via the button or the menu gets "give me a little, i'm
+  tired", then "still tired... give me Ns", then "i'm tired! ask me in a bit"; the button shows "resting…
+  0:42". Mad / dizzy: he refuses. Asleep: no button. Sad: the click cheers him up, so he says yes.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
@@ -189,21 +200,31 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
         nothing while mad or asleep. **Person 4: please check these numbers against shop prices.**
     - **New rules in `moods.js`:** `refuses`, `lookAway`, `eyesShut`. The table now builds every mood from
       shared defaults, so each mood only lists what differs from happy.
-  - [ ] **Phase 3: faces (Person 4 + artists).** A new `renderer/shared/frames.js` loads
-    `assets/sprite/<face>/<face>_N.png`. `pet.js` `render()` draws the frames for `pet.face` (a shared file,
-    so ask first) and falls back to today's star for any face without art yet. The artists need these
-    folders, every frame on the same canvas size (suggest 128×128, with room above the head):
-    - `happy/` (plus a `blink` frame)
-    - `talking/`
-    - `mad/`
-    - `playful/`
-    - `dizzy/` (stars around the head are part of the art)
-    - `yawning/`
-    - `sleepy/` (zzz)
-    - `dragged/`
-    - optional `swat/`
-
-    Shop colors on the PNG art are a later slice.
+  - [x] **Phase 3: the hand-drawn PNGs are now Starby** (done by Person 3).
+    - **Art:** 22 PNGs in `assets/sprite/sunny/`. The mapping (which file shows when, and how fast pairs
+      alternate) is in `assets/README.md` and `src/renderer/pet/frames.js`.
+    - **`frames.js` (new):** loads each 2048px frame once and shrinks it to the on-screen size.
+      - It lines every frame up on the same feet spot, measured from the art: `left`, `right` and
+        `dizzy` get small shifts, and the rest already matched.
+      - His feet sit on the bottom edge, so squash pivots from his feet and he stands on the taskbar.
+      - Color sets are folders next to `sunny/`, and missing files fall back to sunny.
+    - **`pet.js` (shared):**
+      - draws `pet.face`'s frame instead of the code-drawn star, on a higher-resolution canvas for
+        sharp scaling;
+      - stops mirroring (the art faces the viewer; walking uses `left`/`right`);
+      - waits for the standing frames before he first appears;
+      - falls back to the old drawn star only if the art can't load.
+    - **`mood.js` (new faces):** `left`/`right` while walking, `up`/`down` when the cursor is right above
+      or below him, `up` when an event sets `pet.lookUp` (for a star shower), `playful` during tag, and
+      random `glistening`/`wink` moments every 15–35s. Try them with `starby.flourish('wink')`.
+    - **Unchanged:** every effect (swing, spin, squash/stretch, impact freeze, hops, dizzy wobble) is the
+      same CSS transform on the canvas, so it works on the PNGs as before. Tested in the real app.
+    - **No longer visible:** eyes following the cursor, and mad's eyes looking away (the eyes are painted
+      on now).
+    - **Still to do:**
+      - the old code-drawn accessories (top hat, bow, halo) don't show on the PNGs and need PNG versions;
+      - **shop previews** (`shop.js` / `sprite.js`, Person 4) still draw the old star;
+      - other color sets need their PNG folders.
 
 ---
 

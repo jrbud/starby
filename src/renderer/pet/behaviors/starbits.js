@@ -22,6 +22,13 @@
 // (Agree the numbers with Person 4 — shop prices assume ~5 starbits per minute.)
 //
 // SCREEN EDGES: uses ctx.area() (the usable screen minus the taskbar, wherever the taskbar is).
+//
+// GAME REWARDS (called by events, e.g. ../events/tag.js):
+//   burstStarbits(ctx, 7)   he throws starbits out in a full ring, a bit farther than a normal drop,
+//                           ignoring MAX_ON_SCREEN; for REWARD_PICKUP_DELAY the magnet and pickup
+//                           leave them alone, so you see them fly out before sweeping them up
+//   reclaimStarbits(ctx)    every starbit on screen spins and flies back into him and disappears
+//                           (not added to the count)
 import { rulesFor } from './moods.js';
 import { chat, lineBag } from './chatter.js';
 
@@ -81,6 +88,12 @@ const IMPACT_DROP_COOLDOWN = 2; // seconds between wall-hit drop bursts
 const IMPACT_DROPS = [1, 3]; // how many per hit (inclusive)
 const IMPACT_ARC = 120; // degrees
 
+// Game rewards (see GAME REWARDS above).
+const REWARD_DIST = [60, 130]; // px past the star's edge a reward starbit lands
+const REWARD_PICKUP_DELAY = 0.35; // s before the magnet/pickup notice a fresh reward starbit
+const RECLAIM_SPEED = 700; // px/s minimum while flying back into him
+const RECLAIM_SPIN = 720; // deg/s while flying back
+
 const REFUSE_LINES = lineBag(['no starbits for you!', 'hmph. no sparkles.', 'not dropping anything for a poker']);
 
 // Floating drift: velocity wanders a little each frame, capped so it stays slow and dreamy.
@@ -119,10 +132,10 @@ const area = (ctx) =>
 // Standing on the bottom edge of the usable area (e.g. on a bottom taskbar).
 const onGround = (ctx) => ctx.pet.y + ctx.pet.size >= area(ctx).bottom - 2;
 
-function throwVelocity(petRadius, deg) {
+function throwVelocity(petRadius, deg, past = [THROW_DIST_MIN, THROW_DIST_MAX]) {
   // With exponential drag, a starbit launched at speed v travels (v - DRIFT_MAX) / DRAG before
   // it slows to drift speed and settles. Solve that for v to land at the chosen distance.
-  const distance = petRadius + rand(THROW_DIST_MIN, THROW_DIST_MAX); // from the star's center
+  const distance = petRadius + rand(...past); // from the star's center
   const speed = distance * THROW_DRAG + DRIFT_MAX;
   const a = (deg * Math.PI) / 180;
   return { vx: Math.cos(a) * speed, vy: Math.sin(a) * speed };
@@ -155,12 +168,57 @@ function fanAngles(n, from, to) {
 const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
 
 // Throw one starbit per angle, BURST_STAGGER apart. Returns how many it will try to throw.
-function throwAngles(ctx, angles) {
+// opts are passed to spawn() (rewards use them).
+function throwAngles(ctx, angles, opts) {
   angles.forEach((deg, i) => {
-    if (i === 0) spawn(ctx, deg);
-    else ctx.after(i * BURST_STAGGER, () => spawn(ctx, deg), 'starbits burst');
+    if (i === 0) spawn(ctx, deg, opts);
+    else ctx.after(i * BURST_STAGGER, () => spawn(ctx, deg, opts), 'starbits burst');
   });
   return angles.length;
+}
+
+/** Reward: throw `count` starbits out of him in a full ring (ignores MAX_ON_SCREEN). */
+export function burstStarbits(ctx, count = 7) {
+  const turn = rand(0, 360);
+  const n = throwAngles(ctx, fanAngles(count, turn, turn + 360), {
+    ignoreCap: true,
+    past: REWARD_DIST,
+    pickupDelay: REWARD_PICKUP_DELAY,
+  });
+  ctx.log('starbits-burst', { count: n });
+  return n;
+}
+
+/** Take back every starbit on screen: they fly into him and vanish (not added to the count). */
+export function reclaimStarbits(ctx) {
+  let n = 0;
+  for (const d of drops) {
+    if (!d.reclaiming) {
+      d.reclaiming = true;
+      n++;
+    }
+  }
+  ctx.log('starbits-reclaimed', { count: n });
+  return n;
+}
+
+// One frame of flying back into him. Returns true once it has arrived (then it's removed).
+function reclaimStep(ctx, d, dt) {
+  const { pet } = ctx;
+  const tx = pet.x + pet.size / 2;
+  const ty = pet.y + pet.size / 2;
+  const dx = tx - d.x;
+  const dy = ty - d.y;
+  const dist = Math.hypot(dx, dy);
+  const step = Math.max(RECLAIM_SPEED, dist * 6) * dt;
+  if (dist <= step + 4) return true;
+  d.x += (dx / dist) * step;
+  d.y += (dy / dist) * step;
+  d.px = d.x;
+  d.py = d.y;
+  d.angle = (d.angle + RECLAIM_SPIN * dt) % 360;
+  d.el.style.transform = `translate(${d.x - d.spawnX}px, ${d.y - d.spawnY}px) rotate(${d.angle}deg) scale(0.85)`;
+  return false;
 }
 
 // The regular timed drop.
@@ -181,8 +239,10 @@ function impactDrops(ctx, impact) {
   ctx.log('impact-drops', { count, side: impact.side });
 }
 
-function spawn(ctx, deg) {
-  if (drops.length >= MAX_ON_SCREEN) return;
+// opts (for rewards): ignoreCap, past = [min, max] px past the star's edge to land,
+// pickupDelay = seconds before the magnet/pickup notice it.
+function spawn(ctx, deg, { ignoreCap = false, past, pickupDelay = 0 } = {}) {
+  if (!ignoreCap && drops.length >= MAX_ON_SCREEN) return;
   const { pet } = ctx;
   // Out of the star's center, wherever it is.
   const x = pet.x + pet.size / 2;
@@ -195,7 +255,7 @@ function spawn(ctx, deg) {
   el.style.left = `${x - SIZE / 2}px`;
   el.style.top = `${y - SIZE / 2}px`;
   ctx.stage.appendChild(el);
-  const { vx, vy } = throwVelocity(pet.size / 2, deg);
+  const { vx, vy } = throwVelocity(pet.size / 2, deg, past);
   drops.push({
     el,
     spawnX: x,
@@ -210,6 +270,8 @@ function spawn(ctx, deg) {
     attracted: false, // being pulled toward the cursor
     age: 0, // seconds since thrown
     fading: false, // past tuning.lifetime: fading out, can't be collected
+    reclaiming: false, // flying back into him (reclaimStarbits)
+    pickableAt: ctx.clock.seconds + pickupDelay, // magnet/pickup ignore it until then
     anchorX: x, // set for real when it settles
     anchorY: y,
     angle: rand(0, 360),
@@ -231,7 +293,9 @@ function move(ctx, d, dt) {
   const cdy = ctx.cursor.y - d.py;
   const cdist = Math.hypot(cdx, cdy);
   const { magnetStrength, magnetRadius } = tuning;
-  if (!d.fading && magnetStrength > 0 && cdist < magnetRadius && cdist > 0.001) {
+  // Not while fading away, and not while a fresh reward starbit is still flying out.
+  const pickable = !d.fading && ctx.clock.seconds >= (d.pickableAt ?? 0);
+  if (pickable && magnetStrength > 0 && cdist < magnetRadius && cdist > 0.001) {
     // Pulled by the cursor: steer toward it, faster the closer it is.
     const closeness = 1 - cdist / magnetRadius; // 0 at the edge → 1 at the cursor
     const speed =
@@ -549,7 +613,15 @@ export default {
   },
 
   update(ctx, dt) {
-    for (const d of drops) animate(ctx, d, dt);
+    for (let i = drops.length - 1; i >= 0; i--) {
+      const d = drops[i];
+      if (!d.reclaiming) {
+        animate(ctx, d, dt);
+      } else if (reclaimStep(ctx, d, dt)) {
+        drops.splice(i, 1); // arrived back inside him
+        d.el.remove();
+      }
+    }
 
     for (let i = zipping.length - 1; i >= 0; i--) {
       if (zip(ctx, zipping[i], dt)) {
@@ -562,9 +634,12 @@ export default {
 
     // Pickup is checked every frame (not just on mousemove): a starbit pulled in by the
     // magnet can reach a cursor that's standing still. ctx.cursor is kept up to date by pet.js.
+    const now = ctx.clock.seconds;
     for (let i = drops.length - 1; i >= 0; i--) {
-      if (drops[i].fading) continue; // too late, it's fading away
-      if (Math.hypot(ctx.cursor.x - drops[i].x, ctx.cursor.y - drops[i].y) < PICKUP_RADIUS) {
+      const d = drops[i];
+      if (d.fading) continue; // too late, it's fading away
+      if (d.reclaiming || now < (d.pickableAt ?? 0)) continue; // flying home / just thrown as a reward
+      if (Math.hypot(ctx.cursor.x - d.x, ctx.cursor.y - d.y) < PICKUP_RADIUS) {
         collect(ctx, i);
       }
     }
