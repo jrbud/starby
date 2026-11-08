@@ -66,6 +66,15 @@ function createPetWindow() {
   // and (c) collect starbits by hover. `forward` only works on Windows/macOS.
   petWindow.setIgnoreMouseEvents(true, { forward: true });
 
+  // WINDOWS QUIRK: CHROME STOPS PAINTING UNDER US. Chrome/Edge/Discord/VS Code (anything Chromium)
+  // stop drawing a window they think is fully covered by another window. While click-through is
+  // OFF (cursor on Starby, or a click/drag), this full-screen, always-on-top window became a plain
+  // opaque window, so the browser underneath decided it was hidden: you could scroll, but the page
+  // didn't redraw until you clicked it. Chromium ignores *layered* windows with alpha below 255,
+  // and Electron keeps a window layered in both click-through states once it has an opacity. 0.99
+  // (alpha 252) is invisible to the eye.
+  petWindow.setOpacity(0.99);
+
   petWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'pet', 'index.html'));
   petWindow.on('closed', () => {
     clearInterval(keepOnTop);

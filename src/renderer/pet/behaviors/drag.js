@@ -452,7 +452,8 @@ export default {
     // lives on the tray icon (src/main/tray.js).
     petEl.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      petEl.dispatchEvent(new CustomEvent('pet:right-clicked'));
+      // shift: Shift held (3 Shift+right-clicks in a row open the hidden developer menu, dialogue.js)
+      petEl.dispatchEvent(new CustomEvent('pet:right-clicked', { detail: { shift: e.shiftKey } }));
     });
   },
 

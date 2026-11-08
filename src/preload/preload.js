@@ -50,7 +50,7 @@ contextBridge.exposeInMainWorld('sprite', {
   // Pet window
   setIgnoreMouse: (ignore) => ipcRenderer.send('pet:set-ignore-mouse', ignore),
   showContextMenu: () => ipcRenderer.send('pet:context-menu'), // old native menu (now on the tray)
-  // Dialogue box (right-click Starby): Settings → Quit / Developer stuff → DevTools.
+  // Dialogue box (right-click Starby): Settings → Quit; the hidden developer menu (3 Shift+right-clicks).
   quitApp: () => ipcRenderer.send('app:quit'),
   openPetDevTools: () => ipcRenderer.send('pet:devtools'),
   // Quitting: the pet's goodbye animation is done, the app can close (src/main/goodbye.js).

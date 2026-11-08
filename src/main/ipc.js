@@ -102,7 +102,7 @@ function registerIpc() {
     buildPetMenu().popup({ window: win });
   });
 
-  // From the dialogue box: Settings → bye starby! (quit) / Developer stuff → Open pet DevTools.
+  // From the dialogue box: Settings → bye starby! (quit). (pet:devtools: the dialogue's "devtools" action, unused by the tree now.)
   ipcMain.on('app:quit', () => app.quit());
   ipcMain.on('pet:devtools', (e) => e.sender.openDevTools({ mode: 'detach' }));
 }

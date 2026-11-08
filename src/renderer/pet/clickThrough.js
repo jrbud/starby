@@ -44,7 +44,22 @@ export function setPinned(value, owner = 'press') {
   else if (lastPos) setIgnore(!overHit(lastPos.x, lastPos.y)); // back to normal right away
 }
 
+// STILL-CURSOR RECHECK: the hover check above only runs on mousemove. But HE moves too: drop him
+// and let go, then he hops/walks off (or flies away after a throw) while your mouse sits still,
+// and the window stayed solid over empty pixels, eating your scroll wheel and clicks on the page
+// underneath until you nudged the mouse. So re-check where the cursor already is a few times a
+// second (and on any wheel that lands here), in both directions.
+const RECHECK_MS = 100;
+
+function recheck() {
+  if (pinned || held || !lastPos) return;
+  setIgnore(!overHit(lastPos.x, lastPos.y));
+}
+
 export function initClickThrough() {
+  setInterval(recheck, RECHECK_MS);
+  // A wheel that reached this window over nothing of his: pass the next ones through.
+  window.addEventListener('wheel', (e) => { lastPos = { x: e.clientX, y: e.clientY }; recheck(); }, { passive: true });
   window.addEventListener('mousedown', (e) => { held = e.buttons || 1; }, true);
   window.addEventListener('mouseup', (e) => {
     held = e.buttons || 0;
