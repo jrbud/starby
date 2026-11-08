@@ -52,7 +52,6 @@ let moveIndex = -1;
 let lastBeat = -1;
 let homeX = 0; // where he dances (side steps go either side of this)
 let devtoolsRun = false; // started from DevTools: dance one burst even with no music
-let lastSpin = -1; // which spin (every 4 beats) we last announced, for the wind effect
 
 const relaxed = (pet) => pet.mode === 'idle' || pet.mode === 'walk';
 
@@ -108,7 +107,6 @@ export default {
     t = 0;
     danceFor = rand(...DANCE_FOR);
     moveIndex = -1;
-    lastSpin = -1;
     lastBeat = -1;
     homeX = pet.x;
     pet.mode = 'dance';
@@ -171,11 +169,6 @@ export default {
       if (newBeat && !jumping) startJump({ height: 0.16 * S, air: BEAT * 0.6 });
     } else if (move === 'spin') {
       const local = beat % 4; // spin for 2 beats, then 2 beats of bouncing
-      const spin = Math.floor(beat / 4);
-      if (local < 2 && spin !== lastSpin) {
-        lastSpin = spin;
-        ctx.log('dance-spin', {}); // behaviors/fx.js puts a wind swirl around him
-      }
       if (local < 2) {
         const p = local / 2;
         rotation = (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2) * Math.PI * 2; // ease in-out

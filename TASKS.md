@@ -149,6 +149,13 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   Needs **held starbits** in `behaviors/starbits.js` (P2's file): `placeStarbit(ctx, x, y)` (fly to a spot and
   stay: no drift/magnet/pickup/fade, not counted in the on-screen cap), `releaseStarbits(ctx, list)`, and
   `reclaimStarbits(ctx, list)` (optional list; no list = all, as before). No random drops while `pet.mode === 'quiz'`.
+- [x] **P1-17 (Nice) Copycat.** `events/copycat.js`, a game that **starts silently** (`invite: false`, like hide
+  and seek): the games timer starts it on his own (relaxed, happy/playful, rested), or the game buttons / menu
+  "Play copycat". "hehe, i'm copying you!" and then every move your cursor makes, he makes too (same distance and
+  direction, from where he is: he mirrors you, doesn't follow you). Max 1400px/s; cursor jumps over 250px in one
+  frame (leaving/re-entering the screen) are ignored. Ends after **30s** ("ok i'm bored now"), or as soon as a
+  copied move would push him **into the edge** of the usable screen: he stops short, "hey! i'm not walking into a
+  wall!". Moving along an edge or away from it is fine. Grabbed → ends. No reward; shares the rest between games.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
@@ -414,7 +421,8 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
 - [ ] **P4-3 (Must) Demo shortcut.** A hidden key combo in the shop window (e.g. Ctrl+Shift+D) that adds
   50 starbits via `window.sprite.collectStarbits(50)`. Keep it simple and obvious in code so it can be
   removed later.
-- [ ] **P4-4 (Nice) Another way into the shop.** Double-click on the star → `window.sprite.openShop()`.
+- [x] **P4-4 (Nice) Another way into the shop.** DROPPED (team decision): the shop opens only from the
+  right-click menu, not by double-click. Original task: Double-click on the star → `window.sprite.openShop()`.
   The listener lives in the pet renderer — put it in a new behavior file (e.g. `behaviors/shopOpener.js`)
   and add one line to `behaviors/index.js`.
 - [ ] **P4-5 (Nice) Reset save.** A "Reset progress" button in the shop with an in-page confirm step.

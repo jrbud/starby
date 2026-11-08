@@ -5,9 +5,6 @@
 //   wall hit     drag.js 'impact'      crash lines at the wall (in front), a dust puff off the
 //                                      wall (behind), two small twinkling star clouds drifting away
 //   swat         drag.js 'swat'        small crash lines on the side your hand came from
-//   running away pet.mode 'flee'       wind streaks trailing behind him
-//   fast throw   pet.mode 'toss'       wind streaks trailing behind him while he flies fast
-//   dance spin   dance.js 'dance-spin' a wind swirl around him
 //   woken up     mood.js (shaken / thrown awake)  a small burst of star clouds
 //   shop         pet.js 'buy' / 'equip'           a bigger burst of star clouds
 // Nothing plays while he's hushed (a video call / fullscreen app, events/hush.js).
@@ -15,18 +12,13 @@
 // The art is drawn for one direction, so it's turned to fit:
 //   impact     crash lines drawn for a wall on his RIGHT
 //   dust/stars drawn sitting on the floor
-//   wind       gusts streaming LEFT behind something moving RIGHT (curls at the tail end)
-// DevTools: starby.impactFx('left', 2000), starby.fx('burst') / ('swat') / ('spin').
+// DevTools: starby.impactFx('left', 2000), starby.fx('burst') / ('wake') / ('swat').
 import { createEffects } from '../effects.js';
 
 // ---- Tuning ----
 const SOFT = 700; // px/s into a wall: drag.js's softest logged impact...
 const HARD = 2500; // ...and its hardest (full squash)
-const MAX_LIVE = 24; // cap so a corner ping-pong or a long sprint can't pile up effects
-const FLEE_WIND_EVERY = 0.14; // seconds between wind puffs while running away
-const FLEE_MIN_SPEED = 120; // px/s
-const THROW_WIND_EVERY = 0.09; // seconds between wind puffs on a fast throw
-const THROW_MIN_SPEED = 900; // px/s
+const MAX_LIVE = 24; // cap so a corner ping-pong can't pile up effects
 const SHOP_DEDUPE = 1.2; // seconds: buying then equipping right away = one burst
 
 // Per wall: rotation for the crash lines (drawn for a right wall) and for the floor-based art
@@ -45,8 +37,6 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const deg = (rad) => (rad * 180) / Math.PI;
 
 let fx = null;
-const motion = { last: null, vx: 0, vy: 0 }; // his smoothed velocity (px/s)
-let windIn = 0; // seconds until the next trailing wind puff
 let lastShopBurst = -Infinity;
 
 const centerOf = (pet) => ({ x: pet.x + pet.size / 2, y: pet.y + pet.bob + pet.size / 2 });
@@ -113,36 +103,6 @@ function swat(ctx) {
   fx.play('impact', { x: c.x, y: c.y, size: pet.size * 0.85, rotate: deg(angle), life: 0.3, every: 0.05, front: true });
 }
 
-// ---- Wind trailing behind him (running away / fast throws) ----
-function windPuff(ctx, sizeK) {
-  const { pet } = ctx;
-  const speed = Math.hypot(motion.vx, motion.vy) || 1;
-  const dir = { x: motion.vx / speed, y: motion.vy / speed };
-  // The art points right (the way the mover goes). Moving left: mirror it instead of turning it
-  // upside down, so the curls stay the right way up.
-  const mirror = dir.x < 0;
-  const rotate = mirror ? deg(Math.atan2(dir.y, dir.x)) - 180 : deg(Math.atan2(dir.y, dir.x));
-  const S = pet.size;
-  const c = centerOf(pet);
-  fx.play('wind', {
-    x: c.x - dir.x * S * 0.6, y: c.y - dir.y * S * 0.6, size: S * sizeK, rotate, mirror,
-    life: 0.35, every: 0.07, drift: { x: -dir.x * S * 0.25, y: -dir.y * S * 0.25 }, grow: 0.1,
-  });
-}
-
-// ---- Dance spin: a wind swirl, down his right side and up his left (he spins clockwise) ----
-function spinSwirl(ctx) {
-  const { pet } = ctx;
-  const S = pet.size;
-  const c = centerOf(pet);
-  for (const s of [1, -1]) {
-    fx.play('wind', {
-      x: c.x + s * S * 0.62, y: c.y, size: S * 0.75, rotate: 90 * s, life: 0.55, every: 0.08,
-      drift: { x: 0, y: s * S * 0.2 }, grow: 0.1,
-    });
-  }
-}
-
 // ---- Star cloud burst (woken up / shop) ----
 function burst(ctx, count, sizeK, distK) {
   const { pet } = ctx;
@@ -166,12 +126,11 @@ export default {
 
   init(ctx) {
     fx = createEffects({ stage: ctx.stage, petEl: ctx.petEl });
-    fx.preload(['impact', 'dust', 'starcloud', 'wind']);
+    fx.preload(['impact', 'dust', 'starcloud']);
     ctx.events.onEntry((e) => {
       if (ctx.pet.hushed) return;
       if (e.type === 'impact') wallHit(ctx, e.data);
       else if (e.type === 'swat') swat(ctx);
-      else if (e.type === 'dance-spin') spinSwirl(ctx);
       else if (e.type === 'mood' && e.data.to === 'happy' && /shaken awake|thrown awake/.test(e.data.reason || '')) {
         burst(ctx, 4, 0.5, 0.55);
       } else if ((e.type === 'buy' || e.type === 'equip') && ctx.clock.seconds - lastShopBurst > SHOP_DEDUPE) {
@@ -183,7 +142,6 @@ export default {
       window.starby.impactFx = (side = 'right', speed = 2000) => wallHit(ctx, { side, speed });
       window.starby.fx = (what = 'burst') => {
         if (what === 'swat') swat(ctx);
-        else if (what === 'spin') spinSwirl(ctx);
         else if (what === 'wake') burst(ctx, 4, 0.5, 0.55);
         else burst(ctx, 6, 0.6, 0.8);
         return what;
@@ -192,29 +150,6 @@ export default {
   },
 
   update(ctx, dt) {
-    if (!fx) return;
-    const { pet } = ctx;
-    // Track his velocity (for the wind trails).
-    const c = centerOf(pet);
-    if (motion.last && dt > 0) {
-      const a = Math.min(1, dt * 12);
-      motion.vx += ((c.x - motion.last.x) / dt - motion.vx) * a;
-      motion.vy += ((c.y - motion.last.y) / dt - motion.vy) * a;
-    }
-    motion.last = c;
-
-    // Wind trailing behind him while he runs away or flies fast.
-    const speed = Math.hypot(motion.vx, motion.vy);
-    windIn -= dt;
-    if (!pet.hushed && windIn <= 0 && fx.count() < MAX_LIVE) {
-      if (pet.mode === 'flee' && speed > FLEE_MIN_SPEED) {
-        windPuff(ctx, 0.8);
-        windIn = FLEE_WIND_EVERY;
-      } else if (pet.mode === 'toss' && speed > THROW_MIN_SPEED) {
-        windPuff(ctx, 0.75 + 0.35 * Math.min(1, (speed - THROW_MIN_SPEED) / 1600));
-        windIn = THROW_WIND_EVERY;
-      }
-    }
-    fx.update(dt);
+    fx?.update(dt);
   },
 };
