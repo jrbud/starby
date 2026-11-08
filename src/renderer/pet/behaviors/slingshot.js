@@ -1,8 +1,10 @@
-// SLINGSHOT: hold the RIGHT mouse button on Starby and pull. You always hold him by the TOP OF
-// HIS HEAD, wherever on him you clicked, and his FEET (the very bottom of the sprite) stay pinned
-// where they were: his head follows the cursor part of the way and his body stretches between his
-// feet and his head like a rubber band, turning so his head points away from his feet. Let go and
-// he's flung the opposite way from the pull, harder the further you pulled, using the
+// SLINGSHOT: hold the RIGHT mouse button on Starby and pull. The middle-bottom pixel of his sprite
+// (his feet) is LOCKED in place, and you drag him by the middle-top pixel (the top of his head),
+// wherever on him you clicked: his head sits right under the cursor (it glides there over the first
+// few px of the pull), he swings around his locked feet to follow it, and his body stretches
+// between his feet and his head like a rubber band. Pull below him and his head goes
+// below his feet, so he turns upside down. Let go and he's flung the opposite way from the pull,
+// harder the further you pulled, using the
 // normal throw physics (launch() in ./drag.js, so the Fling power slider applies). He glides,
 // bounces off the screen edges, wobbles back upright and lands as usual.
 //
@@ -23,14 +25,27 @@ import { rand } from './motion.js';
 // ---- Tuning ----
 const PULL_SLOP = 6; // px of pull before it counts as a slingshot (less = a right-click)
 const MAX_PULL = 200; // px: pulling further than this doesn't add power
-const FOLLOW = 0.35; // how far his head follows the cursor, as a fraction of the pull
-const MIN_LENGTH = 0.6; // × his height: shortest he squishes (pulling his head back toward his feet)
-const MAX_LENGTH = 2.2; // × his height: longest he stretches (feet to head)
+// You probably clicked somewhere on him other than his head. Over the first GRAB_SNAP px of the
+// pull his head glides onto the cursor (no jump); after that it stays right under it.
+const GRAB_SNAP = 40;
+// His length (feet to head) is kept within these, × his height. Past them his head stays on the
+// line from his feet toward the cursor, at that length.
+const MIN_LENGTH = 0.5;
+const MAX_LENGTH = 3;
 const LAUNCH_PER_PX = 8; // "hand" speed (px/s) per px of pull; scaled by Fling power like a throw
 const LAUNCH_SPIN = [3, 8]; // rad/s at full pull (random direction)
 const TREMBLE_FROM = 0.75; // tension above which he trembles
 const TREMBLE_PX = 1.5;
-const SNAP_SQUASH = 0.78; // squish on release (eases back while flying)
+// Rubber-band wobble on release: his stretch springs back past normal and oscillates, dying out
+// (a damped spring on the stretch, along his body as he spins). It starts from exactly the
+// stretch he had (no jump on release). Frequency in wobbles per second, DAMPING 0…1 (lower = more
+// wobbles). The squash side is softened by SQUASH_SOFT so a big stretch doesn't flatten him on
+// the first swing back (a 2.2× release still bottoms out around 0.6×).
+const WOBBLE_HZ = 6;
+const WOBBLE_DAMPING = 0.16;
+const SQUASH_SOFT = 1.5;
+// Spring offset → drawn stretch: as-is when stretched, eased off when squashed.
+const wobbleStretch = (x) => (x >= 0 ? 1 + x : 1 + x / (1 - SQUASH_SOFT * x));
 const SLING_MODES = ['idle', 'walk', 'follow', 'flee'];
 
 let pressing = false; // right button down on him
@@ -39,6 +54,8 @@ let press = null; // cursor at press (the pull is measured from here, so where y
 let cursor = null; // latest cursor
 let headRest = null; // the top of his head at press: the grab point
 let feet = null; // the bottom-center of his sprite at press: pinned while you pull
+let lastStretch = 1; // his stretch on the last pulled frame (where the release wobble starts)
+let wobble = null; // { x, v } after a release: stretch offset from normal and its speed
 let menuWaiting = false; // a contextmenu arrived while the button was still down
 let swallowNextMenu = false; // a slingshot just ended: eat the contextmenu that follows
 
@@ -58,8 +75,10 @@ function release(ctx) {
   // Flung the opposite way from the pull.
   const vx = (-px / len) * dist * LAUNCH_PER_PX;
   const vy = (-py / len) * dist * LAUNCH_PER_PX;
-  pet.warp = null;
-  pet.squash = SNAP_SQUASH;
+  // Snap: start the rubber-band wobble from exactly how stretched (or squashed) he was.
+  // (Inverse of wobbleStretch on the squash side, so the first frame matches what was drawn.)
+  const d = lastStretch - 1;
+  wobble = { x: d >= 0 ? d : d / (1 + SQUASH_SOFT * d), v: 0 };
   launch(ctx, { vx, vy, spin: (Math.random() < 0.5 ? -1 : 1) * rand(...LAUNCH_SPIN) * tension });
   ctx.log('slingshot', { pull: Math.round(dist), angle: Math.round((Math.atan2(-py, -px) * 180) / Math.PI) });
 }
@@ -76,10 +95,14 @@ export default {
       if (!canSling) return; // plain right-click behavior (menu)
       pressing = true;
       pulled = false;
+      wobble = null; // a new slingshot ends any leftover wobble
       press = { x: e.clientX, y: e.clientY };
       cursor = { ...press };
-      headRest = { x: pet.x + pet.size / 2, y: pet.y }; // top-center of his box = top of his head
-      feet = { x: pet.x + pet.size / 2, y: pet.y + pet.size }; // bottom-center = his feet
+      // Where they're DRAWN right now: his idle bob (pet.bob) shifts him up/down by a few px, and
+      // the slingshot sets it to 0, so include it or his feet would jump by the bob.
+      const drawnY = pet.y + (pet.bob || 0);
+      headRest = { x: pet.x + pet.size / 2, y: drawnY }; // top-center of his box = top of his head
+      feet = { x: pet.x + pet.size / 2, y: drawnY + pet.size }; // bottom-center = his feet
       ctx.setPinned(true); // keep click-through off while the cursor leaves him (see clickThrough.js)
     });
 
@@ -125,8 +148,31 @@ export default {
     }, { capture: true });
   },
 
-  update(ctx) {
+  update(ctx, dt) {
     const { pet } = ctx;
+    if (wobble && !pulled) {
+      // Released: rubber-band wobble while he flies (damped spring on his stretch, along his body).
+      if (pet.mode === 'drag' || pet.mode === 'sling') {
+        wobble = null; // grabbed (or a new pull): stop wobbling
+        if (pet.mode === 'drag') pet.warp = null;
+      } else {
+        const w = 2 * Math.PI * WOBBLE_HZ;
+        // Semi-implicit Euler in small steps keeps the spring stable at any frame rate.
+        const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
+        const h = dt / steps;
+        for (let i = 0; i < steps; i++) {
+          wobble.v += (-w * w * wobble.x - 2 * WOBBLE_DAMPING * w * wobble.v) * h;
+          wobble.x += wobble.v * h;
+        }
+        if (Math.abs(wobble.x) < 0.004 && Math.abs(wobble.v) < 0.05) {
+          wobble = null;
+          pet.warp = null;
+        } else {
+          // Along his body: the head points along (sin r, -cos r), i.e. at angle r − 90°.
+          pet.warp = { angle: pet.rotation - Math.PI / 2, stretch: wobbleStretch(wobble.x) };
+        }
+      }
+    }
     if (!pulled) return;
     if (pet.mode !== 'sling') { reset(ctx); return; } // something else took over (an event)
 
@@ -136,21 +182,17 @@ export default {
     const raw = Math.hypot(px, py);
     const dist = Math.min(MAX_PULL, raw);
     const tension = dist / MAX_PULL;
-    const dx = raw ? px / raw : 0;
-    const dy = raw ? py / raw : 0;
 
-    // His head (the grab point) follows the cursor part of the way; trembles when really stretched.
-    let headX = headRest.x + dx * dist * FOLLOW;
-    let headY = headRest.y + dy * dist * FOLLOW;
-    if (tension > TREMBLE_FROM) {
-      const k = (tension - TREMBLE_FROM) / (1 - TREMBLE_FROM);
-      headX += rand(-TREMBLE_PX, TREMBLE_PX) * k;
-      headY += rand(-TREMBLE_PX, TREMBLE_PX) * k;
-    }
+    const k = tension > TREMBLE_FROM ? (tension - TREMBLE_FROM) / (1 - TREMBLE_FROM) : 0;
 
-    // His feet stay pinned; his body spans feet → head. Length (as a stretch of his height) and
-    // direction come from that line, kept within MIN/MAX_LENGTH (the head is pulled back onto the
-    // line at that length, so the feet never move).
+    // His head (the top-middle pixel) is held by the cursor: it sits right under it, after gliding
+    // over from wherever you clicked during the first GRAB_SNAP px. Trembles when really stretched.
+    const offset = Math.max(0, 1 - raw / GRAB_SNAP); // 1 at the press … 0 once snapped
+    const headX = cursor.x + (headRest.x - press.x) * offset + rand(-TREMBLE_PX, TREMBLE_PX) * k;
+    const headY = cursor.y + (headRest.y - press.y) * offset + rand(-TREMBLE_PX, TREMBLE_PX) * k;
+
+    // His feet (the bottom-middle pixel) are locked; his body spans feet → head. Below his feet
+    // the line points down, so he's upside down. Length kept within MIN/MAX_LENGTH.
     let vx = headX - feet.x;
     let vy = headY - feet.y;
     let len = Math.hypot(vx, vy);
@@ -158,6 +200,7 @@ export default {
     const ux = vx / len;
     const uy = vy / len;
     const stretch = Math.max(MIN_LENGTH, Math.min(MAX_LENGTH, len / pet.size));
+    lastStretch = stretch;
     const bodyLen = stretch * pet.size;
 
     // rotation 0 = head up; the head points along (sin r, -cos r) = (ux, uy).
