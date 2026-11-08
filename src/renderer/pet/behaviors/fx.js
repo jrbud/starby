@@ -4,6 +4,8 @@
 //
 //   wall hit     drag.js 'impact'      crash lines at the wall (in front), a dust puff off the
 //                                      wall (behind), two small twinkling star clouds drifting away
+//   pong hit     events/pong.js 'pong-hit'  the same wall-hit effect on the side the paddle hit him
+//                                      (left = your paddle, right = the AI's)
 //   swat         drag.js 'swat'        small crash lines on the side your hand came from
 //   woken up     mood.js (shaken / thrown awake)  a small burst of star clouds
 //   shop         pet.js 'buy' / 'equip'           a bigger burst of star clouds
@@ -130,6 +132,7 @@ export default {
     ctx.events.onEntry((e) => {
       if (ctx.pet.hushed) return;
       if (e.type === 'impact') wallHit(ctx, e.data);
+      else if (e.type === 'pong-hit') wallHit(ctx, e.data); // { side: 'left' | 'right', speed }
       else if (e.type === 'swat') swat(ctx);
       else if (e.type === 'mood' && e.data.to === 'happy' && /shaken awake|thrown awake/.test(e.data.reason || '')) {
         burst(ctx, 4, 0.5, 0.55);

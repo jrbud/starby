@@ -96,9 +96,10 @@ function injectStyles() {
       pointer-events: none; display: none; will-change: transform;
     }
     .pong-label {
-      position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 6px;
-      font: 700 11px "Segoe UI", system-ui, sans-serif; color: #2b2b3a; background: rgba(255,255,255,0.92);
-      border: 1px solid #2b2b3a; border-radius: 5px; padding: 1px 6px; white-space: nowrap;
+      position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
+      font: 800 20px "Segoe UI", system-ui, sans-serif; color: #2b2b3a; background: rgba(255,255,255,0.95);
+      border: 2px solid #2b2b3a; border-radius: 8px; padding: 3px 12px; white-space: nowrap; margin-bottom: 10px;
+      letter-spacing: 1px; box-shadow: 0 2px 6px rgba(0,0,0,0.35); /* big + shadowed: readable at any resolution */
       transition: opacity ${YOU_LABEL_FADE}s ease-out;
     }
   `;
