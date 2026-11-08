@@ -10,6 +10,7 @@
     <link rel="preload" as="image" href="../../../assets/menuIcons/unchecked-box-hover.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/checked-box-idle.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/checked-box-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/unchecked-box-idle.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/yellow-square-hover.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-idle.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-hover.png" />
@@ -32,9 +33,9 @@
     <section class="setting">
         <div class="label-row">
             <label for="starby-size">Starby size</label>
-          <output id="starby-size-value" for="starby-size">96 px</output>
+          <output id="starby-size-value" for="starby-size">100 px</output>
         </div>
-      <input id="starby-size" type="range" min="48" max="144" step="4" value="96" />
+      <input id="starby-size" type="range" min="50" max="150" step="5" value="100" />
     </section>
 
 
@@ -46,34 +47,43 @@
       <input id="fling-power" type="range" min="0" max="100" step="1" value="50" />
     </section>
 
-    <!-- Sound effects volume + mute (settingsStore.sfxVolume / sfxMuted; played by shared/sfx.js).
-         Letting go of the slider plays a sample at the new volume. -->
+    <!-- Sounds (played by shared/sfx.js). The box in the header turns ALL sounds on/off (checked =
+         on; saved as settingsStore.sfxMuted, reversed). "All sounds" = master volume (sfxVolume);
+         below it, one slider + on/off box per category, built by settings.js from SOUND_CATEGORIES
+         in shared/sfx.js. Letting go of a slider plays a sample. -->
+    <details class="group" data-key="sounds" open>
+      <summary>
+        <span class="group-title">Sounds</span>
+        <input id="sfx-on" type="checkbox" class="art-check header-toggle" aria-label="Sounds on" title="All sounds on/off" />
+      </summary>
+      <div class="group-body">
+
     <section class="setting">
       <div class="label-row">
-        <label for="sfx-volume">Sound effects</label>
+        <label for="sfx-volume">All sounds</label>
         <output id="sfx-volume-value" for="sfx-volume">70%</output>
       </div>
-      <input id="sfx-volume" type="range" min="0" max="100" step="1" value="70" />
-    </section>
-    <section class="setting switches">
-      <label class="switch-row">
-        <span class="switch-name">Mute sounds</span>
-        <input id="sfx-muted" type="checkbox" class="art-check" />
-      </label>
+      <input id="sfx-volume" type="range" min="0" max="150" step="1" value="70" />
     </section>
 
+    <!-- One per category: name, %, slider and on/off box (settings.js). -->
+    <div id="sound-categories"></div>
+
+      </div>
+    </details>
 
 
-    <!-- Collapsible: click the heading (or Enter/Space). Open/closed is remembered (settings.js). -->
+
+    <!-- Collapsible: click the heading (or Enter/Space). Open/closed is remembered (settings.js).
+         The box in the header turns starbit spawning on/off (settingsStore.starbitSpawning). -->
     <details class="group" data-key="starbits" open>
-      <summary><span class="group-title">Starbits</span></summary>
+      <summary>
+        <span class="group-title">Starbits</span>
+        <input id="starbit-spawning" type="checkbox" class="art-check header-toggle" aria-label="Starbits spawning" title="Starbits spawning on/off" />
+      </summary>
       <div class="group-body">
 
     <section class="setting switches">
-      <label class="switch-row">
-        <span class="switch-name">Spawning</span>
-        <input id="starbit-spawning" type="checkbox" class="art-check" />
-      </label>
       <label class="switch-row">
         <span class="switch-name">Visible</span>
         <input id="starbit-visible" type="checkbox" class="art-check" />

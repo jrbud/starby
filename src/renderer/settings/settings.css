@@ -133,7 +133,7 @@ label,
 /* Each color is a square tile drawn with the team's art (no visible checkbox; the real one is
    hidden inside, see settings.js):
      not selected → assets/menuIcons/yellow-square-idle.png  (yellow-square-hover.png on hover)
-     selected     → assets/menuIcons/white-square-idle.png   (white-square-hover.png on hover)
+     selected     → assets/menuIcons/unchecked-box-idle.png  (unchecked-box-hover.png on hover)
    Hover files are preloaded in index.html. */
 .color-option {
   position: relative;
@@ -149,11 +149,11 @@ label,
   background-image: url('../../../assets/menuIcons/yellow-square-hover.png');
 }
 .color-option:has(input:checked) {
-  background-image: url('../../../assets/menuIcons/white-square-idle.png');
+  background-image: url('../../../assets/menuIcons/unchecked-box-idle.png');
 }
 .color-option:has(input:checked):hover,
 .color-option:has(input:checked:focus-visible) {
-  background-image: url('../../../assets/menuIcons/white-square-hover.png');
+  background-image: url('../../../assets/menuIcons/unchecked-box-hover.png');
 }
 .color-option:has(input:focus-visible) {
   outline: 2px solid var(--accent);
@@ -190,22 +190,24 @@ label,
   font-weight: 600;
 }
 
-/* Spawning / Visible / Shooting animation: real checkboxes (keyboard + screen readers work as
-   usual), drawn with the team's art: assets/menuIcons/{unchecked,checked}-box-{idle,hover}.png.
+/* Checkboxes (Mute all, sound categories, Spawning / Visible / Shooting animation): real
+   checkboxes (keyboard + screen readers work as usual), drawn with the team's art:
+     unchecked → assets/menuIcons/white-square-{idle,hover}.png
+     checked   → assets/menuIcons/checked-box-{idle,hover}.png
    Hovering anywhere on the row shows the hover art. (Hover files are preloaded in index.html.) */
 input[type="checkbox"].art-check {
   appearance: none;
   flex: none;
   width: 26px;
-  height: 26px; /* art is square (617×617) */
+  height: 26px; /* art is (about) square */
   margin: 0;
   border: 0;
-  background: url('../../../assets/menuIcons/unchecked-box-idle.png') center / contain no-repeat;
+  background: url('../../../assets/menuIcons/white-square-idle.png') center / contain no-repeat;
   cursor: pointer;
 }
 .switch-row:hover input.art-check,
 input.art-check:focus-visible {
-  background-image: url('../../../assets/menuIcons/unchecked-box-hover.png');
+  background-image: url('../../../assets/menuIcons/white-square-hover.png');
 }
 input.art-check:checked {
   background-image: url('../../../assets/menuIcons/checked-box-idle.png');
@@ -322,3 +324,43 @@ input:focus-visible {
 
 /* Sound effects slider while muted: dimmed (the value is kept for when you unmute). */
 #sfx-volume.is-muted { opacity: 0.45; }
+
+/* Sounds → one row per category (built by settings.js): slider with its on/off box beside it. */
+.sound-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sound-row input[type="range"] {
+  flex: 1;
+}
+.sound-row .sound-toggle {
+  padding: 0; /* just the box; the row's label above names it */
+}
+/* What's in the category, e.g. "throws, slingshots, crashes". */
+.sound-hint {
+  display: block;
+  font-size: 14px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+.sound-row input.is-muted {
+  opacity: 0.45;
+}
+
+/* On/off box in a section header (Sounds: all sounds; Starbits: spawning). Sits at the right end
+   of the header; clicking it only flips the box, not the section's open/closed state (the box is
+   the innermost clickable element, so the <summary> doesn't toggle). */
+.group > summary {
+  align-items: center;
+}
+.group > summary .header-toggle {
+  margin-left: auto;
+  margin-right: 14px; /* line up with the boxes below (.setting's side padding) */
+}
+input.art-check.header-toggle:hover {
+  background-image: url('../../../assets/menuIcons/white-square-hover.png');
+}
+input.art-check.header-toggle:checked:hover {
+  background-image: url('../../../assets/menuIcons/checked-box-hover.png');
+}

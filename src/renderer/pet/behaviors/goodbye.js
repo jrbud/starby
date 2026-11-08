@@ -23,6 +23,7 @@ import { sfx } from '../../shared/sfx.js';
 const SAY_FOR = 1.4; // seconds of his goodbye line before the burst
 const VANISH_MS = 90; // he blinks out inside the burst
 const AFTER_MS = 650; // let the star clouds fly a moment before the window closes
+const EXIT_SOUND_MAX_MS = 2000; // wait at most this long for exit.mp3 to finish before quitting
 
 const LINES = [
   'see you next time!',
@@ -48,8 +49,7 @@ async function sayGoodbye(ctx) {
   pet.rotation = 0;
   if (pet.mood !== 'happy' && pet.mood !== 'playful') requestMood(ctx, 'happy', 'saying goodbye'); // awake + talking
   ctx.log('goodbye', {});
-  // exit.mp3. Exclusive: nothing else plays over it (not even the chat blip of his bye line).
-  sfx.play('exit', { exclusive: true });
+  sfx.preload(['exit']); // ready to play the instant he vanishes (step 3)
 
   // 2. The line.
   ctx.say(LINES[Math.floor(Math.random() * LINES.length)], SAY_FOR * 1000 + 600);
@@ -59,11 +59,15 @@ async function sayGoodbye(ctx) {
   // 3. Burst + shrink.
   speechBubble()?.hide();
   goodbyeBurst(ctx);
+  // exit.mp3 with the sparkle burst. Exclusive: nothing else plays over it.
+  const exitSound = sfx.play('exit', { exclusive: true });
   // He just disappears inside the burst (and his floating accessories with him).
   for (const el of [ctx.petEl, ...ctx.stage.querySelectorAll(':scope > .floater, :scope > svg')]) {
     el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: VANISH_MS, fill: 'forwards' });
   }
-  await wait(VANISH_MS + AFTER_MS);
+  // Stay open until the star clouds have flown AND exit.mp3 has finished (closing the window would
+  // cut it off), but never longer than EXIT_SOUND_MAX_MS. (main/goodbye.js also force-quits at 3.5s.)
+  await Promise.all([wait(VANISH_MS + AFTER_MS), Promise.race([exitSound, wait(EXIT_SOUND_MAX_MS)])]);
 
   // 4. Done: the main process quits the app.
   ctx.api.goodbyeDone?.();

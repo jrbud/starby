@@ -13,7 +13,7 @@ export const STARBIT_COLORS = ['blue', 'green', 'pink', 'red', 'teal', 'white', 
 export const STARBIT_VARIANTS_PER_COLOR = 4;
 // Colors switched on by default (and after "Reset to default"). Must match starbitColors in
 // src/main/settingsStore.js.
-export const DEFAULT_STARBIT_COLORS = ['yellow'];
+export const DEFAULT_STARBIT_COLORS = ['blue', 'green', 'pink', 'red', 'teal', 'yellow']; // all but white
 
 export const starbitImage = (color, n) => `${STARBIT_ART_DIR}${color}${n}.png`;
 

@@ -25,9 +25,9 @@ const bubble = createBubble(bubbleEl);
 // How big Starby is on screen, in css px. Everything else (hit box, ground, drag physics,
 // starbits, prompts, labels) is sized from pet.size. It's a user setting ("Starby size" in the
 // Settings window, settingsStore.starbySize) applied live by applySize() below.
-const SIZE_DEFAULT = 96;
-const SIZE_MIN = 48; // keep in sync with the settings slider and settingsStore RANGES
-const SIZE_MAX = 144;
+const SIZE_DEFAULT = 100;
+const SIZE_MIN = 50; // keep in sync with the settings slider and settingsStore RANGES
+const SIZE_MAX = 150;
 const ART = 2048; // the art's canvas size (frames and accessories)
 
 // The canvas holds his frame (SIZE×SIZE, exactly over the #pet box) plus room around it for
