@@ -6,7 +6,7 @@
 //   windup  he stretches out (squashed wide, winding up) and says "ready?"
 //   fly     he flings himself at the box, fast (THROW_SPEED). Click / grab him WHILE HE'S INSIDE THE
 //           BOX → "NICE!" and WIN_REWARD starbits. He leaves the box uncaught → "STRIKE!"; he bonks
-//           into the edge, flies back to the left and winds up again. STRIKES_OUT strikes → you're out.
+//           into the edge, walks back to the left (facing left) and winds up again. STRIKES_OUT strikes → you're out.
 //           Grabbing him before he reaches the box or after he's left it → "CHEATER!", game over.
 //
 // CLICK-THROUGH: the pet window is click-through except over `.hit` elements, and that only flips
@@ -30,8 +30,9 @@ const BOX_INSET = 60; // px from the usable area's right edge
 const START_INSET = 20; // px from the usable area's left edge where he winds up
 const WINDUP_FOR = 1.3; // seconds of "ready?" before each throw
 const THROW_SPEED = 950; // px/s
-const RETURN_SPEED = 1300; // px/s flying back to the left after a strike
-const SETUP_SPEED = 900; // px/s getting to the far left at the start
+const WALK_SPEED = 650; // px/s walking back to the left (at the start and after a strike)
+const STEP_RATE = 14; // rad/s of the little step bounce while walking back
+const STEP_HOP = 5; // px of that bounce
 const STRIKES_OUT = 3;
 const WIN_REWARD = 10;
 const CATCH_PAD = 12; // px around him that still counts as clicking him (from inside the box)
@@ -57,6 +58,8 @@ let wasInBox = false; // his center was inside the box last frame
 let leftBox = false; // he went through and out the far side this throw
 let grab = null; // { inBox } recorded on mousedown, judged at the next tick
 let thrown = false; // at least one throw happened (for the shared rest)
+let walkTarget = null; // where he's walking to (picked ONCE per walk, so he heads straight there)
+let stepT = 0;
 let result = null; // { line, at } the NICE / CHEATER line, re-said if a click reply lands right after
 
 const areaOf = (ctx) => (ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + ctx.pet.size });
@@ -130,7 +133,17 @@ function moveTo(pet, target, speed, dt) {
   return false;
 }
 
+// Walk back to the far left, facing left (the 'left' art: pet.faceOverride, honoured by mood.js).
+function walkBack(ctx, nextPhase) {
+  phase = nextPhase;
+  walkTarget = startSpot(ctx);
+  stepT = 0;
+  ctx.pet.faceOverride = 'left';
+}
+
 function windUp(ctx) {
+  ctx.pet.faceOverride = null;
+  ctx.pet.bob = 0;
   phase = 'windup';
   phaseLeft = WINDUP_FOR;
   wasInBox = false;
@@ -192,7 +205,7 @@ export default {
     pet.mode = 'catch'; // behaviors stand down
     cancelJump();
     requestMood(ctx, 'playful', 'catch');
-    phase = 'setup';
+    walkBack(ctx, 'setup');
     ctx.say(LINES.intro(), 2500);
     ctx.log('catch-start', {});
   },
@@ -244,9 +257,12 @@ export default {
     updateJump(pet, dt);
     const a = areaOf(ctx);
 
-    if (phase === 'setup') {
+    if (phase === 'setup' || phase === 'return') {
+      // Walking back to the left: one fixed target, facing left, a little step bounce.
       pet.squash = approach(pet.squash, 1, dt, 10);
-      if (moveTo(pet, startSpot(ctx), SETUP_SPEED, dt)) windUp(ctx);
+      stepT += dt * STEP_RATE;
+      pet.bob = -Math.abs(Math.sin(stepT)) * STEP_HOP;
+      if (moveTo(pet, walkTarget, WALK_SPEED, dt)) windUp(ctx);
       return;
     }
     if (phase === 'windup') {
@@ -267,14 +283,10 @@ export default {
         if (phase === 'fly') { leftBox = true; } // (in case a frame skipped the box exit)
         if (phase === 'bonk') {
           if (strikes >= STRIKES_OUT) { ctx.log('catch-out', {}); finish(ctx, 'out'); return; }
-          phase = 'return';
+          walkBack(ctx, 'return');
         }
       }
       return;
-    }
-    if (phase === 'return') {
-      pet.squash = approach(pet.squash, 1, dt, 8);
-      if (moveTo(pet, startSpot(ctx), RETURN_SPEED, dt)) windUp(ctx);
     }
   },
 
@@ -284,6 +296,8 @@ export default {
     phase = 'done';
     grab = null;
     if (boxEl) boxEl.style.display = 'none'; // also stops it catching clicks
+    pet.faceOverride = null;
+    pet.bob = 0;
     if (pet.mode === 'catch') pet.mode = 'idle';
     if (thrown) markPlayed(ctx); // shared rest between games
     if (result === 'caught' && (pet.mood === 'happy' || pet.mood === 'playful')) requestMood(ctx, 'playful', 'caught');

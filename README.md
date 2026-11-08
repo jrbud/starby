@@ -14,8 +14,7 @@ Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Play
 **Developer** / **Quit**.
 
 **Developer** (for testing and demos): *Open pet DevTools* (console with the `starby.*` debug helpers), *Start
-star shower now*, *Start shooting star now*, *Hide & seek behind a real window* (says why if it can't see any windows), *Hide & seek behind a
-fake test window* (a dashed outline shows the pretend window; never uses real windows), *Starby invites
+star shower now*, *Start shooting star now*, *Starby invites
 you to a game*, *Skip game rest*, *Stop current event*. Dev triggers end whatever event is running first.
 
 Click him and
