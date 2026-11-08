@@ -1,7 +1,8 @@
 // INVITE — Starby asks you to play a game (any game in GAMES, ./games.js).
 //
 // When the games timer (./games.js) picks a game he announces, he stops, faces you and asks:
-// "wanna play pong?" plus a "Play Pong with Starby? [Yes] [No]" popup next to him (./prompt.js).
+// "wanna play pong?" in a talkbox, with [Yes!] [No] bursting out around him: the same menu as the
+// right-click dialogue (showMenu in ../dialogue/dialogue.js).
 //   Yes       → that game starts (its 3-2-1-GO countdown first)
 //   No        → he gets sad (mood.js 'sad') and won't ask again on his own for DECLINED_COOLDOWN
 //   no answer → "...maybe later then", no hard feelings
@@ -16,7 +17,7 @@ import { rand, chance, startJump, cancelJump, isJumping, updateJump } from '../b
 import { lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
 import { TICK_SECONDS } from '../core/clock.js';
-import { createPrompt } from './prompt.js';
+import { showMenu, closeMenu } from '../dialogue/dialogue.js';
 import { GAMES, restLeft, takeInviteGame } from './games.js';
 
 // ---- Tuning ----
@@ -38,7 +39,6 @@ let pendingGame = null; // name chosen by starby.invite('pong'), used by the nex
 let lastGame = null; // name of the last game offered (so it doesn't offer the same one every time)
 let answer = null; // 'yes' | 'no', set by the popup buttons, acted on at the next tick
 let left = 0;
-let prompt = null;
 let declinedAt = -Infinity;
 
 // A random game, avoiding the one offered last time when there's a choice.
@@ -91,21 +91,19 @@ export default {
     lastGame = game.name;
     answer = null;
     left = INVITE_FOR;
-    prompt = prompt || createPrompt(ctx.stage);
 
     pet.mode = 'invite'; // behaviors stand down; he stays put while asking
     cancelJump();
     startJump({ height: rand(8, 12), air: 0.25 }); // perk up
-    ctx.say(ASK[game.name](), INVITE_FOR * 1000);
     ctx.log('game-invite', { game: game.name, reason });
-    prompt.show({
-      text: `Play ${game.label} with Starby?`,
-      yes: 'Yes!',
-      no: 'No',
-      onYes: () => { answer = 'yes'; },
-      onNo: () => { answer = 'no'; },
+    // His ask goes in the menu's talkbox (not ctx.say), with the answers around him.
+    showMenu(ctx, {
+      line: ASK[game.name](),
+      options: [
+        { label: 'Yes!', onPick: () => { answer = 'yes'; } },
+        { label: 'No', onPick: () => { answer = 'no'; } },
+      ],
     });
-    prompt.place(pet, ctx.area?.());
   },
 
   onTick(ctx) {
@@ -140,13 +138,12 @@ export default {
   update(ctx, dt) {
     if (ctx.pet.mode !== 'invite') return;
     updateJump(ctx.pet, dt);
-    prompt?.place(ctx.pet, ctx.area?.());
   },
 
   stop(ctx) {
     endInvite = null;
     answer = null;
-    prompt?.hide();
+    closeMenu(ctx);
     if (ctx.pet.mode === 'invite') ctx.pet.mode = 'idle';
   },
 };

@@ -444,8 +444,23 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
   - **Focus slingshot:** he says something nice, pulls back, arcs into the bottom-left corner spinning, and
     slams in. He logs `slam` for the left wall and floor, which `fx.js` plays as a wall hit. It isn't logged
     as `impact`, so starbits.js doesn't drop starbits. Then he's parked and quiet as before.
+  - **All his speech = the team's talkbox art** (`assets/talkbox/`, small / medium / large × 2 frames).
+    The shared module is `src/renderer/pet/talkbox.js`, used by `bubble.js` (every `ctx.say`) and the dialogue.
+    - It picks the size that wastes least space and squishes it vertically (down to 55%, team-approved).
+      Short lines get short, wide bubbles with a short tail.
+    - Boil: the artist's frame 1 ↔ 2. Dark brown text.
+    - `bubble.js` keeps the bubble on screen: it slides sideways near an edge, and flips below him (tail up)
+      when there's no room above. pet.css's plain `.bubble` look is overridden only while a talkbox shows.
+    - The art loads once (large first) a moment after launch. Until then the old plain bubble is used.
+    - **Never two at once** (`takeSpeech` in `talkbox.js`):
+      - Opening the dialogue or an event menu hides the speech bubble.
+      - Lines said while it's open replace his line in it, and unprompted chatter waits.
+      - A closing dialogue talkbox vanishes the moment a new speech bubble appears.
+  - **Event choices use the same menu:** `showMenu` / `setMenuLine` / `closeMenu` in `dialogue.js`.
+    - The invite ("wanna play pong?" [Yes!] [No]) and the star quiz (4 answers, countdown in his bubble) use it.
+    - `prompt.js` is now unused.
   - **Look (shop/settings style):**
-    - The frames are `button-hover.png` and the answers are `button-idle.png` (`button-hover.png` on hover).
+    - The answers are `button-idle.png` (`button-hover.png` on hover).
       Both are used as CSS border-images, so the hand-drawn edge keeps its thickness at any size.
     - Text is Sour Gummy in the shop yellow `#ffe8a3`.
     - A slight "line boil": an SVG noise filter wobbles only the frame art at ~7 fps while anything's showing.

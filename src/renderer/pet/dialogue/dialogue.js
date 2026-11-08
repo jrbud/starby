@@ -11,10 +11,17 @@
 //                     If an event owns him (focus, hush), he isn't moved: the boxes shift instead.
 //   it closes when    you pick an answer that ends it, he's picked up, an event takes over, or
 //                     you leave it alone for AUTO_CLOSE seconds (the cursor over a box keeps it open)
+//   one talkbox       while it's open it holds his speech (../talkbox.js takeSpeech): the speech bubble
+//                     he had up goes away as it opens, and any new line he says replaces his line
+//                     here (a little pop) instead of stacking a second bubble on top.
 //
-// LOOK: matches the shop / settings windows.
-//   speech box  the team's button-hover.png (the settings frame's purple) as a CSS border-image
-//   answers     button-idle.png → button-hover.png on hover (same trick), a small grow on hover
+// LOOK: the answers match the shop / settings windows; his line is a real speech bubble.
+//   his line    a talkbox (../talkbox.js: the team's speech bubble art, sized and squished to fit,
+//               boiling frame 1 ↔ 2), tail pointing down at him, dark brown text, so it stands
+//               apart from the yellow answers. Same bubbles as all his other speech (../bubble.js).
+//               Until the art has loaded (a moment after launch) he uses the purple box below.
+//   answers     button-idle.png → button-hover.png on hover as a CSS border-image (keeps the
+//               hand-drawn edge the same thickness at any size), a small grow on hover
 //               (border-image keeps the hand-drawn edge the same thickness at any size)
 //   text        Sour Gummy in the shop's yellow (#ffe8a3)
 //   boil        frames wobble slightly like hand-drawn animation: an SVG noise displacement
@@ -23,10 +30,18 @@
 // Every box has the `hit` class, so click-through switches off only over the boxes themselves
 // (../clickThrough.js); the gaps between them stay click-through.
 // Run by events/index.js as a helper (init / watch / watchFrame).
+// EVENT MENUS: events show their choices the same way (talkbox line + burst horseshoe + boil):
+//   showMenu(ctx, { line, options: [{ label, onPick }] })   e.g. "wanna play pong?" [Yes!] [No]
+//   setMenuLine(ctx, text)                                   update his line (e.g. a countdown)
+//   closeMenu(ctx)                                           take it away (the event ended / timed out)
+// An event menu never moves him (the event owns him; the boxes shift to fit instead), doesn't
+// auto-close (the event has its own timer), closes when the event ends, and ignores right-clicks.
+// Used by events/invite.js and events/constellation.js (the star quiz).
 // DevTools: starby.dialogue() opens it, starby.dialogue('settings') opens a node directly.
 import { TREE } from './tree.js';
 import { requestGame } from '../events/games.js';
 import { TICK_SECONDS } from '../core/clock.js';
+import { createTalkbox, loadTalkbox, talkboxReady, takeSpeech, releaseSpeech, onSpeechBubbleShown } from '../talkbox.js';
 
 // ---- Tuning ----
 export const MAX_OPTIONS = 6; // answers per node (tree.js keeps to this; extras are dropped)
@@ -51,6 +66,8 @@ const BOIL_GRAIN = 0.04; // noise frequency: lower = broader, gentler waves
 // The button art (1871×687) has ~55px of empty margin, then the hand-drawn border, then the flat
 // fill from ~120px in: slice there, so the edges keep their look and the fill stretches.
 const SLICE = 120;
+const TALK_FONT = 16; // px, his line in the dialogue
+const TALK_MAX = 210; // px: his line wraps past this
 
 // Events and what a right-click does during them.
 // hoop-shot: right-drag is its slingshot (hoopShot.js also swallows right-clicks while it runs).
@@ -69,13 +86,17 @@ let room = null; // { x, y, until }: sliding him away from an edge before the bu
 let froze = false; // we put him in 'dialogue' mode (and must hand him back)
 let quietFor = 0;
 let boilTimer = null;
+let ctxRef = null;
+// While open, his ctx.say lines land here (replacing his line) instead of a second bubble.
+const takeLine = (text) => { if (ctxRef && open && say) replaceLine(ctxRef, text, true); };
 let boilStep = 0;
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const easeOutBack = (p, k = 1.5) => 1 + (k + 1) * (p - 1) ** 3 + k * (p - 1) ** 2;
 const easeIn = (p) => p * p * p;
-const centerOf = (pet) => ({ x: pet.x + pet.size / 2, y: pet.y + pet.bob + pet.size / 2 });
+// His standing middle (ignores hops/bob, so the boxes don't bounce when he does, e.g. invites).
+const centerOf = (pet) => ({ x: pet.x + pet.size / 2, y: pet.y + pet.size / 2 });
 
 // ---- Styles + boil filters ----
 function injectStyles() {
@@ -149,7 +170,7 @@ function startBoil() {
   if (boilTimer) return;
   const step = () => {
     boilStep = (boilStep + 1) % BOIL_SEEDS.length;
-    root?.style.setProperty('--boil', `url(#dialogue-boil-${boilStep})`);
+    root?.style.setProperty('--boil', `url(#dialogue-boil-${boilStep})`); // answers: noise boil
   };
   step();
   boilTimer = setInterval(step, BOIL_EVERY);
@@ -197,10 +218,11 @@ function layout(ctx) {
     top = Math.min(top, b.slot.y - b.h / 2);
     bottom = Math.max(bottom, b.slot.y + b.h / 2);
   }
-  say.slot = { x: 0, y: top - SAY_GAP - say.h / 2 };
+  // Speech above it all; a talkbox bubble is shifted so its tail tip points at his middle.
+  say.slot = { x: (0.5 - say.tailFrac) * say.w, y: top - SAY_GAP - say.h / 2 };
   top = say.slot.y - say.h / 2;
-  left = Math.max(left, say.w / 2);
-  right = Math.max(right, say.w / 2);
+  left = Math.max(left, say.w / 2 - say.slot.x);
+  right = Math.max(right, say.slot.x + say.w / 2);
   ext = { left, right, top: -top, bottom };
 }
 
@@ -244,7 +266,14 @@ const resolve = (ctx, line) => {
   return line || '';
 };
 
+// His line: the talkbox bubble if its art is loaded, else the purple box (button art).
 function makeSay() {
+  const base = { w: 0, h: 0, slot: { x: 0, y: 0 }, from: { x: 0, y: 0 }, kind: 'wait', start: 0, dur: 0, tailFrac: 0.5 };
+  if (talkboxReady()) {
+    const tb = createTalkbox({ fontSize: TALK_FONT, maxText: TALK_MAX, padX: 12, padY: 5, className: 'dlg-slot hit' });
+    root.appendChild(tb.el);
+    return { ...base, el: tb.el, tb, talk: true };
+  }
   const el = document.createElement('div');
   el.className = 'dlg-slot dlg-say hit';
   const frame = document.createElement('div');
@@ -252,7 +281,16 @@ function makeSay() {
   const textEl = document.createElement('div');
   el.append(frame, textEl);
   root.appendChild(el);
-  return { el, textEl, w: 0, h: 0, slot: { x: 0, y: 0 }, from: { x: 0, y: 0 }, kind: 'wait', start: 0, dur: 0 };
+  return { ...base, el, textEl, talk: false };
+}
+
+function setSayText(ctx, text) {
+  if (say.talk && say.tb.setText(text)) {
+    say.tailFrac = say.tb.tailFrac;
+    say.el.style.transformOrigin = `${(say.tailFrac * 100).toFixed(1)}% 100%`; // pops from the tail
+    return;
+  }
+  say.textEl.textContent = text;
 }
 
 function makeBox(ctx, option, from) {
@@ -275,16 +313,18 @@ function makeBox(ctx, option, from) {
 const measure = (b) => { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; };
 
 // Show node `id`; its boxes burst out from `origin` (an offset from his middle).
+// `id` is a node id in TREE, or a node object (event menus: { line, options, menu: true }).
 function showNode(ctx, id, origin = { x: 0, y: 0 }) {
-  const node = TREE[id];
+  const node = typeof id === 'string' ? TREE[id] : id;
   if (!node) { close(ctx); return; }
+  if (typeof id !== 'string') id = node.id || 'menu';
   let options = (node.options || []).filter((o) => !o.show || o.show(ctx));
   if (options.length > MAX_OPTIONS) {
     console.warn(`dialogue: node '${id}' has ${options.length} answers; only ${MAX_OPTIONS} fit (tree.js)`);
     options = options.slice(0, MAX_OPTIONS);
   }
   if (!say) say = makeSay();
-  say.textEl.textContent = resolve(ctx, node.line);
+  setSayText(ctx, resolve(ctx, node.line));
   boxes.push(...options.map((o) => makeBox(ctx, o, origin)));
   const fresh = boxes.filter((b) => b.kind === 'wait');
   // Measure (they're laid out but invisible), then place everything.
@@ -294,13 +334,13 @@ function showNode(ctx, id, origin = { x: 0, y: 0 }) {
   boxes = fresh; // layout only the new node's boxes...
   layout(ctx);
   boxes = live; // ...keep the leaving ones animating
-  open = { id, event: open ? open.event : ctx.activeEvent() };
+  open = { id, event: open ? open.event : ctx.activeEvent(), menu: Boolean(node.menu) };
   quietFor = 0;
   // Too close to an edge? Slide him away first (only if he's ours to move), then burst.
   const c = centerOf(ctx.pet);
   const fit = fitCenter(ctx, c);
   if (froze && Math.hypot(fit.x - c.x, fit.y - c.y) > 1) {
-    room = { x: fit.x - ctx.pet.size / 2, y: fit.y - ctx.pet.size / 2 - ctx.pet.bob, until: performance.now() + ROOM_MAX_MS };
+    room = { x: fit.x - ctx.pet.size / 2, y: fit.y - ctx.pet.size / 2, until: performance.now() + ROOM_MAX_MS };
   } else {
     burst(performance.now());
   }
@@ -337,6 +377,7 @@ function openDialogue(ctx, id = null) {
   open = null;
   const node = id || (active && !CALM.includes(active) ? 'busy' : 'start');
   showNode(ctx, node);
+  takeSpeech(takeLine); // his speech bubble goes away; new lines come here
   ctx.log('dialogue-open', { node, event: active });
   return true;
 }
@@ -355,6 +396,11 @@ function choose(ctx, picked) {
   const { option } = picked;
   const now = performance.now();
   ctx.log('dialogue-choice', { node: open?.id, label: option.label, action: option.action || null, next: option.next || null });
+  if (option.onPick) { // an event menu's answer
+    close(ctx, picked);
+    option.onPick();
+    return;
+  }
   if (option.next) {
     const origin = { ...stateOf(picked, now) };
     retire(picked, now);
@@ -370,6 +416,7 @@ function choose(ctx, picked) {
 function close(ctx, picked = null) {
   if (!open) return;
   open = null;
+  releaseSpeech(takeLine); // lines go back to his speech bubble
   room = null;
   const now = performance.now();
   retire(picked, now);
@@ -384,7 +431,7 @@ function close(ctx, picked = null) {
 function clearAll() {
   for (const b of boxes) b.el.remove();
   boxes = [];
-  say?.el.remove();
+  if (say?.tb) say.tb.remove(); else say?.el.remove();
   say = null;
 }
 
@@ -421,12 +468,59 @@ function draw(b, anchor, now) {
   return (b.kind === 'out' || b.kind === 'pop') && st.p >= 1; // finished leaving
 }
 
+// ---- Event menus (see the header) ----
+/** Show an event's choices like the dialogue: his `line` in a talkbox, `options` bursting out. */
+export function showMenu(ctx, { line, options }) {
+  if (!root) build(ctx);
+  clearAll();
+  if (froze && ctx.pet.mode === 'dialogue') ctx.pet.mode = 'idle'; // (the player's dialogue was open)
+  froze = false; // the event owns him: never move him (fitCenter shifts the boxes instead)
+  room = null;
+  root.style.display = '';
+  startBoil();
+  open = null;
+  showNode(ctx, { line, options: options.slice(0, MAX_OPTIONS), menu: true });
+  takeSpeech(takeLine);
+}
+
+/** Change his line in an open event menu (the answer boxes stay put). */
+export function setMenuLine(ctx, text) {
+  if (open?.menu) replaceLine(ctx, text, false);
+}
+
+// Swap his line in the open dialogue/menu; the answer boxes stay put. `pop`: a little pop to show
+// it's a new line (not for countdown ticks).
+function replaceLine(ctx, text, pop) {
+  if (!open || !say) return;
+  setSayText(ctx, text);
+  measure(say);
+  const all = boxes;
+  boxes = all.filter((b) => b.kind !== 'out' && b.kind !== 'pop');
+  layout(ctx); // same boxes, same spots; just re-aims the speech box for its new size
+  boxes = all;
+  if (pop && say.kind === 'shown') setKind(say, 'in', performance.now(), SAY_MS, { from: { ...say.slot } });
+}
+
+/** Take an event menu away (no-op if the player's own dialogue is open instead). */
+export function closeMenu(ctx) {
+  if (open?.menu) close(ctx);
+}
+
 export const dialogue = {
   name: 'dialogue',
 
   init(ctx) {
+    ctxRef = ctx;
+    // His speech bubble just popped up: drop our talkbox if it's still animating away (closed).
+    onSpeechBubbleShown(() => {
+      if (open || !say) return;
+      if (say.tb) say.tb.remove(); else say.el.remove();
+      say = null;
+    });
+    loadTalkbox(); // (bubble.js already started it; this just makes sure)
     // drag.js turns a right-click on him into this event (instead of the old native menu).
     ctx.petEl.addEventListener('pet:right-clicked', () => {
+      if (open?.menu) return; // an event is asking you something: answer with the boxes
       if (open) close(ctx);
       else openDialogue(ctx);
     });
@@ -443,7 +537,7 @@ export const dialogue = {
     quietFor = under && under.closest('.dlg-root') ? 0 : quietFor + TICK_SECONDS;
     const taken = pet.mode === 'drag' || pet.mode === 'toss' || (froze && pet.mode !== 'dialogue');
     const eventChanged = ctx.activeEvent() !== open.event;
-    if (taken || eventChanged || quietFor >= AUTO_CLOSE) close(ctx);
+    if (taken || eventChanged || (!open.menu && quietFor >= AUTO_CLOSE)) close(ctx);
   },
 
   // Every frame: slide him away from an edge if needed, animate and place the boxes.
@@ -469,7 +563,7 @@ export const dialogue = {
       return false;
     });
     if (say && draw(say, anchor, now)) {
-      say.el.remove();
+      if (say.tb) say.tb.remove(); else say.el.remove();
       say = null;
     }
     if (!open && !say && !boxes.length) {
