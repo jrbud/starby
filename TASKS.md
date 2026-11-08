@@ -183,6 +183,13 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
   (`HOOP_ART` / `HOOP_ART_BOX` in hoopShot.js; swap when a hoop is drawn).
 
+- [x] **P1-20 (Nice) Moon timer.** The game timer (`events/countdown.js`; tag, Starby Says, hoop shot) is a "moon"
+  that **ticks** away: full at the start, one slice disappears each second (clockwise from the top, like a pie
+  chart), gone at 0; it pulses for the last 5s. No numbers or text, just the moon (78px) in the starbit counter's card
+  art (110px), in the top-left corner of the usable screen. **The moon is a PLACEHOLDER: the starbit cluster PNG**
+  (`assets/starbits/cluster.png`) until moon art exists; swap `MOON_ART` (square PNG on transparent). The slices
+  are a CSS conic-gradient mask over the PNG (code only hides parts of team art; nothing is drawn).
+
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
 > stand down for modes they don't know), then hand it back. One at a time; pet.js runs the active event

@@ -1,73 +1,97 @@
-// The game timer card (tag, Starby Says, hoop shot...), styled exactly like the starbit counter
-// (behaviors/starbits.js + pet.css .starbits-toast): the team's card art (starCardBg.png, stretched),
-// Sour Gummy (declared in pet.css), the shop's tan/yellow #ffe8a3, small. Just one line: the time,
-// big, then the game's name, small ("0:12 Tag"). No descriptions or hints, only the name. The last
-// URGENT_AT seconds the time turns a soft red.
+// The game timer (tag, Starby Says, hoop shot...): a "moon" that ticks away. A full moon at the
+// start; every second ONE more slice disappears, clockwise from the top, like a pie chart, until
+// it's gone when time's up. No numbers or text, just the moon, in the same card art as the
+// starbit counter (starCardBg.png). The last URGENT_AT seconds it gently pulses.
 //
 //   const countdown = createCountdown(ctx.stage, () => ctx.area());
 //   countdown.show('Tag', 15);   countdown.set(secondsLeft);   countdown.hide();
+// The first show() of a game (while hidden) sets the full moon = that many seconds; calling show()
+// again mid-game (tag does, on every tag) keeps ticking from where it is.
 //
-// Sits at the top right of the usable screen (getArea = ctx.area, so it dodges the taskbar on any
-// side), just BELOW where the starbit counter slides in, so the two never overlap.
+// ART: there's no moon art yet, so the "moon" is a PLACEHOLDER: the team's starbit cluster PNG
+// (assets/starbits/cluster.png, the starbit counter's icon). When a moon is drawn, change MOON_ART
+// (square PNG on a transparent background). Nothing is drawn by code: the slices are a CSS mask
+// (a conic-gradient) that hides part of the PNG, i.e. code only shows/hides the team's art.
+//
+// Sits at the TOP LEFT of the usable screen (getArea = ctx.area, so it dodges the taskbar on any
+// side). The starbit counter lives top right, so the two never overlap.
 // Not a `.hit` element: it stays click-through and never blocks the desktop.
 
-const URGENT_AT = 5; // seconds: turn red for the last few
-const TAN = '#ffe8a3'; // shop.css --yellow, same as the starbit counter
-const URGENT = '#ff9d8a'; // soft red that still reads on the dark card
-const CARD_ART = '../../../assets/backgrounds/starCardBg.png'; // relative to src/renderer/pet/index.html
+const URGENT_AT = 5; // seconds: pulse for the last few
+const MOON_ART = '../../../assets/starbits/cluster.png'; // PLACEHOLDER moon; relative to src/renderer/pet/index.html
+const CARD_ART = '../../../assets/backgrounds/starCardBg.png'; // the starbit counter's card art
+const CARD = 110; // px: the card (square), big enough to read at a glance
+const MOON = 78; // px: the moon inside it
+const INSET = 16; // px from the usable area's top-left corner (the same margin as the starbit counter)
 
-const mmss = (s) => {
-  const whole = Math.ceil(s); // 19.2s left shows as 0:20, like a real countdown
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
-};
-
-const INSET = 16; // px from the usable area's right edge (= the starbit counter's margin)
-const BELOW_COUNTER = 16 + 58 + 8; // px from the top: under the counter card (16px margin + 58px card + gap)
-const FONT = "'Sour Gummy', 'Segoe UI', system-ui, sans-serif";
+// The pulse for the last seconds (a style tag, injected once).
+function injectStyles() {
+  if (document.getElementById('moon-timer-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'moon-timer-styles';
+  style.textContent = `
+    @keyframes moon-timer-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+    .moon-timer-urgent { animation: moon-timer-pulse 0.5s ease-in-out infinite; }
+  `;
+  document.head.appendChild(style);
+}
 
 export function createCountdown(stage, getArea = null) {
   let el = null;
-  let titleEl = null;
-  let timeEl = null;
-  let lastShown = '';
+  let moonEl = null;
+  let total = 1; // whole seconds in a full moon (set by the first show() of a game)
+  let shownLeft = null; // whole seconds currently shown
 
   function build() {
+    injectStyles();
     el = document.createElement('div');
     el.className = 'event-countdown';
     Object.assign(el.style, {
       position: 'absolute',
-      top: `${BELOW_COUNTER}px`,
-      right: `${INSET}px`,
+      top: `${INSET}px`,
+      left: `${INSET}px`,
       display: 'none',
-      minWidth: '150px', // same as the starbit counter
-      height: '58px', // exactly the counter's height: one line
+      width: `${CARD}px`,
+      height: `${CARD}px`,
       boxSizing: 'border-box',
-      padding: '0 22px 2px', // clear of the art's thick hand-drawn border (like the counter)
       background: `url("${CARD_ART}") center / 100% 100% no-repeat`,
-      color: TAN,
-      fontFamily: FONT,
       filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3))', // follows the art's wobbly edge
-      whiteSpace: 'nowrap',
       pointerEvents: 'none',
-      textAlign: 'center',
     });
-    const line = document.createElement('div');
-    // Vertically centered in the 58px card, like the counter's flex row.
-    Object.assign(line.style, { display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '8px', lineHeight: '1', height: '100%', paddingTop: '17px', boxSizing: 'border-box' });
-    timeEl = document.createElement('span');
-    Object.assign(timeEl.style, { fontSize: '26px', fontWeight: '800', fontVariantNumeric: 'tabular-nums' }); // = counter number
-    titleEl = document.createElement('span');
-    Object.assign(titleEl.style, { fontSize: '15px', fontWeight: '700', opacity: '0.85' }); // = counter label
-    line.append(timeEl, titleEl);
-    el.append(line);
+    moonEl = document.createElement('img');
+    moonEl.className = 'moon-timer';
+    moonEl.src = MOON_ART;
+    moonEl.alt = '';
+    moonEl.draggable = false;
+    moonEl.onerror = () => console.warn(`[timer] missing moon art: ${MOON_ART}`);
+    Object.assign(moonEl.style, {
+      position: 'absolute',
+      left: `${(CARD - MOON) / 2}px`,
+      top: `${(CARD - MOON) / 2}px`,
+      width: `${MOON}px`,
+      height: `${MOON}px`,
+      objectFit: 'contain',
+    });
+    el.appendChild(moonEl);
     stage.appendChild(el);
+  }
+
+  // Hide the part of the moon that's gone: the first `gone` degrees clockwise from the top.
+  function slice(left) {
+    const gone = Math.round((1 - left / total) * 360 * 100) / 100;
+    const mask = gone <= 0 ? 'none' : `conic-gradient(from 0deg, transparent 0deg ${gone}deg, #000 ${gone}deg 360deg)`;
+    moonEl.style.maskImage = mask;
+    moonEl.style.webkitMaskImage = mask;
   }
 
   return {
     show(title, seconds) {
       if (!el) build();
-      titleEl.textContent = title; // just the game's name
-      lastShown = '';
+      el.setAttribute?.('aria-label', `${title} timer`);
+      if (el.style.display === 'none') { // a new game: this many seconds is a full moon
+        total = Math.max(1, Math.ceil(seconds));
+        shownLeft = null;
+      }
       this.set(seconds);
       el.style.display = 'block';
     },
@@ -76,18 +100,19 @@ export function createCountdown(stage, getArea = null) {
       const a = getArea && getArea();
       if (a) {
         // Recomputed each update, in case the taskbar moves mid-game.
-        el.style.top = `${Math.max(0, a.top) + BELOW_COUNTER}px`;
-        el.style.right = `${Math.max(0, window.innerWidth - a.right) + INSET}px`;
+        el.style.top = `${Math.max(0, a.top) + INSET}px`;
+        el.style.left = `${Math.max(0, a.left) + INSET}px`;
       }
-      const s = Math.max(0, seconds);
-      const text = mmss(s);
-      if (text === lastShown) return;
-      lastShown = text;
-      timeEl.textContent = text;
-      timeEl.style.color = s <= URGENT_AT ? URGENT : TAN;
+      // Ticking: whole seconds only, so a slice disappears exactly once per second.
+      const left = Math.min(total, Math.max(0, Math.ceil(seconds)));
+      if (left === shownLeft) return;
+      shownLeft = left;
+      slice(left);
+      moonEl.classList.toggle('moon-timer-urgent', left > 0 && left <= URGENT_AT);
     },
     hide() {
       if (el) el.style.display = 'none';
+      moonEl?.classList.remove('moon-timer-urgent');
     },
   };
 }
