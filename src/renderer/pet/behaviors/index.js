@@ -32,6 +32,6 @@ import starbits from './starbits.js';
 import systemReactions from './systemReactions.js';
 import sessionEvents from './sessionEvents.js';
 import shopOpener from './shopOpener.js';
-import wallImpact from './wallImpact.js'; // crash lines + dust + star clouds when he hits a wall
+import fx from './fx.js'; // hand-drawn effects: wall hits, swats, wind trails, dance swirl, star bursts
 
-export const BEHAVIORS = [idle, walk, drag, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, shopOpener, wallImpact];
+export const BEHAVIORS = [idle, walk, drag, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, shopOpener, fx];
