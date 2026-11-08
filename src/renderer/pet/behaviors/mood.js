@@ -74,8 +74,8 @@ const LINES = {
   sleepy: lineBag(['zzz...', '*snore*', 'zzz... mm... starbits...']),
   wake: lineBag(["huh?! i'm up, i'm up!", 'whoa! good morning?', 'okay okay, no more naps']),
   roused: lineBag(["oh! hi, i'm awake", 'hm? oh, hi!', "i wasn't sleeping!"]),
-  calmDown: lineBag(['hmph. fine.', "ok... i'm not mad anymore", 'we good.']),
-  cheerUp: lineBag(["ok, i'm feeling better!", 'cheered up ✦', 'maybe next time!']),
+  calmDown: lineBag(['hmph. fine.', "ok... i'm not mad anymore", 'we\'re good.']),
+  cheerUp: lineBag(["ok, i'm feeling better!", 'i\'m all good now!', 'maybe next time!']),
 };
 
 // ---- State ----
