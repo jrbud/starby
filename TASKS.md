@@ -156,6 +156,16 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   frame (leaving/re-entering the screen) are ignored. Ends after **30s** ("ok i'm bored now"), or as soon as a
   copied move would push him **into the edge** of the usable screen: he stops short, "hey! i'm not walking into a
   wall!". Moving along an edge or away from it is fine. Grabbed → ends. No reward; shares the rest between games.
+- [x] **P1-18 (Nice) Starby Says.** `events/starbySays.js`, a game (invite "wanna play starby says?", game
+  buttons, menu "Play starby says"), like Simon says. After a short intro the clock runs **15s** (countdown top
+  right). He gives commands one after another, in his bubble and under the countdown, 60% of them starting with
+  "Starby says": tap me (`click`), pick me up (`grab`), throw me (`toss`), throw me into the wall (`impact`), spin me
+  (`spin`), open the shop (the shop event starting). **With "Starby says"**: do it within 4s or you lose ("too
+  slow!"). **Without**: doing it loses ("i didn't say starby says!"); leaving it alone is safe. Only the current
+  command's action counts. After a done command he waits until he's landed (+0.6s) before the next. Last the 15s →
+  win, 8 starbits; lose → nothing taken. Opening the shop takes him over and ends the game, so that command decides
+  it on the spot (with "Starby says" → win, without → lose). He isn't taken over (no `pet.mode`), so grabbing and
+  throwing work as usual.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
