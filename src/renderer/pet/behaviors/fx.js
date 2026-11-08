@@ -17,12 +17,14 @@
 //   goodbye      behaviors/goodbye.js (quitting): a big star-cloud explosion on top of him
 // DevTools: starby.impactFx('left', 2000), starby.fx('burst') / ('wake') / ('swat').
 import { createEffects } from '../effects.js';
+import { sfx } from '../../shared/sfx.js';
 
 // ---- Tuning ----
 const SOFT = 700; // px/s into a wall: drag.js's softest logged impact...
 const HARD = 2500; // ...and its hardest (full squash)
 const MAX_LIVE = 24; // cap so a corner ping-pong can't pile up effects
 const SHOP_DEDUPE = 1.2; // seconds: buying then equipping right away = one burst
+const EXPLODE_COOLDOWN = 150; // ms between explode.mp3 plays (a corner ping-pong = one boom per hit, not a pile-up)
 
 // Per wall: rotation for the crash lines (drawn for a right wall) and for the floor-based art
 // (dust/stars), the direction pointing back into the screen, and a nudge toward the wall.
@@ -41,6 +43,7 @@ const deg = (rad) => (rad * 180) / Math.PI;
 
 let fx = null;
 let lastShopBurst = -Infinity;
+let lastExplode = -Infinity;
 
 const centerOf = (pet) => ({ x: pet.x + pet.size / 2, y: pet.y + pet.bob + pet.size / 2 });
 
@@ -63,6 +66,13 @@ function wallHit(ctx, { side, speed }) {
   if (a) {
     hit.x = Math.max(a.left, Math.min(a.right, hit.x));
     hit.y = Math.max(a.top, Math.min(a.bottom, hit.y));
+  }
+
+  // explode.mp3 with the crash: softest logged hit at 60% volume, hardest at full.
+  const now = performance.now();
+  if (now - lastExplode > EXPLODE_COOLDOWN) {
+    lastExplode = now;
+    sfx.play('explode', { volume: 0.6 + 0.4 * k });
   }
 
   // 1. Crash lines, over his box (the art places them at his edge), in front of him.

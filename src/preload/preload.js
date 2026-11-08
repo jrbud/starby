@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('sprite', {
   // State / persistence
   getState: () => ipcRenderer.invoke('state:get'),
   onStateChanged: (cb) => subscribe('state:changed', cb),
+  // Settings → "Reset progress": starbits to 0, only the free starter items. Returns the new state.
+  resetProgress: () => ipcRenderer.invoke('state:reset-progress'),
 
   // Starbits
   collectStarbits: (amount = 1) => ipcRenderer.invoke('starbits:collect', amount),

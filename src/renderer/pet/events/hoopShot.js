@@ -36,6 +36,7 @@ import { TICK_SECONDS } from '../core/clock.js';
 import { createCountdown } from './countdown.js';
 import { readyToPlay, markPlayed } from './games.js';
 import { starbitImages, enabledColors } from '../../shared/starbitArt.js';
+import { sfx } from '../../shared/sfx.js';
 
 // ---- Tuning ----
 const GAME_FOR = 15; // seconds to make the shot
@@ -254,6 +255,7 @@ function hookMouse(ctx) {
     const d = lastStretch - 1;
     wobble = { x: d >= 0 ? d : d / (1 + d), v: 0 };
     phase = 'flight';
+    sfx.play('sling'); // you let go of the slingshot
     ctx.log('hoop-shot', { speed: Math.round(Math.hypot(vel.x, vel.y)) });
   });
 }

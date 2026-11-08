@@ -18,10 +18,12 @@
 // the "Play a game?" buttons, the right-click menu ("Play constellation quiz"), or
 // starby.startEvent('constellation'). Shares the rest between games (./games.js).
 //
-// THE LINES are drawn by code: thin white lines (LINE_COLOR) with a dark outline under them
-// (OUTLINE_COLOR) so they show on any wallpaper, the team-approved
-// "supplementary lines" exception in CLAUDE.md (plain lines connecting existing art). The stars
-// themselves are the team's starbit PNGs. No other shapes are drawn.
+// THE LINES are the team's hand-drawn stroke (assets/menuIcons/line.png), one per connection, laid
+// from star to star and stretched to fit, in the app's theme: yellow (LINE_COLOR) with the dark
+// purple outline (OUTLINE_COLOR). line.png is a single dark stroke and the file isn't changed: its
+// shape is used twice through CSS masks (a purple copy behind, a slightly thinner yellow copy on
+// top), like the pong paddles. Each line draws in by being revealed from one star to the next
+// (clip-path), so the stroke never squashes. The stars are the team's starbit PNGs.
 //
 // Owns the star via pet.mode = 'quiz' (only this event moves him; faces the drawing, hops now and then).
 // Decisions (timers, answers) on ticks; the line drawing and the popup position every frame.
@@ -49,11 +51,13 @@ const GLIDE_RATE = 4.5; // how snappily he glides to the middle / out of the way
 const ARRIVED = 3; // px: close enough to his spot
 const STAR_PAD = 24; // px around the stars (half a starbit) when finding the free space beside the drawing
 const CHOICES = 4;
-const LINE_COLOR = '#ffffff'; // white, like a star chart
-const LINE_WIDTH = 2.5;
-const OUTLINE_COLOR = '#3a2219'; // dark outline under the white line (Starby's outline brown), so it
-const OUTLINE_WIDTH = 5; //        shows on light wallpapers too (px, total width under the line)
-const SVG_NS = 'http://www.w3.org/2000/svg';
+const LINE_COLOR = '#ffe8a3'; // the app's yellow (shop.css --yellow)
+const OUTLINE_COLOR = '#2d2335'; // the app's dark purple outline (the colour of line.png / the buttons' edges)
+const LINE_THICK = 9; // px: each line's thickness (outline included)
+const LINE_OUTLINE = 2; // px of purple showing around the yellow
+const LINE_ART = '../../../assets/menuIcons/line.png'; // team art; relative to src/renderer/pet/index.html
+const LINE_PNG = [1853, 164]; // the PNG's size...
+const LINE_BOX = [65, 44, 1783, 121]; // ...and where the stroke sits in it (left, top, right, bottom)
 
 const LINES = {
   intro: lineBag(['quiz time! guess my constellation!', 'watch this! i\'ll draw you a constellation', 'star quiz! ready?']),
@@ -72,8 +76,8 @@ let lastShape = null;
 let points = []; // [{x, y}] screen positions of the stars
 let held = []; // starbit handles from placeStarbit (null when spawning is off)
 let placed = 0;
-let svg = null;
-let lineEls = []; // <g> per shape line (dark outline <line> + white <line>), drawn in order
+let linesEl = null; // the layer holding the lines (behind the starbits)
+let lineEls = []; // one element per shape line (purple outline + yellow fill), drawn in order
 let drawing = 0; // index of the line being drawn
 let drawT = 0; // seconds into the current line
 let answer = null; // name picked in the popup (acted on at the next tick)
@@ -166,61 +170,73 @@ function layout(ctx, c) {
   return c.stars.map(([sx, sy]) => ({ x: x + (sx - minX) * scale, y: y + (sy - minY) * scale }));
 }
 
+// CSS for a copy of line.png's stroke (LINE_BOX) stretched to exactly fill a w × h box.
+function lineMask(w, h) {
+  const sx = w / (LINE_BOX[2] - LINE_BOX[0]);
+  const sy = h / (LINE_BOX[3] - LINE_BOX[1]);
+  return {
+    maskImage: `url('${LINE_ART}')`, maskRepeat: 'no-repeat',
+    maskSize: `${(LINE_PNG[0] * sx).toFixed(2)}px ${(LINE_PNG[1] * sy).toFixed(2)}px`,
+    maskPosition: `${(-LINE_BOX[0] * sx).toFixed(2)}px ${(-LINE_BOX[1] * sy).toFixed(2)}px`,
+  };
+}
+
 function buildLines(ctx) {
-  if (!svg) {
-    svg = document.createElementNS(SVG_NS, 'svg');
-    Object.assign(svg.style, { position: 'absolute', left: '0', top: '0', width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' });
-    svg.setAttribute('class', 'constellation-lines');
+  if (!linesEl) {
+    linesEl = document.createElement('div');
+    linesEl.className = 'constellation-lines';
+    Object.assign(linesEl.style, { position: 'absolute', left: '0', top: '0', width: '100%', height: '100%', pointerEvents: 'none' });
   }
   // Behind the starbits: insert before the first child so the stars sit on top of the lines.
-  if (!svg.parentNode) ctx.stage.insertBefore(svg, ctx.stage.firstChild || null);
-  svg.style.transition = '';
-  svg.style.opacity = '1';
+  if (!linesEl.parentNode) ctx.stage.insertBefore(linesEl, ctx.stage.firstChild || null);
+  linesEl.style.transition = '';
+  linesEl.style.opacity = '1';
   for (const el of lineEls) el.remove();
-  const makeLine = (i, color, width) => {
-    const el = document.createElementNS(SVG_NS, 'line');
-    el.setAttribute('x1', points[i].x); el.setAttribute('y1', points[i].y);
-    el.setAttribute('x2', points[i].x); el.setAttribute('y2', points[i].y); // grows toward j
-    el.setAttribute('stroke', color);
-    el.setAttribute('stroke-width', width);
-    el.setAttribute('stroke-linecap', 'round');
+  lineEls = shape.lines.map(([i, j]) => {
+    const a = points[i];
+    const b = points[j];
+    const len = Math.max(1, Math.hypot(b.x - a.x, b.y - a.y));
+    // One line: starts at star a, as long as the gap to star b, turned to point at it.
+    const el = document.createElement('div');
+    Object.assign(el.style, {
+      position: 'absolute', left: `${a.x}px`, top: `${a.y - LINE_THICK / 2}px`, width: `${len}px`, height: `${LINE_THICK}px`,
+      transformOrigin: `0 ${LINE_THICK / 2}px`, transform: `rotate(${Math.atan2(b.y - a.y, b.x - a.x)}rad)`,
+      clipPath: 'inset(0 100% 0 0)', // hidden; growLine reveals it from star a to star b
+    });
+    const outline = document.createElement('div'); // purple, full size
+    Object.assign(outline.style, { position: 'absolute', inset: '0', background: OUTLINE_COLOR, ...lineMask(len, LINE_THICK) });
+    const fillW = Math.max(1, len - 2 * LINE_OUTLINE);
+    const fillH = LINE_THICK - 2 * LINE_OUTLINE;
+    const fill = document.createElement('div'); // yellow, a bit smaller: the purple shows around it
+    Object.assign(fill.style, {
+      position: 'absolute', left: `${LINE_OUTLINE}px`, top: `${LINE_OUTLINE}px`, width: `${fillW}px`, height: `${fillH}px`,
+      background: LINE_COLOR, ...lineMask(fillW, fillH),
+    });
+    el.append(outline, fill);
+    linesEl.appendChild(el);
     return el;
-  };
-  lineEls = shape.lines.map(([i]) => {
-    const g = document.createElementNS(SVG_NS, 'g');
-    g.appendChild(makeLine(i, OUTLINE_COLOR, OUTLINE_WIDTH)); // underneath
-    g.appendChild(makeLine(i, LINE_COLOR, LINE_WIDTH)); // on top
-    g.style.display = 'none';
-    svg.appendChild(g);
-    return g;
   });
 }
 
+// Reveal line `index` from its first star to `k` (0…1) of the way to the second.
 function growLine(index, k) {
   const el = lineEls[index];
   if (!el) return;
-  const [i, j] = shape.lines[index];
-  const a = points[i];
-  const b = points[j];
-  el.style.display = '';
-  for (const line of el.children) { // outline + white line grow together
-    line.setAttribute('x2', a.x + (b.x - a.x) * k);
-    line.setAttribute('y2', a.y + (b.y - a.y) * k);
-  }
+  el.style.clipPath = `inset(0 ${((1 - k) * 100).toFixed(2)}% 0 0)`;
 }
 
 function fadeLines(ctx) {
-  if (!svg) return;
-  svg.style.transition = `opacity ${LINE_FADE}s ease-in`;
-  svg.style.opacity = '0';
-  const mine = svg;
-  ctx.after(LINE_FADE, () => { if (phase === 'done' && mine === svg) clearLines(); }, 'constellation: lines faded');
+  if (!linesEl) return;
+  linesEl.style.transition = `opacity ${LINE_FADE}s ease-in`;
+  linesEl.style.opacity = '0';
+  const mine = linesEl;
+  ctx.after(LINE_FADE, () => { if (phase === 'done' && mine === linesEl) clearLines(); }, 'constellation: lines faded');
 }
 
 function clearLines() {
   for (const el of lineEls) el.remove();
   lineEls = [];
-  svg?.remove();
+  linesEl?.remove();
 }
 
 function showQuestion(ctx) {

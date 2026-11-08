@@ -9,10 +9,27 @@ const settingsStore = require('./settingsStore');
 const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
 const adminSettingsStore = require('./adminSettingsStore');
 const { buildPetMenu } = require('./tray');
+const { createDefaultState } = require('../shared/stateSchema');
+const { getPetWindow } = require('./windows/petWindow');
 
 function registerIpc() {
   // ---- State ----
   ipcMain.handle('state:get', () => store.get());
+
+  // Settings → "Reset progress" (after its confirm steps): starbits to 0, own only the free
+  // starters (Sunny + no accessory), wear them. Saved like any other change, and every window
+  // gets 'state:changed'. Then Starby reacts (events/shop.js handles 'progress-reset').
+  ipcMain.handle('state:reset-progress', () => {
+    const fresh = createDefaultState();
+    const state = store.update((s) => {
+      s.starbits = 0;
+      s.owned = [...fresh.owned];
+      s.equipped = { ...fresh.equipped };
+    });
+    const pet = getPetWindow();
+    if (pet && !pet.isDestroyed()) pet.webContents.send('pet:command', { type: 'progress-reset' });
+    return state;
+  });
 
   // ---- Starbits ----
   ipcMain.handle('starbits:collect', (_e, amount = 1) => {

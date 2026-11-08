@@ -77,8 +77,8 @@ button {
   width: 220px;
   height: 162px;
   margin-top: 12px;
-  border: 1.5px solid var(--outline);
-  background: var(--display-bg);
+  /*border: 1.5px solid var(--outline);*/
+  /*background: var(--display-bg);*/
 }
 
 /* Buy / Equip. States set by renderAction() in shop.js:

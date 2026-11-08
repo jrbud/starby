@@ -141,8 +141,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   - Intro and shop are `category: 'system'`. The runner still supports `auto`, but nothing uses it now.
 - [x] **P1-16 (Nice) Constellation quiz.** `events/constellation.js`, a game (invite "wanna do a star quiz?",
   game buttons as "Star Quiz", games timer, menu "Play constellation quiz"): he throws one starbit per star to
-  its spot beside him, then the constellation's lines draw in one by one (thin white lines with a dark outline: the team's
-  "supplementary lines" exception; the stars are the starbit PNGs). "Which constellation
+  its spot beside him, then the constellation's lines draw in one by one (the team's `menuIcons/line.png` stroke, star to star, in the
+  app's yellow with a dark purple outline, via CSS masks; the stars are the starbit PNGs). "Which constellation
   is this?" + 4 answer buttons (the right one + 3 random others), 20s to answer. **Right** → the starbits are
   released and float like normal drops for you to collect. **Wrong / no answer** → he takes them all back (they
   fly into him; nothing is taken from your count). Grabbed mid-quiz → he takes them back. Shapes live in
@@ -190,8 +190,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   that **wanes like the real moon**, ticking once a second: full → gibbous (3/4) → half → crescent (1/4) → gone at 0
   (the dark side creeps in from the right); it pulses for the last 5s. No numbers or text: just the moon (110px) on
   the team's purple button art (`menuIcons/button-hover.png`, border-image) as a 150px card in the top-left corner.
-  **The moon is a PLACEHOLDER: the starbit cluster PNG** (`assets/starbits/cluster.png`) until moon art exists; swap
-  `MOON_ART`. The phases are a CSS mask over the PNG (lit left half ± a terminator ellipse, mask-composite add /
+  **The moon is the team's `assets/events/moon.png`** (`MOON_ART`). The phases are a CSS mask over the PNG (lit left half ± a terminator ellipse, mask-composite add /
   subtract): code only hides parts of team art; nothing is drawn.
 - [x] **P1-21 (Nice) "How To Care for Your New Starby" popup.** `src/renderer/pet/howTo.js` (a helper in
   `events/index.js`): after the launch intro, a popup centered on screen with the basics (left click + drag to carry
