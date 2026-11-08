@@ -75,8 +75,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   appears on each side (the team's `menuIcons/line.png` stroke in the app's yellow with a dark purple outline; only yours is labelled "YOU", yellow Sour Gummy on `menuIcons/button-hover.png`, fading out 1.5s after "GO!"; every paddle hit plays the wall-hit effect via `behaviors/fx.js`): left = yours, follows the mouse up and down; right =
   the AI. "3... 2... 1... GO!", served toward you; bounces off the top/bottom of the usable area and off the
   paddles (hit position sets the angle, max 55°; +9% speed per hit, max 1500px/s), spinning. The AI predicts
-  where he'll arrive but misjudges more as he speeds up (and tops out at 430px/s), so a decent player wins about
-  half the time. **One point wins:** past the AI → you win, 7 starbits burst out; past you → you lose, he takes
+  where he'll arrive but misjudges more as he speeds up (and tops out at 520px/s; tuned harder: aim error 28px + 0.07/px·s, was 430px/s / 40px / 0.09), so a casual player wins about
+  a third of the time (a sharp one still wins most, with rallies about twice as long). **One point wins:** past the AI → you win, 7 starbits burst out; past you → you lose, he takes
   back the starbits on screen. Grabbing him = foul. Starts from an invite (P1-9), the game buttons, the menu
   ("Play pong") or `starby.startEvent('pong')`. Tuning at the top of `events/pong.js`.
 - [x] **P1-9 (Nice) Starby invites you to play (any game).** `events/invite.js`: every 30s, 30% chance (2-min
