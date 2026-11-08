@@ -11,7 +11,10 @@
 //
 // LOOK: the team's hand-drawn frame art, like the dialogue box (../dialogue/dialogue.js): the panel
 // is button-hover.png, the buttons button-idle.png → button-hover.png on hover, as CSS
-// border-images; Sour Gummy (declared in pet.css) in the shop's yellow. Nothing is drawn by code.
+// border-images; Sour Gummy (declared in pet.css) in the shop's yellow. Around it, STARS twinkle:
+// the team's starbit PNGs (assets/starbits/<color><n>.png, several colours) and the starbit
+// cluster, scattered on the edges and corners, each gently growing / brightening / turning on its
+// own timing (a CSS animation on the PNGs). Nothing is drawn by code.
 // The panel has the `hit` class, so clicks work on it while the rest of the screen stays
 // click-through (../clickThrough.js).
 //
@@ -22,6 +25,21 @@ const HIDE_KEY = 'starby.howTo.hidden';
 const ART = '../../../assets/menuIcons'; // relative to src/renderer/pet/index.html
 const SLICE = 120; // px of the button art's hand-drawn edge (same as the dialogue box)
 const SHOW_AFTER = 0.6; // seconds after the intro ends before it pops up
+const STARBIT_ART = '../../../assets/starbits'; // relative to src/renderer/pet/index.html
+// The stars around the panel: art file, where (left/top in % of the panel; outside 0–100 pokes past
+// the edge), size in px, and its twinkle delay in seconds (so they don't all pulse together).
+const STARS = [
+  { file: 'yellow1', x: -4, y: -6, size: 30, delay: 0 },
+  { file: 'cluster', x: 88, y: -9, size: 40, delay: 0.7 },
+  { file: 'pink2', x: 101, y: 22, size: 20, delay: 1.3 },
+  { file: 'teal3', x: -6, y: 38, size: 18, delay: 0.4 },
+  { file: 'white1', x: 102, y: 62, size: 24, delay: 1.0 },
+  { file: 'blue2', x: -5, y: 80, size: 26, delay: 1.6 },
+  { file: 'yellow3', x: 93, y: 96, size: 28, delay: 0.2 },
+  { file: 'pink4', x: 12, y: 101, size: 18, delay: 0.9 },
+  { file: 'green1', x: 52, y: -7, size: 16, delay: 1.9 },
+  { file: 'red2', x: 60, y: 102, size: 16, delay: 1.2 },
+];
 
 const TITLE = 'How To Care for Your New Starby';
 const TIPS = [
@@ -53,6 +71,15 @@ function injectStyles() {
       opacity: 0; transform: scale(0.9); transition: opacity 180ms ease-out, transform 220ms cubic-bezier(0.2, 1.4, 0.4, 1);
     }
     .how-to.open { opacity: 1; transform: scale(1); }
+    .how-to-star {
+      position: absolute; pointer-events: none; transform: translate(-50%, -50%);
+      filter: drop-shadow(0 0 4px rgba(255, 232, 163, 0.55));
+      animation: how-to-twinkle 2.4s ease-in-out infinite;
+    }
+    @keyframes how-to-twinkle {
+      0%, 100% { transform: translate(-50%, -50%) scale(0.82) rotate(-8deg); opacity: 0.75; }
+      50% { transform: translate(-50%, -50%) scale(1.12) rotate(8deg); opacity: 1; }
+    }
     .how-to::before {
       content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
       border: 16px solid transparent;
@@ -117,6 +144,20 @@ function build(ctx) {
     }),
   );
   el.append(h, list, buttons);
+  // Twinkling stars around the edges (team starbit art; see STARS).
+  for (const star of STARS) {
+    const img = document.createElement('img');
+    img.className = 'how-to-star';
+    img.src = `${STARBIT_ART}/${star.file}.png`;
+    img.alt = '';
+    img.draggable = false;
+    img.onerror = () => img.remove(); // a missing file just leaves that spot empty
+    Object.assign(img.style, {
+      left: `${star.x}%`, top: `${star.y}%`, width: `${star.size}px`, height: `${star.size}px`,
+      objectFit: 'contain', animationDelay: `${star.delay}s`,
+    });
+    el.appendChild(img);
+  }
   ctx.stage.appendChild(el);
 }
 
