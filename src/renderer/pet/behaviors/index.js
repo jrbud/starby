@@ -31,6 +31,6 @@ import speech from './speech.js';
 import starbits from './starbits.js';
 import systemReactions from './systemReactions.js';
 import sessionEvents from './sessionEvents.js';
-import shopOpener from './shopOpener.js';
+// (No double-click → shop: the shop opens only from the right-click menu, src/main/ipc.js.)
 
-export const BEHAVIORS = [idle, walk, drag, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, shopOpener];
+export const BEHAVIORS = [idle, walk, drag, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents];

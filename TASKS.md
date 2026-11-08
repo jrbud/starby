@@ -388,7 +388,8 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
 - [ ] **P4-3 (Must) Demo shortcut.** A hidden key combo in the shop window (e.g. Ctrl+Shift+D) that adds
   50 starbits via `window.sprite.collectStarbits(50)`. Keep it simple and obvious in code so it can be
   removed later.
-- [ ] **P4-4 (Nice) Another way into the shop.** Double-click on the star → `window.sprite.openShop()`.
+- [x] **P4-4 (Nice) Another way into the shop.** DROPPED (team decision): the shop opens only from the
+  right-click menu, not by double-click. Original task: Double-click on the star → `window.sprite.openShop()`.
   The listener lives in the pet renderer — put it in a new behavior file (e.g. `behaviors/shopOpener.js`)
   and add one line to `behaviors/index.js`.
 - [ ] **P4-5 (Nice) Reset save.** A "Reset progress" button in the shop with an in-page confirm step.
