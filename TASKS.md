@@ -443,8 +443,11 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - during the intro or the shop window, right-click does nothing.
   - **Left-click is only a poke now:** the "Play a game?" buttons were removed from `events/games.js`, which
     now exports `requestGame` for the dialogue.
-  - **`events/focus.js` (new, priority 16):** he's sad but understanding, walks to the bottom-left corner
+  - **`events/focus.js` (new, priority 16):** he's happy and supportive, walks to the bottom-left corner
     (standing on the taskbar line) and goes fully quiet.
+    - Once parked he's built not to distract: no movement at all, and the new `calm` face (`frames.js`:
+      idle-1 only, arms down, no arm wave). Every 12-30s he winks or his eyes glisten.
+    - He stays happy: `mood.js` skips the "user away" yawn during focus.
     - While focusing, nothing else happens: no speech, starbit drops, invites, sky events or dancing.
     - It ends when you click or grab him (he says hi, happy) or pick "Okay, I'm done focusing!".
   - **Tray icon (`src/main/tray.js`, new):** right-clicking it shows the old native menu. The icon uses the

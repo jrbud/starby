@@ -222,7 +222,8 @@ function onEntry(ctx, e) {
       break;
     case 'system':
       if (e.data.type === 'time-of-day') isNight = e.data.part === 'night';
-      if (e.data.type === 'idle' && pet.mood === 'happy') enter(ctx, 'yawning', 'user away');
+      // (Not in focus mode, events/focus.js: he stays happy and still while you work.)
+      if (e.data.type === 'idle' && pet.mood === 'happy' && pet.mode !== 'focus') enter(ctx, 'yawning', 'user away');
       // You're back (unlocked, or the PC woke up): wakes a yawning star.
       if (e.data.type === 'unlock' || e.data.type === 'wake') interacted(ctx, e.data.type);
       break;
