@@ -143,8 +143,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   is this?" + 4 answer buttons (the right one + 3 random others), 20s to answer. **Right** → the starbits are
   released and float like normal drops for you to collect. **Wrong / no answer** → he takes them all back (they
   fly into him; nothing is taken from your count). Grabbed mid-quiz → he takes them back. Shapes live in
-  `events/constellations.js` (Big Dipper, Little Dipper, Orion, Cassiopeia, Cygnus, Lyra, Leo, Scorpius,
-  Southern Cross); add one there and it's automatically a question and a wrong answer for the others.
+  `events/constellations.js`: Big Dipper, Little Dipper, Orion, Cassiopeia, Cygnus, Lyra, Southern Cross, and
+  all 12 zodiac constellations (Aries, Taurus, Gemini, Cancer, Leo, Virgo, Libra, Scorpius, Sagittarius,
+  Capricornus, Aquarius, Pisces); add one there and it's automatically a question and a wrong answer for the others.
   Needs **held starbits** in `behaviors/starbits.js` (P2's file): `placeStarbit(ctx, x, y)` (fly to a spot and
   stay: no drift/magnet/pickup/fade, not counted in the on-screen cap), `releaseStarbits(ctx, list)`, and
   `reclaimStarbits(ctx, list)` (optional list; no list = all, as before). No random drops while `pet.mode === 'quiz'`.
