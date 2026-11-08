@@ -121,7 +121,7 @@ export function createBubble(el, opts = {}) {
         taker(text);
         return;
       }
-      // chat.mp3: he says something that needs no answer. (Questions go through the dialogue →
+      // chat-1..4.mp3 (random): he says something that needs no answer. (Questions go through the dialogue →
       // prompt.mp3; dreams use showContent's think cloud → silent.)
       if (show((t) => t.setText(text), ms, text)) sfx.play('chat');
     },
