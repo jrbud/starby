@@ -18,7 +18,7 @@
 // dizzy, sleepy...). He only dances again once DANCE_COOLDOWN (1 minute) has passed since the last
 // dance AND things have been quiet for QUIET_FOR seconds: no interaction and no other event.
 // Owns the star via pet.mode = 'dance' (behaviors stand down for modes they don't know).
-// RANDOM DANCE (very rare): with no music at all, the event runner rolls RANDOM_DANCE.chance every
+// RANDOM DANCE (now and then): with no music at all, the event runner rolls RANDOM_DANCE.chance every
 // RANDOM_DANCE.every seconds (at most once per RANDOM_DANCE.cooldown, and only when nothing else
 // is going on); he hums a little tune and does a short RANDOM_DANCE_FOR burst. Same snap-outs.
 // In DevTools: starby.startEvent('dance') dances one burst even without music.
@@ -34,8 +34,9 @@ const MOODS_THAT_DANCE = ['happy', 'playful'];
 const MOVES = ['bounce', 'sway', 'step', 'hop', 'spin'];
 const STEP = 0.22; // side-step distance, in star-sizes
 const MID_LINE_CHANCE = 0.25; // per move change
-// Very rare dance with no music: ~2% a minute → about once an hour, never twice within 20 min.
-const RANDOM_DANCE = { every: 60, chance: 0.02, cooldown: 1200 };
+// Dance with no music now and then: after a 5 min rest, a 12% roll each minute (so roughly every
+// 10-15 min on average, when he's happy and nothing else is going on).
+const RANDOM_DANCE = { every: 60, chance: 0.12, cooldown: 300 };
 const RANDOM_DANCE_FOR = [6, 10]; // seconds: a short little bop
 const QUIET_FOR = 25; // seconds with no interaction / other event before he dances (again)
 // Things you do to him that snap him out of a dance (event log types).

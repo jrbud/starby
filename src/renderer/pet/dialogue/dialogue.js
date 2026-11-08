@@ -57,10 +57,11 @@ import { createTalkbox, loadTalkbox, talkboxReady, takeSpeech, releaseSpeech, on
 
 // ---- Tuning ----
 export const MAX_OPTIONS = 6; // answers per node (tree.js keeps to this; extras are dropped)
-const GAP = 14; // px between Starby and the side boxes
-const ROW_GAP = 9; // px between rows of boxes
-const FAN = 12; // px each higher row sits further out (the horseshoe opens upward)
-const SAY_GAP = 10; // px between the top boxes / his head and the speech box
+// (Sizes were made 33% bigger at the team's request.)
+const GAP = 18; // px between Starby and the side boxes
+const ROW_GAP = 12; // px between rows of boxes
+const FAN = 16; // px each higher row sits further out (the horseshoe opens upward)
+const SAY_GAP = 4; // px between his line's tail tip and his head (or the top boxes)
 const EDGE = 10; // px kept clear of the usable screen's edges
 const AUTO_CLOSE = 20; // seconds with no hover before it closes on its own
 const ROOM_SPEED = 18; // how snappily he slides away from an edge (approach rate)
@@ -79,8 +80,8 @@ const BOIL_GRAIN = 0.04; // noise frequency: lower = broader, gentler waves
 // The button art (1871×687) has ~55px of empty margin, then the hand-drawn border, then the flat
 // fill from ~120px in: slice there, so the edges keep their look and the fill stretches.
 const SLICE = 120;
-const TALK_FONT = 16; // px, his line in the dialogue
-const TALK_MAX = 210; // px: his line wraps past this
+const TALK_FONT = 21; // px, his line in the dialogue
+const TALK_MAX = 280; // px: his line wraps past this
 
 // Events and what a right-click does during them.
 // hoop-shot: right-drag is its slingshot (hoopShot.js also swallows right-clicks while it runs).
@@ -139,26 +140,26 @@ function injectStyles() {
       filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.28));
     }
     .dlg-say {
-      max-width: 240px; padding: 13px 18px 14px; isolation: isolate; text-align: center;
-      font-size: 15px; font-weight: 700; line-height: 1.25; transform-origin: 50% 100%;
+      max-width: 320px; padding: 17px 24px 19px; isolation: isolate; text-align: center; text-transform: lowercase;
+      font-size: 20px; font-weight: 700; line-height: 1.25; transform-origin: 50% 100%;
     }
     .dlg-frame {
       position: absolute; inset: 0; z-index: -1; pointer-events: none;
-      border: 12px solid transparent;
-      border-image: url('${ASSETS}/menuIcons/button-hover.png') ${SLICE} fill / 12px stretch;
+      border: 16px solid transparent;
+      border-image: url('${ASSETS}/menuIcons/button-hover.png') ${SLICE} fill / 16px stretch;
       filter: var(--boil, none);
     }
     .dialogue-option {
       position: relative; isolation: isolate; display: block; cursor: pointer;
-      border: 0; background: none; margin: 0; padding: 9px 16px 10px;
-      font: inherit; font-size: 14px; font-weight: 700; color: var(--dialogue-yellow);
+      border: 0; background: none; margin: 0; padding: 12px 21px 13px;
+      font: inherit; font-size: 18.5px; font-weight: 700; color: var(--dialogue-yellow);
       text-align: center; white-space: nowrap; transition: transform 110ms ease-out;
       text-transform: lowercase; /* every choice is lowercase (tree, invites, quiz answers) */
     }
     .dialogue-option::before {
       content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-      border: 9px solid transparent;
-      border-image: url('${ASSETS}/menuIcons/button-idle.png') ${SLICE} fill / 9px stretch;
+      border: 12px solid transparent;
+      border-image: url('${ASSETS}/menuIcons/button-idle.png') ${SLICE} fill / 12px stretch;
       filter: var(--boil, none);
     }
     .dialogue-option:hover { transform: scale(1.06); }
@@ -246,12 +247,21 @@ function layout(ctx) {
   const pairs = Math.floor(n / 2);
   const H = Math.max(0, ...boxes.map((b) => b.h));
   const rowStep = H + ROW_GAP;
+  // His line sits right on his head (tail tip SAY_GAP above it), shifted so the tail points at him.
+  // Any row of boxes at the same height as that bubble moves out sideways to clear it (the top of the
+  // horseshoe just opens wider), so the bubble never has to float up above the boxes.
+  const sx = (0.5 - say.tailFrac) * say.w;
+  const sayBottom = -S / 2 - SAY_GAP;
+  const sayTop = sayBottom - say.h;
+  const clear = Math.abs(sx) + say.w / 2 + 8; // boxes beside the bubble start past this
   for (let i = 0; i < pairs * 2; i++) {
     const b = boxes[i];
     const row = Math.floor(i / 2);
     const side = i % 2 ? 1 : -1;
-    const out = S / 2 + GAP + (pairs - 1 - row) * FAN;
-    b.slot = { x: side * (out + b.w / 2), y: (row - (pairs - 1) / 2) * rowStep };
+    const y = (row - (pairs - 1) / 2) * rowStep;
+    let out = S / 2 + GAP + (pairs - 1 - row) * FAN;
+    if (y - b.h / 2 < sayBottom && y + b.h / 2 > sayTop) out = Math.max(out, clear);
+    b.slot = { x: side * (out + b.w / 2), y };
   }
   if (n % 2) {
     const b = boxes[n - 1];
@@ -265,9 +275,8 @@ function layout(ctx) {
     top = Math.min(top, b.slot.y - b.h / 2);
     bottom = Math.max(bottom, b.slot.y + b.h / 2);
   }
-  // Speech above it all; a talkbox bubble is shifted so its tail tip points at his middle.
-  say.slot = { x: (0.5 - say.tailFrac) * say.w, y: top - SAY_GAP - say.h / 2 };
-  top = say.slot.y - say.h / 2;
+  say.slot = { x: sx, y: sayBottom - say.h / 2 };
+  top = Math.min(top, sayTop);
   left = Math.max(left, say.w / 2 - say.slot.x);
   right = Math.max(right, say.slot.x + say.w / 2);
   ext = { left, right, top: -top, bottom };
@@ -317,7 +326,7 @@ const resolve = (ctx, line) => {
 function makeSay() {
   const base = { w: 0, h: 0, slot: { x: 0, y: 0 }, from: { x: 0, y: 0 }, kind: 'wait', start: 0, dur: 0, tailFrac: 0.5 };
   if (talkboxReady()) {
-    const tb = createTalkbox({ fontSize: TALK_FONT, maxText: TALK_MAX, padX: 12, padY: 7, className: 'dlg-slot' }); // not a button: clicking it = clicking away
+    const tb = createTalkbox({ fontSize: TALK_FONT, maxText: TALK_MAX, padX: 16, padY: 9, className: 'dlg-slot' }); // not a button: clicking it = clicking away
     root.appendChild(tb.el);
     return { ...base, el: tb.el, tb, talk: true };
   }
@@ -412,6 +421,7 @@ function openDialogue(ctx, id = null) {
   const { pet } = ctx;
   if (pet.mode === 'drag' || pet.mode === 'toss') return false;
   if (pet.noDialogue) return false; // e.g. mid focus slingshot (events/focus.js)
+  if (pet.mood === 'sleepy') return false; // asleep: he doesn't talk (shake or throw him awake first)
   let active = ctx.activeEvent();
   if (IGNORE.includes(active)) return false;
   if (SNAP_OUT.includes(active)) {
@@ -560,6 +570,11 @@ function replaceLine(ctx, text, pop) {
   layout(ctx); // same boxes, same spots; just re-aims the speech box for its new size
   boxes = all;
   if (pop && say.kind === 'shown') setKind(say, 'in', performance.now(), SAY_MS, { from: { ...say.slot } });
+}
+
+/** Close whatever is open (the player's dialogue or an event menu), e.g. when the app quits. */
+export function closeDialogue(ctx) {
+  if (open) close(ctx);
 }
 
 /** Take an event menu away (no-op if the player's own dialogue is open instead). */

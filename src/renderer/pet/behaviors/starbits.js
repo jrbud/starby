@@ -641,10 +641,30 @@ const shownCount = () => Math.max(0, (total ?? 0) - zipping.reduce((sum, z) => s
 
 function ensureToast(ctx) {
   if (toast) return toast;
-  // Shop-style card (pet.css: starCardBg.png art, Sour Gummy); NOT a .hit element, so it stays
-  // click-through.
+  // Shop-style card (pet.css: starCardBg.png art, Sour Gummy). CLICK IT → opens the shop (added by
+  // Person 3). It's a .hit element, so click-through switches off over it (../clickThrough.js);
+  // it's parked off-screen when hidden, so it only catches clicks while it's showing. Hovering it
+  // keeps it up (it won't slide away under your cursor) and grows it a touch.
   const el = document.createElement('div');
-  el.className = 'starbits-toast';
+  el.className = 'starbits-toast hit';
+  Object.assign(el.style, { pointerEvents: 'auto', cursor: 'pointer', transition: 'scale 120ms ease-out' });
+  el.title = 'open the shop';
+  el.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    ctx.log('starbits-counter-click', {});
+    ctx.api.openShop?.();
+  });
+  el.addEventListener('mouseenter', () => {
+    el.style.scale = '1.06';
+    ctx.cancel(toastHideId); // stay up while you're reaching for it
+    toastHideId = null;
+  });
+  el.addEventListener('mouseleave', () => {
+    el.style.scale = '';
+    if (el.classList.contains('visible')) scheduleToastOut(ctx);
+  });
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
   const icon = document.createElement('img');
   icon.className = 'starbits-toast-icon';
   icon.src = '../../../assets/starbits/cluster.png'; // same icon as the shop's wallet
@@ -677,12 +697,20 @@ function slideToastIn(ctx) {
   t.el.classList.add('visible');
   ctx.cancel(toastHideId); // stays up while starbits are still on their way
   toastHideId = null;
+  // It may slide in under a cursor that isn't moving: click-through is only re-checked on
+  // mousemove (clickThrough.js), so nudge that check once it's in place, or a still click would
+  // go through to the desktop instead of opening the shop.
+  setTimeout(() => {
+    const c = ctx.cursor;
+    if (c && c.x > -1000) window.dispatchEvent(new MouseEvent('mousemove', { clientX: c.x, clientY: c.y }));
+  }, 420);
 }
 
 function scheduleToastOut(ctx) {
   ctx.cancel(toastHideId);
   toastHideId = ctx.after(COUNTER_SHOW_SEC, () => {
-    if (zipping.length === 0) toast.el.classList.remove('visible');
+    // (Not while the cursor is on it: mouseleave schedules the slide-out again.)
+    if (zipping.length === 0 && !toast.el.matches(':hover')) toast.el.classList.remove('visible');
   }, 'starbits toast slide out');
 }
 

@@ -25,7 +25,7 @@
 //   40–50   small things: lollipop, bow, tie                       (~8–10 min of play)
 //   60–70   hats and shoes: propeller hat, sneakers, boots, top hat (~12–14 min)
 //   80–90   floating extras: balloon, star trail                   (~16–18 min)
-//   100–120 the showpieces: halo, UFO buddy                        (~20–24 min)
+//   100–120 the showpieces: halo, UFO                        (~20–24 min)
 // Everything (colors 295 + accessories 780) costs 1075 starbits, about 3.5 hours of play.
 // For demos use the shop's demo shortcut (P4-3).
 
@@ -47,15 +47,15 @@ const SHOP_ITEMS = [
   // left/right = HIS left/right: he faces you, so his left hand is on the screen's right)
   { id: 'accessory-none', slot: 'accessory', name: 'None', price: 0, value: 'none' },
   { id: 'accessory-tophat', slot: 'accessory', name: 'Top hat', price: 70, value: 'tophat', place: 'head' },
-  { id: 'accessory-propeller', slot: 'accessory', name: 'Propeller hat', price: 60, value: 'propeller', place: 'head' },
+  { id: 'accessory-propeller', slot: 'accessory', name: 'Toy hat', price: 60, value: 'propeller', place: 'head' },
   { id: 'accessory-bow', slot: 'accessory', name: 'Bow', price: 50, value: 'bow', place: 'head' },
   { id: 'accessory-halo', slot: 'accessory', name: 'Halo', price: 100, value: 'halo', place: 'head' },
   { id: 'accessory-tie', slot: 'accessory', name: 'Tie', price: 50, value: 'tie', place: 'neck' },
-  { id: 'accessory-sneakers', slot: 'accessory', name: 'Basketball shoes', price: 60, value: 'sneakers', place: 'feet' },
+  { id: 'accessory-sneakers', slot: 'accessory', name: 'Shoes', price: 60, value: 'sneakers', place: 'feet' },
   { id: 'accessory-boots', slot: 'accessory', name: 'Boots', price: 60, value: 'boots', place: 'feet' },
   { id: 'accessory-lollipop', slot: 'accessory', name: 'Lollipop', price: 40, value: 'lollipop', place: 'leftHand' },
   { id: 'accessory-balloon', slot: 'accessory', name: 'Balloon', price: 80, value: 'balloon', place: 'rightHand' },
-  { id: 'accessory-ufo', slot: 'accessory', name: 'UFO buddy', price: 120, value: 'ufo', place: 'companion' },
+  { id: 'accessory-ufo', slot: 'accessory', name: 'UFO', price: 120, value: 'ufo', place: 'companion' },
   { id: 'accessory-startail', slot: 'accessory', name: 'Star trail', price: 90, value: 'startail', place: 'trail' },
 ];
 

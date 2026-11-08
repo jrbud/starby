@@ -51,6 +51,8 @@ contextBridge.exposeInMainWorld('sprite', {
   // Dialogue box (right-click Starby): Settings → Quit / Developer stuff → DevTools.
   quitApp: () => ipcRenderer.send('app:quit'),
   openPetDevTools: () => ipcRenderer.send('pet:devtools'),
+  // Quitting: the pet's goodbye animation is done, the app can close (src/main/goodbye.js).
+  goodbyeDone: () => ipcRenderer.send('app:goodbye-done'),
   // Commands from the main process, e.g. { type: 'start-event', name: 'tag' } from the menu
   onPetCommand: (cb) => subscribe('pet:command', cb),
 
