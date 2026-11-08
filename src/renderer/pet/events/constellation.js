@@ -16,7 +16,8 @@
 // the "Play a game?" buttons, the right-click menu ("Play constellation quiz"), or
 // starby.startEvent('constellation'). Shares the rest between games (./games.js).
 //
-// THE LINES are drawn by code: thin lines in Starby's outline brown (LINE_COLOR), the team-approved
+// THE LINES are drawn by code: thin white lines (LINE_COLOR) with a dark outline under them
+// (OUTLINE_COLOR) so they show on any wallpaper, the team-approved
 // "supplementary lines" exception in CLAUDE.md (plain lines connecting existing art). The stars
 // themselves are the team's starbit PNGs. No other shapes are drawn.
 //
@@ -44,8 +45,10 @@ const BOX_OF_SCREEN = 0.32; // ...as a fraction of the usable screen's smaller s
 const GAP = 60; // px between him and the drawing
 const MARGIN = 70; // px kept clear around the drawing inside the usable screen (top: room for his bubble)
 const CHOICES = 4;
-const LINE_COLOR = '#3a2219'; // Starby's dark brown outline (same as the balloon string, floaters.js)
+const LINE_COLOR = '#ffffff'; // white, like a star chart
 const LINE_WIDTH = 2.5;
+const OUTLINE_COLOR = '#3a2219'; // dark outline under the white line (Starby's outline brown), so it
+const OUTLINE_WIDTH = 5; //        shows on light wallpapers too (px, total width under the line)
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const LINES = {
@@ -66,7 +69,7 @@ let points = []; // [{x, y}] screen positions of the stars
 let held = []; // starbit handles from placeStarbit (null when spawning is off)
 let placed = 0;
 let svg = null;
-let lineEls = []; // <line> per shape line, drawn in order
+let lineEls = []; // <g> per shape line (dark outline <line> + white <line>), drawn in order
 let drawing = 0; // index of the line being drawn
 let drawT = 0; // seconds into the current line
 let answer = null; // name picked in the popup (acted on at the next tick)
@@ -126,16 +129,22 @@ function buildLines(ctx) {
   svg.style.transition = '';
   svg.style.opacity = '1';
   for (const el of lineEls) el.remove();
-  lineEls = shape.lines.map(([i, j]) => {
+  const makeLine = (i, color, width) => {
     const el = document.createElementNS(SVG_NS, 'line');
     el.setAttribute('x1', points[i].x); el.setAttribute('y1', points[i].y);
     el.setAttribute('x2', points[i].x); el.setAttribute('y2', points[i].y); // grows toward j
-    el.setAttribute('stroke', LINE_COLOR);
-    el.setAttribute('stroke-width', LINE_WIDTH);
+    el.setAttribute('stroke', color);
+    el.setAttribute('stroke-width', width);
     el.setAttribute('stroke-linecap', 'round');
-    el.style.display = 'none';
-    svg.appendChild(el);
     return el;
+  };
+  lineEls = shape.lines.map(([i]) => {
+    const g = document.createElementNS(SVG_NS, 'g');
+    g.appendChild(makeLine(i, OUTLINE_COLOR, OUTLINE_WIDTH)); // underneath
+    g.appendChild(makeLine(i, LINE_COLOR, LINE_WIDTH)); // on top
+    g.style.display = 'none';
+    svg.appendChild(g);
+    return g;
   });
 }
 
@@ -146,8 +155,10 @@ function growLine(index, k) {
   const a = points[i];
   const b = points[j];
   el.style.display = '';
-  el.setAttribute('x2', a.x + (b.x - a.x) * k);
-  el.setAttribute('y2', a.y + (b.y - a.y) * k);
+  for (const line of el.children) { // outline + white line grow together
+    line.setAttribute('x2', a.x + (b.x - a.x) * k);
+    line.setAttribute('y2', a.y + (b.y - a.y) * k);
+  }
 }
 
 function fadeLines(ctx) {

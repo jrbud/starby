@@ -138,8 +138,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   - Intro and shop are `category: 'system'`. The runner still supports `auto`, but nothing uses it now.
 - [x] **P1-16 (Nice) Constellation quiz.** `events/constellation.js`, a game (invite "wanna do a star quiz?",
   game buttons as "Star Quiz", games timer, menu "Play constellation quiz"): he throws one starbit per star to
-  its spot beside him, then the constellation's lines draw in one by one (thin lines in Starby's outline brown,
-  `#3a2219`: the team's "supplementary lines" exception; the stars are the starbit PNGs). "Which constellation
+  its spot beside him, then the constellation's lines draw in one by one (thin white lines with a dark outline: the team's
+  "supplementary lines" exception; the stars are the starbit PNGs). "Which constellation
   is this?" + 4 answer buttons (the right one + 3 random others), 20s to answer. **Right** → the starbits are
   released and float like normal drops for you to collect. **Wrong / no answer** → he takes them all back (they
   fly into him; nothing is taken from your count). Grabbed mid-quiz → he takes them back. Shapes live in
