@@ -2,7 +2,9 @@
 //
 //   setup   "i'm gonna throw myself! catch me in the box!" The catch box (BOX_STARBYS × BOX_STARBYS
 //           Starbys big; the team's tan box art, BOX_ART) appears on the right side of the usable
-//           screen; he goes to the far left. (No label above it: strikes are only said out loud.)
+//           screen; he goes to the far left. On top of the box sit STRIKES_OUT X icons (the team's
+//           x-idle.png); each strike swaps the next one to x-hover.png (the darker X). Inside the box,
+//           at the top: "Catch Here!" in Sour Gummy, blue, as see-through as the box's inside.
 //   windup  he stretches out (squashed wide, winding up), announces "get ready to catch me!" and counts
 //           down "3... 2... 1... GO!" (createReady, ./games.js), then throws. Before every throw.
 //   fly     he flings himself at the box, fast (THROW_SPEED). Click / grab him WHILE HE'S INSIDE THE
@@ -38,6 +40,13 @@ const STRIKES_OUT = 3;
 const WIN_REWARD = 10;
 const CATCH_PAD = 12; // px around him that still counts as clicking him (from inside the box)
 const BOX_ART = '../../../assets/events/tan-translucent-box.png'; // team art; relative to src/renderer/pet/index.html
+const X_IDLE = '../../../assets/menuIcons/x-idle.png'; // a strike not used yet (team art)
+const X_STRUCK = '../../../assets/menuIcons/x-hover.png'; // a strike you've got (the darker X)
+const X_SIZE = 0.6; // each X is this many Starby sizes wide
+const LABEL_TEXT = 'Catch Here!';
+const LABEL_COLOR = '#0c218f'; // the blue from the shop's palette (shop.css --window-button-outline)
+const LABEL_OPACITY = 198 / 255; // = the box art's inside (alpha 198 of 255), so the text matches it
+const LABEL_SIZE = 0.11; // font size, as a fraction of the box's width
 
 const LINES = {
   intro: lineBag(["i'm gonna throw myself! catch me in the box!", 'catch me! but only in the box!']),
@@ -55,6 +64,8 @@ let strikes = 0;
 let laneY = 0; // center y of this throw
 let box = null; // { x, y, size } in pet-window coordinates
 let boxEl = null;
+let xEls = []; // the STRIKES_OUT X icons on top of the box
+let labelEl = null; // "Catch Here!" inside the box, at the top
 let wasInBox = false; // his center was inside the box last frame
 let leftBox = false; // he went through and out the far side this throw
 let grab = null; // { inBox } recorded on mousedown, judged at the next tick
@@ -82,6 +93,32 @@ function buildBox(ctx) {
   const probe = new Image(); // warn in DevTools if the art is missing (a background-image fails silently)
   probe.onerror = () => console.warn(`[catch] missing box art: ${BOX_ART}`);
   probe.src = BOX_ART;
+  new Image().src = X_STRUCK; // preload, so the first strike swaps instantly
+  // The strike X's: a row centered on top of the box.
+  const row = document.createElement('div');
+  Object.assign(row.style, {
+    position: 'absolute', left: '50%', bottom: '100%', transform: 'translateX(-50%)', marginBottom: '4px',
+    display: 'flex', gap: '6px', pointerEvents: 'none',
+  });
+  xEls = Array.from({ length: STRIKES_OUT }, () => {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.draggable = false;
+    img.onerror = () => console.warn(`[catch] missing strike art: ${img.src}`);
+    row.appendChild(img);
+    return img;
+  });
+  boxEl.appendChild(row);
+  // "Catch Here!" inside the box, near the top (just inside the art's border). Sour Gummy is
+  // declared in pet.css (@font-face), so it's ready here.
+  labelEl = document.createElement('div');
+  labelEl.textContent = LABEL_TEXT;
+  Object.assign(labelEl.style, {
+    position: 'absolute', left: '0', right: '0', top: '7%', textAlign: 'center',
+    fontFamily: "'Sour Gummy', 'Segoe UI', system-ui, sans-serif", fontWeight: '700',
+    color: LABEL_COLOR, opacity: String(LABEL_OPACITY), whiteSpace: 'nowrap', pointerEvents: 'none',
+  });
+  boxEl.appendChild(labelEl);
   // Under Starby, so he flies in front of the box.
   ctx.stage.insertBefore(boxEl, ctx.petEl);
   // A click in the box counts if he's under the cursor (incl. a little padding).
@@ -94,6 +131,17 @@ function buildBox(ctx) {
   });
 }
 
+// X icons: one per strike you've got (x-hover), the rest still x-idle.
+function showStrikes(ctx) {
+  const w = Math.round(ctx.pet.size * X_SIZE);
+  xEls.forEach((img, i) => {
+    const src = i < strikes ? X_STRUCK : X_IDLE;
+    if (img.getAttribute?.('data-src') !== src) { img.src = src; img.setAttribute?.('data-src', src); }
+    img.style.width = `${w}px`;
+    img.style.height = 'auto';
+  });
+}
+
 function placeBox(ctx) {
   const a = areaOf(ctx);
   const size = Math.min(BOX_STARBYS * ctx.pet.size, (a.bottom - a.top) - 60);
@@ -102,6 +150,8 @@ function placeBox(ctx) {
   Object.assign(boxEl.style, {
     left: `${box.x}px`, top: `${box.y}px`, width: `${size}px`, height: `${size}px`, display: 'block',
   });
+  showStrikes(ctx); // all three back to x-idle for a new game
+  labelEl.style.fontSize = `${Math.round(size * LABEL_SIZE)}px`; // scales with the box
 }
 
 // Where he winds up for the next throw: far left, at a height that sends him through the box.
@@ -233,6 +283,7 @@ export default {
     } else if (phase === 'fly' && leftBox) {
       // Out the far side of the box without being caught.
       strikes++;
+      showStrikes(ctx); // the next X turns dark
       ctx.say(LINES.strike(strikes), 1600);
       ctx.log('catch-strike', { strikes });
       phase = 'bonk'; // keeps flying to the edge (update), then comes back or the game ends
