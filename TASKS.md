@@ -494,6 +494,11 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
   - **"feeling sleepy?"** (right-click dialogue → Settings → `starby:getSleepy`, in `mood.js`): "yeah...
     *yawn*", then he goes straight into the sleepy walk to his nap spot on the taskbar and falls asleep.
     It isn't on the settings page.
+  - **Mouse stuck after picking a menu answer:**
+    - Dialogue / event-menu answers and click-away now act on the RELEASE, not the press.
+    - `clickThrough.js` never turns click-through back on while a button is held; it re-checks on release.
+    - Why: making the window click-through mid-press can leave Windows routing the mouse to our invisible
+      full-screen window.
   - **Un-clickable screen fixed** (`clickThrough.js`, `drag.js`, `slingshot.js`, `hoopShot.js`):
     - Pins are named ('press' for drags/pulls, 'menu' for the dialogue catcher), so one can't clear another.
     - A mousemove with no button held drops a stale 'press' pin and replays the lost mouseup (drag /
