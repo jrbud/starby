@@ -11,7 +11,7 @@ npm start
 ```
 
 Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Play pong** / **Quit**. Click him and
-**Play a game? [Tag] [Pong]** pops up too (he needs a minute's rest between games). Settings has the *Fling power* slider
+**Play a game? [Tag] [Pong] [Hide & Seek]** pops up too (he needs a minute's rest between games). Settings has the *Fling power* slider
 (how hard throws fly and how bouncy the screen edges are).
 
 > `npm start` runs `scripts/start.js`, which launches Electron with `ELECTRON_RUN_AS_NODE` removed.
@@ -48,6 +48,7 @@ src/
       events/               scripted sequences that take over the star (index.js = runner; tag.js;
                             pong.js; invite.js = he asks you to play a random game;
                             happenings.js = 20–50 min timer for random happenings (starShower.js);
+                            hideSeek.js = hide and seek (a game and a happening);
                             games.js = list of games, game buttons, rest between games, 3-2-1-GO;
                             prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements

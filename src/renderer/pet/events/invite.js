@@ -30,8 +30,9 @@ const LINES = {
   declined: lineBag(['oh... ok.', 'aw... nevermind then', '*sniff* ok...']),
   ignored: lineBag(['...maybe later then', "oh, you're busy. ok!"]),
 };
-// One shuffle bag of ask lines per game, built from GAMES.
-const ASK = Object.fromEntries(GAMES.map((g) => [g.name, lineBag(g.ask)]));
+// Games he can invite you to (hide and seek is never announced) and their ask lines.
+const INVITABLE = GAMES.filter((g) => g.invite !== false);
+const ASK = Object.fromEntries(INVITABLE.map((g) => [g.name, lineBag(g.ask)]));
 
 // ---- State ----
 let endInvite = null;
@@ -55,7 +56,7 @@ function trackCursor(ctx) {
 
 // A random game, avoiding the one offered last time when there's a choice.
 function pickGame() {
-  const choices = GAMES.length > 1 ? GAMES.filter((g) => g.name !== lastGame) : GAMES;
+  const choices = INVITABLE.length > 1 ? INVITABLE.filter((g) => g.name !== lastGame) : INVITABLE;
   return choices[Math.floor(Math.random() * choices.length)];
 }
 
@@ -73,7 +74,7 @@ export default {
   init(ctx) {
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.invite = (name) => {
-        if (name && !GAMES.some((g) => g.name === name)) return `unknown game; try: ${GAMES.map((g) => g.name).join(', ')}`;
+        if (name && !INVITABLE.some((g) => g.name === name)) return `can't invite to that; try: ${INVITABLE.map((g) => g.name).join(', ')}`;
         pendingGame = name || null;
         return ctx.startEvent('invite', 'devtools');
       };
@@ -84,7 +85,7 @@ export default {
 
   canStart(ctx, reason) {
     const { pet, cursor } = ctx;
-    if (!GAMES.length || cursor.x < -1000) return false;
+    if (!INVITABLE.length || cursor.x < -1000) return false;
     if (pet.mode === 'drag' || pet.mode === 'toss') return false;
     if (reason !== 'random') return true;
     const now = ctx.clock.seconds;
@@ -99,7 +100,7 @@ export default {
   start(ctx, end, reason) {
     const { pet } = ctx;
     endInvite = end;
-    game = GAMES.find((g) => g.name === pendingGame) || pickGame();
+    game = INVITABLE.find((g) => g.name === pendingGame) || pickGame();
     pendingGame = null;
     lastGame = game.name;
     answer = null;

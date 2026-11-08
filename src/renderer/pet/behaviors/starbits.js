@@ -711,6 +711,7 @@ export default {
     const rules = rulesFor(ctx.pet);
     if (!rules.refuses) refusedThisSpell = false; // next mad spell may refuse again
     if (ctx.pet.mode === 'drag') return;
+    if (ctx.pet.hiding) return; // hide and seek: a starbit flying out would give him away
 
     // Playful (rate 2) counts down twice as fast. Rate 0 still counts at normal speed,
     // so a mad star "refuses" at about the moment he'd have dropped some.
