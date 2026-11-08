@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Starby</title>
+  <meta name="description" content="Starby is a tiny star that fell from the sky and now lives on your Windows desktop. Download and set him up in a few minutes.">
+  <link rel="icon" type="image/png" href="../assets/sprite/sunny/idle-1.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Every visual on this page is the team's hand-drawn art from ../assets (frames, panels,
+       buttons, sprites). The CSS only places and stretches it; nothing is drawn in code. -->
+
+  <div class="column" id="column">
+  <div class="edge edge-left" aria-hidden="true"></div>
+  <div class="edge edge-right" aria-hidden="true"></div>
+  <header class="hero">
+    <nav class="nav">
+      <a href="#meet">Meet him</a>
+      <a href="#starbits">Starbits</a>
+      <a href="#shop">Shop</a>
+      <a href="#setup">Setup</a>
+    </nav>
+
+    <h1 class="title">
+      <img id="title-img" src="../assets/title/title-frame-1.png" alt="Starby">
+    </h1>
+    <p class="tagline">a tiny star that fell from the sky and moved onto your desktop</p>
+
+    <div class="stage">
+      <div class="talkbox" id="talkbox" aria-live="polite">
+        <div class="talkbox-art">
+          <img class="tb-frame tb-1" src="../assets/talkbox/speech-box-medium-frame-1.png" alt="">
+          <img class="tb-frame tb-2" src="../assets/talkbox/speech-box-medium-frame-2.png" alt="">
+        </div>
+        <p class="talkbox-text" id="talkbox-text">hi!! click me :)</p>
+      </div>
+      <button class="starby" id="starby" type="button" aria-label="Poke Starby">
+        <img id="starby-img" src="../assets/sprite/sunny/idle-1.png" alt="Starby, a little yellow star with big sparkly eyes">
+      </button>
+    </div>
+
+    <div class="cta">
+      <a class="btn btn-tan" href="#setup">Get Starby</a>
+      <a class="btn btn-purple" href="https://github.com/jrbud/starby" target="_blank" rel="noopener">View on GitHub</a>
+    </div>
+    <p class="fine">Free · Windows 10 / 11 · hackathon build</p>
+  </header>
+
+  <main>
+    <!-- ===== Meet ===== -->
+    <section id="meet" class="section">
+      <h2>Meet Starby</h2>
+      <p class="lead">
+        Starby is a cosmic little guy made of pure stardust. He wanders around your screen while you
+        browse and ignore your inbox. Talk to him, play games with him, throw him around, dress him up,
+        or just watch him sleep.
+      </p>
+
+      <div class="cards">
+        <article class="card tan">
+          <img class="pose" data-frames="happy-1,happy-2" data-every="350" src="../assets/sprite/sunny/happy-1.png" alt="">
+          <h3>Throw him around</h3>
+          <p>Grab him, fling him, and watch him bounce off the edges of your screen. He mostly enjoys it.</p>
+        </article>
+        <article class="card tan">
+          <img class="pose" data-frames="kawaii-1,kawaii-2" data-every="300" src="../assets/sprite/sunny/kawaii-1.png" alt="">
+          <h3>Play games</h3>
+          <p>Tag, pong, hide and seek, catch, Starby Says, constellation quizzes. Sometimes he'll come and ask you to play.</p>
+        </article>
+        <article class="card tan">
+          <img class="pose" data-frames="talk-1,talk-2" data-every="200" src="../assets/sprite/sunny/talk-1.png" alt="">
+          <h3>He notices things</h3>
+          <p>He reacts to what you copy, which app you're in, your battery, and the time of day. He only looks, he never touches anything.</p>
+        </article>
+        <article class="card tan">
+          <img class="pose" data-frames="asleep-1,asleep-2" data-every="1000" src="../assets/sprite/sunny/asleep-1.png" alt="">
+          <h3>Naps</h3>
+          <p>Leave him alone for a while and he'll yawn, wander to a corner, and drift off.</p>
+        </article>
+        <article class="card tan">
+          <img class="pose" data-frames="up-1" src="../assets/sprite/sunny/up-1.png" alt="">
+          <h3>Star showers</h3>
+          <p>Every so often the sky puts on a show: star showers and shooting stars rain down across your desktop.</p>
+        </article>
+        <article class="card tan">
+          <img class="pose" data-frames="dizzy-1,dizzy-2" data-every="300" src="../assets/sprite/sunny/dizzy-1.png" alt="">
+          <h3>Moods</h3>
+          <p>Spin him too much and he gets dizzy. Poke him too often and he gets grumpy. He's got feelings!</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===== Starbits ===== -->
+    <section id="starbits" class="section">
+      <h2>Collect starbits</h2>
+      <p class="lead">
+        Starby drops starbits as he goes. You don't click them: just sweep your cursor over them to scoop
+        them up. Try it here!
+      </p>
+      <div class="field starcard" id="field">
+        <div class="counter" id="counter">
+          <img src="../assets/starbits/yellow1.png" alt="">
+          <span id="count">0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Shop ===== -->
+    <section id="shop" class="section">
+      <h2>Dress him up</h2>
+      <p class="lead">Spend your starbits in the shop on new colors and accessories. Everything is purely cosmetic: just for looking cute.</p>
+
+      <!-- Hats sit where the app puts them (src/renderer/pet/accessories.js), see .hat-* in style.css -->
+      <div class="dressed">
+        <figure>
+          <div class="wearer">
+            <img data-frames="idle-1,idle-2" data-every="600" data-offset="0" data-set="sunny" class="pose" src="../assets/sprite/sunny/idle-1.png" alt="Sunny Starby wearing a propeller hat">
+            <img class="hat hat-propeller" src="../assets/accessories/propeller%20hat.png" alt="">
+          </div>
+          <figcaption>Sunny + propeller hat</figcaption>
+        </figure>
+        <figure>
+          <div class="wearer">
+            <img data-frames="idle-1,idle-2" data-every="760" data-offset="350" data-set="bubblegum" class="pose" src="../assets/sprite/bubblegum/idle-1.png" alt="Bubblegum Starby wearing a top hat">
+            <img class="hat hat-tophat" src="../assets/accessories/top%20hat.png" alt="">
+          </div>
+          <figcaption>Bubblegum + top hat</figcaption>
+        </figure>
+        <figure>
+          <div class="wearer">
+            <img data-frames="idle-1,idle-2" data-every="520" data-offset="900" data-set="sky" class="pose" src="../assets/sprite/sky/idle-1.png" alt="Sky Starby wearing a bow">
+            <img class="hat hat-bow" src="../assets/accessories/bow.png" alt="">
+          </div>
+          <figcaption>Sky + bow</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ===== Setup ===== -->
+    <section id="setup" class="section">
+      <h2>Bring Starby home</h2>
+      <p class="lead">Takes about five minutes. Starby runs on Windows 10 and 11. Tick the boxes as you go!</p>
+
+      <ol class="steps">
+        <li class="step tan">
+          <button class="check" type="button" aria-pressed="false" aria-label="Mark step 1 done"></button>
+          <div>
+            <h3>1. Install Node.js</h3>
+            <p>Get the <strong>LTS</strong> version from <a href="https://nodejs.org" target="_blank" rel="noopener">nodejs.org</a> and run the installer with the default options. You only need to do this once.</p>
+          </div>
+        </li>
+        <li class="step tan">
+          <button class="check" type="button" aria-pressed="false" aria-label="Mark step 2 done"></button>
+          <div>
+            <h3>2. Download Starby</h3>
+            <p>Grab the zip and unzip it somewhere you'll remember, like your Documents folder.</p>
+            <a class="btn btn-tan small" href="https://github.com/jrbud/starby/archive/refs/heads/main.zip">Download .zip</a>
+            <p class="alt">Using git? <code>git clone https://github.com/jrbud/starby.git</code></p>
+          </div>
+        </li>
+        <li class="step tan">
+          <button class="check" type="button" aria-pressed="false" aria-label="Mark step 3 done"></button>
+          <div>
+            <h3>3. Open a terminal in the folder</h3>
+            <p>Open the unzipped folder in File Explorer, click the address bar, type <code>cmd</code> and press Enter.</p>
+          </div>
+        </li>
+        <li class="step tan">
+          <button class="check" type="button" aria-pressed="false" aria-label="Mark step 4 done"></button>
+          <div>
+            <h3>4. Install and launch</h3>
+            <p>Run these two commands. The first one takes a minute the first time.</p>
+            <div class="code">
+              <pre id="cmds">npm install
+npm start</pre>
+            </div>
+            <button class="btn btn-tan small copy" type="button" data-copy="cmds">Copy commands</button>
+            <p>Starby lands on your desktop. Say hi!</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="tips">
+        <div class="tip starcard">
+          <h3>Trouble?</h3>
+          <ul>
+            <li><code>npm</code> not found: close and reopen the terminal after installing Node.js.</li>
+            <li>Error about <code>requestSingleInstanceLock</code>: start him with <code>npm start</code>, not <code>electron .</code></li>
+            <li>Starby isn't showing? Check your main monitor; he lives there for now.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Safety ===== -->
+    <section class="section">
+      <div class="safe tan">
+        <img class="pose safe-pose" data-frames="wink" src="../assets/sprite/sunny/wink.png" alt="">
+        <div>
+          <h2>He's a good star</h2>
+          <p>
+            Starby never asks for admin rights and never changes your files or settings. He only <em>reads</em>
+            harmless things like your clipboard, the active window's name, battery and the time, so he can react
+            to them. Your starbits and outfits are saved in a small file in his own folder. Nothing leaves your computer.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <img class="footer-pose" src="../assets/sprite/sunny/opensesame.gif" alt="Starby saying bye">
+    <p>Made with stardust by a team of four during a hackathon.</p>
+    <p class="credit">All of Starby's art was hand-drawn by
+      <a href="https://www.instagram.com/seevi.art" target="_blank" rel="noopener">@seevi.art</a>.
+      Go say hi!</p>
+    <p class="small-print">He hopes you'll let him stay.</p>
+  </footer>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
