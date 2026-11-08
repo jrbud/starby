@@ -265,6 +265,7 @@ export const TREE = {
   settings: {
     line: ['settings stuff? sure!', 'what do you want to change?'],
     options: [
+      { label: 'Feeling sleepy?', action: 'starby:getSleepy' }, // "yeah... *yawn*" → sleepy walk to the taskbar
       { label: 'Open settings', action: 'settings' },
       { label: 'Admin settings', action: 'admin' },
       { label: 'Developer stuff', next: 'dev' },

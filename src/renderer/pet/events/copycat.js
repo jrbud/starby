@@ -34,7 +34,10 @@ const MAX_SPEED = 1400; // px/s: fastest he copies (a faster flick just takes hi
 const JUMP_IGNORE = 250; // px: a cursor jump bigger than this in one frame isn't "movement"
 const WALL_PUSH = 4; // px past the edge a copied move has to push before it counts as "into the wall"
 const SMACK_SPEED = 1700; // how hard fx.js shows the smack (px/s scale of the wall-hit effects)
-const SMACK_BOUNCE = 0.12; // star-sizes he bounces back off the wall
+// He recoils this far off the wall (star-sizes), with a little hop, over RECOIL_FOR seconds, THEN
+// says his line: far enough that his speech bubble isn't squeezed against the screen edge.
+const RECOIL = 1.3;
+const RECOIL_FOR = 0.4;
 const STEP_PX = 26; // px travelled per little step-bob
 const STEP_BOB = 3; // px high
 const COPYCAT_EVERY = 180; // seconds between copycats (from the end of the last one)
@@ -53,6 +56,7 @@ let left = 0;
 let lastCursor = null; // { x, y } last frame
 let pending = { x: 0, y: 0 }; // copied movement not done yet (when he's slower than you)
 let hitWall = null; // side he got pushed into (spotted every frame, acted on at the tick)
+let recoil = null; // { from, to, t }: bouncing back off the wall after the smack
 let stepPhase = 0; // walking-bob phase, advanced by distance travelled
 let nextAt = null; // session seconds when the timer next tries to start a copycat
 let lastCursorSeen = { x: -9999, y: -9999 };
@@ -105,6 +109,7 @@ export default {
     lastCursor = { x: cursor.x, y: cursor.y };
     pending = { x: 0, y: 0 };
     hitWall = null;
+    recoil = null;
     stepPhase = 0;
     pet.mode = 'copycat'; // behaviors stand down
     cancelJump();
@@ -119,6 +124,7 @@ export default {
     if (pet.mode !== 'copycat') { finish(`interrupted:${pet.mode}`); return; }
     left -= TICK_SECONDS;
     if (hitWall) {
+      if (recoil && recoil.t < RECOIL_FOR) return; // still bouncing off the wall
       ctx.say(LINES.wall(), 2800);
       ctx.log('copycat-wall', { side: hitWall });
       finish('wall');
@@ -133,6 +139,16 @@ export default {
     if (pet.mode !== 'copycat' || !endGame) return;
     updateJump(pet, dt);
     pet.squash += (1 - pet.squash) * Math.min(1, dt * 10);
+
+    // Smacked into the wall: recoil off it (no more copying), then onTick says the line.
+    if (recoil) {
+      recoil.t += dt;
+      const u = Math.min(1, recoil.t / RECOIL_FOR);
+      const e = 1 - (1 - u) ** 3; // fast, then easing out
+      pet.x = recoil.from.x + (recoil.to.x - recoil.from.x) * e;
+      pet.y = recoil.from.y + (recoil.to.y - recoil.from.y) * e;
+      return;
+    }
 
     // Copy this frame's cursor movement.
     if (cursorOn(cursor)) {
@@ -173,12 +189,17 @@ export default {
       ctx.log('slam', { side: hitWall, speed: SMACK_SPEED });
       cancelJump();
       pet.squash = 0.68;
-      const back = SMACK_BOUNCE * pet.size;
-      if (hitWall === 'left') pet.x += back;
-      else if (hitWall === 'right') pet.x -= back;
-      else if (hitWall === 'top') pet.y += back;
-      else pet.y -= back;
-      strikePose(ctx, 'dizzy', 1.5);
+      const back = RECOIL * pet.size;
+      const to = { x: pet.x, y: pet.y };
+      if (hitWall === 'left') to.x += back;
+      else if (hitWall === 'right') to.x -= back;
+      else if (hitWall === 'top') to.y += back;
+      else to.y -= back;
+      to.x = clamp(to.x, b.minX, b.maxX);
+      to.y = clamp(to.y, b.minY, b.maxY);
+      recoil = { from: { x: pet.x, y: pet.y }, to, t: 0 };
+      startJump({ height: rand(12, 18), air: RECOIL_FOR }); // knocked back with a little hop
+      strikePose(ctx, 'dizzy', 1.8);
       return;
     }
 

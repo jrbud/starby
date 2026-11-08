@@ -1,5 +1,6 @@
 // Is a song playing in Spotify? (read-only) Emits
-//   emit('music', { playing })   when that changes (and once at startup)
+//   emit('music', { playing })                 when that changes (and once at startup)
+//   emit('music', { playing: true, newSong })  when the song changes while playing (the title changed)
 //
 // HOW: the Spotify desktop app's window title is the song while one plays ("Artist - Song"),
 // and just the app's own name ("Spotify" / "Spotify Premium" / "Spotify Free" / "Spotifast")
@@ -7,7 +8,8 @@
 // titles of that app's windows (get-windows, read-only: nothing is focused, moved or changed)
 // and work out playing / not playing HERE.
 //
-// PRIVACY: the title (song and artist) never leaves this file. Only true/false is sent.
+// PRIVACY: the title (song and artist) never leaves this file. Only true/false is sent (newSong is
+// just "the title changed").
 //
 // Matches any program whose exe name contains "spotif" (Spotify, and similar players like
 // Spotifast). LIMITS: if Spotify is closed to the tray (no window at all), it can't be seen;
@@ -35,6 +37,7 @@ const exeOf = (owner) => path.win32.basename((owner && (owner.path || owner.name
 
 function start(emit) {
   let playing = null;
+  let song = null; // the playing window's title (kept here only, to notice a new song)
   import('get-windows')
     .then(({ openWindows }) => {
       const poll = async () => {
@@ -44,10 +47,16 @@ function start(emit) {
         } catch {
           return; // a window vanished mid-read; try again next poll
         }
-        const now = wins.some((w) => PLAYER.test(exeOf(w.owner)) && isPlayingTitle(w.title));
+        const win = wins.find((w) => PLAYER.test(exeOf(w.owner)) && isPlayingTitle(w.title));
+        const now = Boolean(win);
+        const title = win ? String(win.title).trim() : null;
         if (now !== playing) {
           playing = now;
+          song = title;
           emit('music', { playing: now });
+        } else if (now && title !== song) {
+          song = title;
+          emit('music', { playing: true, newSong: true }); // next track
         }
       };
       poll();

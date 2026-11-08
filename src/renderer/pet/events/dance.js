@@ -21,9 +21,17 @@
 // RANDOM DANCE (now and then): with no music at all, the event runner rolls RANDOM_DANCE.chance every
 // RANDOM_DANCE.every seconds (at most once per RANDOM_DANCE.cooldown, and only when nothing else
 // is going on); he hums a little tune and does a short RANDOM_DANCE_FOR burst. Same snap-outs.
+// SONG START = DANCE, ALWAYS (for the demo: it has to be reliable): the moment a song starts in
+// Spotify / Spotifast, or the song changes (music.js newSong), he dances right away: no quiet
+// wait, no cooldown, any mood (music wakes him up / cheers him up). An invite or a copycat steps
+// aside for it. It only WAITS (and then starts the moment it can) while you're holding him or a
+// bigger thing is on: a game, focus, a call / fullscreen app (hush), the shop window, a sky event,
+// the intro. Already dancing → a fresh burst for the new song. After that burst the normal rhythm
+// above takes over (rest a minute, dance again when it's quiet).
 // In DevTools: starby.startEvent('dance') dances one burst even without music.
 import { rand, approach, clampToScreen, startJump, updateJump, cancelJump } from '../behaviors/motion.js';
 import { chat, lineBag } from '../behaviors/chatter.js';
+import { requestMood } from '../behaviors/mood.js';
 
 // ---- Tuning ----
 const BEAT = 0.5; // seconds per beat (~120 bpm)
@@ -38,6 +46,8 @@ const MID_LINE_CHANCE = 0.25; // per move change
 // 10-15 min on average, when he's happy and nothing else is going on).
 const RANDOM_DANCE = { every: 60, chance: 0.12, cooldown: 300 };
 const RANDOM_DANCE_FOR = [6, 10]; // seconds: a short little bop
+const SONG_INTERRUPTS = ['invite', 'copycat']; // these step aside when a song starts
+const SONG_WAITS_MODES = ['drag', 'toss', 'sling', 'dialogue', 'goodbye']; // a song waits for these to end
 const QUIET_FOR = 25; // seconds with no interaction / other event before he dances (again)
 // Things you do to him that snap him out of a dance (event log types).
 const SNAP_OUT = ['click', 'grab', 'toss', 'swat', 'flinch'];
@@ -59,6 +69,7 @@ let move = 'bounce';
 let moveIndex = -1;
 let lastBeat = -1;
 let homeX = 0; // where he dances (side steps go either side of this)
+let songStart = false; // a song just started / changed: dance as soon as possible (see SONG START)
 let noMusicRun = false; // started from DevTools or at random: dance one burst even with no music
 
 const relaxed = (pet) => pet.mode === 'idle' || pet.mode === 'walk';
@@ -83,7 +94,10 @@ export default {
   init(ctx) {
     ctx.events.onEntry((e) => {
       if (e.type === 'system' && e.data.type === 'music') {
+        const was = musicPlaying;
         musicPlaying = Boolean(e.data.playing);
+        if (musicPlaying && (!was || e.data.newSong)) songStart = true; // a song started / changed
+        if (!musicPlaying) songStart = false;
         return;
       }
       // You interacted with him, or something else happened: snap out of it, and wait for quiet.
@@ -101,9 +115,29 @@ export default {
     return musicPlaying || reason === 'devtools' || reason === 'random';
   },
 
+  // (see SONG START above)
+  songStartNow(ctx) {
+    const { pet } = ctx;
+    const active = ctx.activeEvent();
+    if (active === 'dance') { // already dancing: a fresh burst for the new song
+      t = 0;
+      danceFor = rand(...DANCE_FOR);
+      songStart = false;
+      ctx.say(LINES.start(), 2200);
+      return;
+    }
+    if (active && !SONG_INTERRUPTS.includes(active)) return; // a game / focus / hush / shop...: wait
+    if (SONG_WAITS_MODES.includes(pet.mode)) return; // being held / talking / leaving: wait
+    if (active) ctx.stopEvent('a song started');
+    if (pet.mode === 'follow' || pet.mode === 'flee') pet.mode = 'idle';
+    if (!MOODS_THAT_DANCE.includes(pet.mood)) requestMood(ctx, 'happy', 'a song came on'); // wakes / cheers him
+    if (ctx.startEvent('dance', 'song')) songStart = false;
+  },
+
   // Every tick, even when not dancing: start a burst when the song is on, he's free, and it's
   // been quiet for a while.
   watch(ctx) {
+    if (songStart && musicPlaying) { this.songStartNow(ctx); return; }
     const now = ctx.clock.seconds;
     if (!musicPlaying || ctx.activeEvent() || now < restUntil || now - busyAt < QUIET_FOR) return;
     ctx.startEvent('dance', 'music');
@@ -120,7 +154,8 @@ export default {
     homeX = pet.x;
     pet.mode = 'dance';
     nextMove();
-    chat(ctx, reason === 'random' ? LINES.random() : LINES.start(), 2200, { wait: 3 });
+    if (reason === 'song') ctx.say(LINES.start(), 2200); // (a song start: always says it)
+    else chat(ctx, reason === 'random' ? LINES.random() : LINES.start(), 2200, { wait: 3 });
   },
 
   onTick(ctx) {

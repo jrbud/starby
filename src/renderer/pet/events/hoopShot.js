@@ -223,7 +223,13 @@ function hookMouse(ctx) {
     phase = 'pull';
     ctx.setPinned(true); // keep getting mouse events when the cursor leaves him
   }, true);
-  window.addEventListener('mousemove', (e) => { mouse = { x: e.clientX, y: e.clientY }; });
+  window.addEventListener('mousemove', (e) => {
+    mouse = { x: e.clientX, y: e.clientY };
+    // Lost mouseup mid-pull (no button held any more): release the normal way. (Person 3)
+    if (phase === 'pull' && e.buttons === 0) {
+      window.dispatchEvent(new MouseEvent('mouseup', { clientX: e.clientX, clientY: e.clientY, button: pullButton }));
+    }
+  });
   window.addEventListener('mouseup', (e) => {
     if (phase !== 'pull' || e.button !== pullButton) return;
     ctx.setPinned(false);

@@ -11,10 +11,12 @@
 //   { type: 'sleep' } | { type: 'wake', sleptFor }      the PC went to sleep / woke up
 //   { type: 'call', active } | { type: 'fullscreen', active }   handled by ../events/hush.js
 //   { type: 'time-of-day', hour, part }
-//   { type: 'active-window', app, category }   category: 'browser' | 'editor' | 'game' | 'music'
+//   { type: 'active-window', app, category, key }   category: 'browser' | 'editor' | 'game' | 'music'
 //                                              | 'chat' | 'reading' | 'writing' | 'other'
 //                                              (the window title stays in the main process)
+//                                              key: a specific app / site ('notepad', 'acrobat', 'youtube'...)
 //   { type: 'music', playing }                 handled by ../events/dance.js
+//   { type: 'theme', dark } | { type: 'display', count, change } | { type: 'cpu', busy }   (desktop.js)
 //
 // Read here in the renderer (not available in the main process):
 //   battery level  navigator.getBattery() (read-only Battery Status API). Desktops without a
@@ -116,19 +118,129 @@ const APP_LINES = lineBags({
 });
 const APP_COOLDOWN = 5 * 60; // seconds before commenting on the same kind of app again
 
+// A specific app or site (activeWindow.js `key`) beats the category line, and comes back sooner.
+const APP_SPECIFIC = lineBags({
+  notepad: ['notepad? old school. i respect it', 'ooh, quick notes?', "writing a secret? i won't look"],
+  notepadpp: ['notepad plus plus! fancy', 'ooh, the plus plus kind', 'editing something nerdy?'],
+  acrobat: ['ooh, a pdf! reading something important?', 'adobe! very official', "what're we reading?"],
+  pdf: ['ooh, a pdf!', "reading time? i'll be quiet", "what're we reading?"],
+  word: ['word time! writing an essay?', 'ooh, a document. very professional'],
+  excel: ['spreadsheets! so many little boxes', 'excel? i can count stars, does that help?'],
+  powerpoint: ['making slides? add a star, trust me', 'ooh, a presentation!'],
+  onenote: ['taking notes? write one about me'],
+  outlook: ['emails... good luck in there', 'inbox zero? i believe in you'],
+  taskmanager: ['task manager? is everything okay in there?', "checking on your computer? i'm doing great, thanks"],
+  calculator: ['doing math? i can count to infinity. twice.', 'calculator! what are we figuring out?'],
+  paint: ['ooh, art time! draw me?', 'paint! make it sparkly'],
+  photoshop: ['photoshop! make me look extra shiny', 'ooh, editing pics?'],
+  blender: ['blender! are we making 3d stars?'],
+  figma: ['figma! designing something cool?'],
+  obs: ['are we streaming?! hi chat!', 'ooh, recording? let me find my good side'],
+  zoom: ["zoom! i'll be on my best behavior"],
+  settings: ["changing settings? don't change me!", 'ooh, tweaking things'],
+  steam: ['steam! what are we playing?', 'game shopping? get the space ones'],
+  discord: ['discord! say hi to everyone for me!', 'tell your friends a star says hi'],
+  vscode: ['vs code! you got this, coder', 'ooh, coding? go go go!'],
+  spotify: ['ooh, what are we listening to?', "play something! i'll dance"],
+  minecraft: ['minecraft! build me a star', "don't let the creepers get you!"],
+  roblox: ['roblox! what are we playing?'],
+  whatsapp: ['say hi from me!'],
+  terminal: ['ooh, a terminal. very hacker', 'typing commands? beep boop... i mean, twinkle'],
+  files: ['looking for something?', 'file adventure!'],
+  youtube: ['ooh, what are we watching?', 'youtube! anything with space in it?'],
+  netflix: ['netflix! is it a space movie?', "movie time? i'll grab the starbits"],
+  twitch: ['twitch! who are we watching?'],
+  github: ['github! very official coder stuff'],
+  gmail: ['checking emails? good luck in there'],
+  reddit: ['reddit! rabbit hole time?'],
+  wikipedia: ['wikipedia! looking up space facts? i know a few'],
+  amazon: ['shopping? i have a shop too, you know'],
+  nasa: ["nasa!! that's my neighborhood!", 'say hi to the astronauts for me!'],
+});
+const KEY_COOLDOWN = 2 * 60; // seconds before the same app/site line again
+
+// Been in one kind of app for a long time (once per stretch).
+const LONG_SESSION = 60 * 60; // seconds
+const LONG_LINES = lineBags({
+  editor: ["you've been coding for an hour! stretch break?", 'one hour of code! drink some water, ok?'],
+  game: ["an hour of gaming! you're on a roll", 'still playing? one more round, right?'],
+  reading: ["you've been reading for ages! what a bookworm"],
+  writing: ["an hour of writing! that's a lot of words"],
+  browser: ['an hour of browsing... how many tabs now?'],
+});
+
+// Switching apps a lot in a short time.
+const MULTITASK_SWITCHES = 6; // app changes...
+const MULTITASK_WINDOW = 30; // ...within this many seconds
+const MULTITASK_COOLDOWN = 10 * 60;
+const MULTITASK = lineBag(['so much multitasking!', 'whoa, tab tab tab tab', 'busy busy! i can barely keep up']);
+
+// Desktop (desktop.js).
+const THEME = lineBags({
+  dark: ['ooh, dark mode! very spacey', 'dark mode! now i really shine'],
+  light: ['light mode! my eyes!', 'whoa, so bright in here'],
+});
+const DISPLAY = lineBags({
+  added: ['a new screen?! more room for me!', 'ooh, another monitor! can i have it?'],
+  removed: ["where'd the other screen go?", 'aww, one screen less'],
+});
+const CPU_BUSY = lineBag(['whoa, your computer is working hard!', "your pc is huffing and puffing... want me to blow on it?", 'something is keeping your computer really busy']);
+const CPU_COOLDOWN = 15 * 60;
+
+// The day of the week, once when he starts up.
+const WEEKDAY = {
+  1: lineBag(['ugh, mondays... i got you', 'monday! fresh start ✦']),
+  5: lineBag(["it's friday!!", 'friday! almost weekend!']),
+  6: lineBag(['saturday! do we even have to work today?', 'weekend vibes ✦']),
+  0: lineBag(['sunday! cozy day?', 'lazy sunday, my favorite']),
+};
+
 let lastCategory = null;
 const lastAppLineAt = {}; // category → session seconds
 
 // Comment when the user moves to a different *kind* of app (Chrome → Firefox is not news),
 // at most once per APP_COOLDOWN per kind, so alt-tabbing all day doesn't get chatty.
-function appChanged(ctx, category) {
+const lastKeyLineAt = {}; // app/site key → session seconds
+let categorySince = 0; // when the current kind of app started
+let longSaid = false; // said the long-session line for this stretch
+const switchTimes = [];
+let multitaskAt = -Infinity;
+
+function appChanged(ctx, category, key) {
+  const now = ctx.clock.seconds;
+  // Multitasking: lots of app changes in a short time.
+  switchTimes.push(now);
+  while (switchTimes.length && now - switchTimes[0] > MULTITASK_WINDOW) switchTimes.shift();
+  if (switchTimes.length >= MULTITASK_SWITCHES && now - multitaskAt >= MULTITASK_COOLDOWN) {
+    multitaskAt = now;
+    chat(ctx, MULTITASK(), 2500, { wait: 4 });
+    return;
+  }
   const prev = lastCategory;
   lastCategory = category;
+  if (category !== prev) { categorySince = now; longSaid = false; }
+  // A specific app / site first (its own, shorter cooldown).
+  if (key && APP_SPECIFIC[key] && now - (lastKeyLineAt[key] ?? -Infinity) >= KEY_COOLDOWN) {
+    if (chat(ctx, APP_SPECIFIC[key](), 2500, { wait: 6 }) !== 'dropped') {
+      lastKeyLineAt[key] = now;
+      lastAppLineAt[category] = now;
+    }
+    return;
+  }
   if (!APP_LINES[category] || category === prev) return;
-  const now = ctx.clock.seconds;
   if (now - (lastAppLineAt[category] ?? -Infinity) < APP_COOLDOWN) return;
   if (chat(ctx, APP_LINES[category](), 2500, { wait: 6 }) !== 'dropped') lastAppLineAt[category] = now;
 }
+
+// An hour in the same kind of app: one gentle line (checked every minute).
+function checkLongSession(ctx) {
+  if (longSaid || !LONG_LINES[lastCategory]) return;
+  if (ctx.clock.seconds - categorySince < LONG_SESSION) return;
+  if (chat(ctx, LONG_LINES[lastCategory](), 3000, { wait: 30 }) !== 'dropped') longSaid = true;
+}
+
+let cpuAt = -Infinity;
+let weekdaySaid = false;
 
 // Set when we warn; cleared once the battery charges back above LOW_RESET, so a quick
 // plug-in/unplug at 15% doesn't nag again, but the next real discharge does.
@@ -253,6 +365,7 @@ export default {
     watchBattery(ctx);
     watchNetwork(ctx);
     ctx.every(MOMENT_CHECK_EVERY, () => checkMoment(ctx), 'system: time-of-day moments');
+    ctx.every(60, () => checkLongSession(ctx), 'system: long app sessions');
     // DevTools: starby.timeMoment(13) tries the moment for 1pm right now.
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.timeMoment = (hour) => {
@@ -281,9 +394,26 @@ export default {
           break;
         case 'time-of-day':
           if (GREETINGS[evt.part]) chat(ctx, GREETINGS[evt.part](), 3000, { wait: 15 });
+          if (!weekdaySaid) { // and the day of the week, once at startup
+            weekdaySaid = true;
+            const day = WEEKDAY[new Date().getDay()];
+            if (day) chat(ctx, day(), 3000, { wait: 25 });
+          }
           break;
         case 'active-window':
-          appChanged(ctx, evt.category);
+          appChanged(ctx, evt.category, evt.key);
+          break;
+        case 'theme':
+          chat(ctx, (evt.dark ? THEME.dark : THEME.light)(), 2500, { wait: 6 });
+          break;
+        case 'display':
+          if (DISPLAY[evt.change]) chat(ctx, DISPLAY[evt.change](), 2800, { wait: 8 });
+          break;
+        case 'cpu':
+          if (evt.busy && ctx.clock.seconds - cpuAt >= CPU_COOLDOWN) {
+            cpuAt = ctx.clock.seconds;
+            chat(ctx, CPU_BUSY(), 3000, { wait: 15 });
+          }
           break;
         case 'unlock':
           unlocked(ctx, evt.lockedFor ?? 0);

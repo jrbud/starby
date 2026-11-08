@@ -8,8 +8,9 @@ const timeOfDay = require('./timeOfDay');
 const activeWindow = require('./activeWindow');
 const music = require('./music'); // is a song playing in Spotify? (playing true/false only)
 const calls = require('./calls'); // is a video call going on? (active true/false only)
+const desktop = require('./desktop'); // dark/light mode, monitors plugged in/out, CPU working hard
 
-const READERS = [clipboard, idle, power, timeOfDay, activeWindow, music, calls];
+const READERS = [clipboard, idle, power, timeOfDay, activeWindow, music, calls, desktop];
 const START_DELAY_MS = 2000;
 
 function startSystemReads(petWindow) {
