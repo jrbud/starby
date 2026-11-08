@@ -5,6 +5,7 @@
 //     when asked ("give me a little, i'm tired", escalating if you keep asking); the button shows
 //     the time left ("resting… 0:42")
 //   - mood answers: mad / dizzy → he says no; asleep → no button
+//   - GAMES: the list of games (also used by ./invite.js when he asks you to play)
 //   - createReady(): the "3...", "2...", "1...", "GO!" countdown before a game
 //
 // Not an event itself: events/index.js runs `gamesMenu` as a helper (init / watch / watchFrame
@@ -19,10 +20,14 @@ import { createPrompt } from './prompt.js';
 export const GAME_REST = 60; // seconds after a game before he'll play again when asked
 const CHIP_FOR = 4; // seconds the game buttons stay up after clicking him
 
-// The games on the button, in order. `name` = the event name in events/index.js.
-const GAMES = [
-  { name: 'tag', label: 'Tag' },
-  { name: 'pong', label: 'Pong' },
+// THE GAMES. Every game here is on the "Play a game?" buttons AND can be offered when Starby asks
+// you to play on his own (./invite.js picks one at random). `name` = the event name in
+// events/index.js; `ask` = what he says when he invites you to it.
+// To add a game: write its event, register it in events/index.js, add it here.
+// (The buttons popup has room for two games; with more, ./prompt.js needs more buttons.)
+export const GAMES = [
+  { name: 'tag', label: 'Tag', ask: ['wanna play tag?', 'hey! play tag with me?', 'tag? pleeease?'] },
+  { name: 'pong', label: 'Pong', ask: ['wanna play pong? i can be the ball!', 'pong? pleeease?', 'hey! bonk me around in pong?'] },
 ];
 
 const LINES = {

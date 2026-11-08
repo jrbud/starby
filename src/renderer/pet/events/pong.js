@@ -13,9 +13,9 @@
 //             he gets past your paddle  → you lose ('ai-won'): he takes back any starbits on screen
 //           grabbing him mid-game is a foul ('foul'); made dizzy etc. → ends quietly
 //
-// Started from the "Play a game?" buttons (click him), the right-click menu ("Play pong"), or
-// starby.startEvent('pong') in DevTools. No invite question: pong is always your idea. After a
-// game he needs the shared rest (./games.js).
+// Started when Starby asks you to play and picks pong (./invite.js, Yes), from the "Play a game?"
+// buttons (click him), the right-click menu ("Play pong"), or starby.startEvent('pong') in
+// DevTools. After a game he needs the shared rest (./games.js).
 //
 // Owns the star via pet.mode = 'pong' (behaviors stand down for modes they don't know).
 // Decisions (AI aim, scoring, ending) run on ticks; motion runs every frame.
