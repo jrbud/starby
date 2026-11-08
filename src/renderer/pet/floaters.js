@@ -20,10 +20,14 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Tuning (sizes are in units of Starby's size, so they scale with him)
 const BALLOON = { up: 0.72, out: 0.18, drift: 0.75, string: 0.95, k: 12, c: 4.5 };
-const UFO = { radius: 1.0, height: 0.85, wobble: 0.12, speed: 0.6, k: 8, c: 5, tilt: 14 };
+// lead/maxLead: it aims a little behind the way he's going (0.15s of his motion, at most 0.8 sizes).
+// leash: on a fast throw it can't fall more than this far behind; it's towed along instead.
+const UFO = { radius: 1.0, height: 0.85, wobble: 0.12, speed: 0.6, k: 8, c: 5, tilt: 14, lead: 0.15, maxLead: 0.8, leash: 2.5 };
 const TRAIL = { back: 0.26, down: 0, minSpeed: 50, turn: 8, idleAlpha: 0.9 };
-const SNAP = 5; // if a floater ends up this many star-sizes from where it should be (he was
-// moved in one jump: a reset, a game starting), it snaps there instead of flying across the screen
+const SNAP = 5; // if HE moves this many star-sizes in a single frame (moved in one jump: a reset,
+// a game starting), floaters snap to him instead of flying across the screen. Judged by his own
+// jump, not by how far behind a floater is: a fast throw leaves the UFO far behind without any
+// jump, and snapping then made it teleport.
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -39,6 +43,7 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export function createFloaters({ stage, petEl, art, size, anchor, center }) {
   const active = new Map(); // value → state
   const motion = { last: null, vx: 0, vy: 0 }; // his smoothed velocity (px/s)
+  let jumped = false; // he moved SNAP+ star-sizes this frame (teleported)
 
   function makeCanvas(def) {
     const s = size() / ART * def.scale; // css px per art px
@@ -99,8 +104,9 @@ export function createFloaters({ stage, petEl, art, size, anchor, center }) {
   }
 
   // Spring toward a target: a = k·(target − p) − c·v
-  function spring(st, tx, ty, k, c, dt) {
-    if (!st.p || Math.hypot(tx - st.p.x, ty - st.p.y) > SNAP * size()) {
+  // leash (px, optional): never more than this far from the target; towed along at that distance.
+  function spring(st, tx, ty, k, c, dt, leash = Infinity) {
+    if (!st.p || jumped) {
       st.p = { x: tx, y: ty };
       st.v = { x: 0, y: 0 };
     }
@@ -108,6 +114,16 @@ export function createFloaters({ stage, petEl, art, size, anchor, center }) {
     st.v.y += (k * (ty - st.p.y) - c * st.v.y) * dt;
     st.p.x += st.v.x * dt;
     st.p.y += st.v.y * dt;
+    const dx = st.p.x - tx;
+    const dy = st.p.y - ty;
+    const d = Math.hypot(dx, dy);
+    if (d > leash) {
+      st.p.x = tx + (dx / d) * leash;
+      st.p.y = ty + (dy / d) * leash;
+      // Drop the speed that points away from the target, so it doesn't fight the leash.
+      const away = (st.v.x * dx + st.v.y * dy) / d;
+      if (away > 0) { st.v.x -= (away * dx) / d; st.v.y -= (away * dy) / d; }
+    }
   }
 
   function updateBalloon(st, dt, t, S, mid) {
@@ -145,9 +161,10 @@ export function createFloaters({ stage, petEl, art, size, anchor, center }) {
 
   function updateUfo(st, dt, t, S, mid) {
     st.theta += dt * UFO.speed;
-    const tx = mid.x + Math.sin(st.theta) * UFO.radius * S - motion.vx * 0.15;
+    const lead = clamp(motion.vx * UFO.lead, -UFO.maxLead * S, UFO.maxLead * S);
+    const tx = mid.x + Math.sin(st.theta) * UFO.radius * S - lead;
     const ty = mid.y - UFO.height * S + Math.sin(st.theta * 2.1) * UFO.wobble * S;
-    spring(st, tx, ty, UFO.k, UFO.c, dt);
+    spring(st, tx, ty, UFO.k, UFO.c, dt, UFO.leash * S);
     const w = st.c.el.offsetWidth || 1;
     const h = st.c.el.offsetHeight || 1;
     const tilt = clamp(st.v.x / 400, -1, 1) * UFO.tilt;
@@ -192,13 +209,17 @@ export function createFloaters({ stage, petEl, art, size, anchor, center }) {
     /** Every frame, after he has moved. `t` = seconds. */
     update(dt, t) {
       const mid = center();
-      if (motion.last && dt > 0) {
+      const S = size();
+      jumped = !!motion.last && Math.hypot(mid.x - motion.last.x, mid.y - motion.last.y) > SNAP * S;
+      if (jumped) {
+        motion.vx = 0; // a teleport isn't speed (it would fling the trail / balloon drift)
+        motion.vy = 0;
+      } else if (motion.last && dt > 0) {
         const a = Math.min(1, dt * 6);
         motion.vx += ((mid.x - motion.last.x) / dt - motion.vx) * a;
         motion.vy += ((mid.y - motion.last.y) / dt - motion.vy) * a;
       }
       motion.last = mid;
-      const S = size();
       for (const st of active.values()) {
         paint(st, st.def);
         if (st.def.kind === 'float') updateBalloon(st, dt, t, S, mid);

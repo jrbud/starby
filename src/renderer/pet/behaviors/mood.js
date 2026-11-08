@@ -9,8 +9,9 @@
 // Other behaviors don't check mood names; they read the rules in ./moods.js.
 //
 // Transitions (all numbers are tuning knobs, below):
-//   happy/playful → mad       4 clicks within 8s. Every further click restarts the 20s timer.
-//   happy/playful → playful   thrown (released at ≥500px/s). Each throw / edge hit restarts the 7s timer.
+//   happy/playful → mad       POKES_TO_MAD (5) clicks within POKE_WINDOW (10s); speech.js warns him off
+//                             on the pokes before (escalating). Every further click restarts the 5s timer.
+//   happy/playful → playful   thrown (released at ≥500px/s). Each throw / edge hit restarts the 5s timer.
 //   happy/playful/mad → dizzy spun 3+ turns (drag.js logs 'dizzy'), 3 throws within 20s, or the
 //                             cursor circling him 3 times within 6s. Lasts 5s, then back to
 //                             playful (if he was playful) or happy.
@@ -33,12 +34,13 @@ import { MOODS } from './moods.js';
 import { petBounds } from './motion.js';
 
 // ---- Tuning ----
-const MAD_CLICKS = 4; // clicks...
-const MAD_WINDOW = 8; // ...within this many seconds
-const MAD_FOR = 20; // seconds after the last poke
+// Exported: speech.js warns on the pokes leading up to it ("one more poke and i'm gonna be mad!").
+export const POKES_TO_MAD = 5; // clicks...
+export const POKE_WINDOW = 10; // ...within this many seconds
+const MAD_FOR = 5; // seconds after the last poke
 const PLAYFUL_SPEED = 500; // px/s release speed that counts as a throw
 const WAKE_THROW_SPEED = 300; // px/s: a throw at least this fast wakes a sleeping star (not a gentle drop)
-const PLAYFUL_FOR = 7; // seconds after the last throw (shown as a countdown on the mood label)
+const PLAYFUL_FOR = 5; // seconds after the last throw (shown as a countdown on the mood label)
 const DIZZY_FOR = 5;
 const SAD_FOR = 5; // seconds; a click cheers him up sooner
 const HOVER_FOR = 0.8; // seconds the cursor rests on a happy star before he turns playful
@@ -181,7 +183,7 @@ function onEntry(ctx, e) {
       // A click cheers a sad star up (speech.js then answers it with a happy line).
       if (pet.mood === 'sad') enter(ctx, 'happy', 'cheered up by a click');
       else if (pet.mood === 'mad') enter(ctx, 'mad', 'poked again');
-      else if (CAN_GET_MAD.includes(pet.mood) && ctx.events.count('click', MAD_WINDOW) >= MAD_CLICKS) {
+      else if (CAN_GET_MAD.includes(pet.mood) && ctx.events.count('click', POKE_WINDOW) >= POKES_TO_MAD) {
         enter(ctx, 'mad', 'poked'); // speech.js answers this click with a mad line
       }
       break;
@@ -211,6 +213,11 @@ function onEntry(ctx, e) {
     case 'dizzy': // drag.js: spun 3+ turns; it already said its own dizzy line
       getDizzy(ctx, 'spun', false);
       break;
+    case 'event-end': {
+      const wins = STARBY_WINS[e.data.name];
+      if (wins && wins.includes(e.data.result)) strikePose(ctx, 'spittle', SPITTLE_FOR); // he won!
+      break;
+    }
     case 'dance': // events/dance.js: dancing to a song keeps him busy (no yawning mid-playlist)
       lastInteraction = ctx.clock.seconds;
       break;
@@ -325,7 +332,9 @@ function trackShake(ctx, dt) {
 //   playful (mood, mid-throw, or tag) >
 //   up (an event wants him to look up, e.g. a star shower) > talking >
 //   up / down (cursor right above / below him) > left / right (walking that way) >
-//   glistening / wink (a random moment now and then) > happy.
+//   glistening / wink / spittle (a random moment now and then; spittle is rare) > happy.
+// Spittle (frames.js: the team's spittle.gif, an excited spit-laugh) also plays as a pose when
+// Starby WINS a game (STARBY_WINS below, read from 'event-end').
 // Everything after "playful" only happens in his normal (happy) mood.
 const MOVE_SPEED = 20; // px/s sideways before he counts as walking left/right
 const LOOK_RANGE = 220; // px: cursor this far above/below (at most) makes him look up/down
@@ -335,6 +344,16 @@ const FLOURISH_EVERY = [15, 35]; // seconds between random glistening/wink momen
 const GLISTEN_CHANCE = 0.6; // otherwise a wink
 const GLISTEN_FOR = 2.4; // seconds
 const WINK_FOR = 0.7;
+const SPITTLE_CHANCE = 0.08; // of each random flourish (~once every 5 min of standing around)
+const SPITTLE_FOR = 1.92; // seconds: the GIF's 12 frames x 80ms, twice
+// Game results where Starby won ('event-end' { name, result }) → spittle laugh.
+const STARBY_WINS = {
+  tag: ['star-won'], // you didn't tag him in time
+  pong: ['ai-won'], // he beat you
+  'hide-seek': ['star-won'], // you didn't find him
+  'starby-says': ['lost'], // you fell for it / were too slow
+  catch: ['out'], // you missed him too many times
+};
 
 let lastX = null;
 let moveVX = 0; // smoothed sideways speed while walking, px/s
@@ -395,8 +414,12 @@ function maybeFlourish(ctx, now) {
   if (now < nextFlourishAt) return;
   nextFlourishAt = now + FLOURISH_EVERY[0] + Math.random() * (FLOURISH_EVERY[1] - FLOURISH_EVERY[0]);
   if (ctx.pet.face !== 'happy') return; // busy: skip this one
-  const glisten = Math.random() < GLISTEN_CHANCE;
-  flourish = { face: glisten ? 'glistening' : 'wink', until: now + (glisten ? GLISTEN_FOR : WINK_FOR) };
+  if (Math.random() < SPITTLE_CHANCE) {
+    flourish = { face: 'spittle', until: now + SPITTLE_FOR }; // rare: a little spit-laugh
+  } else {
+    const glisten = Math.random() < GLISTEN_CHANCE;
+    flourish = { face: glisten ? 'glistening' : 'wink', until: now + (glisten ? GLISTEN_FOR : WINK_FOR) };
+  }
   ctx.log('flourish', { face: flourish.face });
 }
 
