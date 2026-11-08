@@ -430,7 +430,26 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
   - **Update:** `wallImpact.js` became `behaviors/fx.js`. It also plays small crash lines on a swat, a
     star-cloud burst when he's shaken or thrown awake, and a bigger burst on a shop buy/equip. Wind
     effects were tried and removed. A throw of 300px/s or more wakes a sleeping Starby (`mood.js`).
-- [x] **P3-12 Right-click dialogue + focus mode + tray menu.** (Functionality only; visuals come later.)
+- [x] **P3-12 Right-click dialogue + focus mode + tray menu.**
+  - **Burst layout (replaces the single box):**
+    - Right-click → if he's too close to an edge, he slides away from it first.
+    - Then up to 6 answer boxes burst out of him with a snappy overshoot into a horseshoe, 3 down each
+      side. An odd last answer sits centered under him.
+    - His line is in a box above his head.
+    - Picking an answer: the others snap back into him and the picked one pops. A submenu's boxes burst
+      out from the picked box into a fresh horseshoe.
+    - Max 6 answers per node (`MAX_OPTIONS`). Games are split into Action / Chill; Developer is trimmed to 6
+      ("Invite me to a game" is still in the tray menu).
+    - Developer: "No game rest (5 min)" → `starby.noRest(5)` in `games.js`.
+  - **Focus slingshot:** he says something nice, pulls back, arcs into the bottom-left corner spinning, and
+    slams in. He logs `slam` for the left wall and floor, which `fx.js` plays as a wall hit. It isn't logged
+    as `impact`, so starbits.js doesn't drop starbits. Then he's parked and quiet as before.
+  - **Look (shop/settings style):**
+    - The frames are `button-hover.png` and the answers are `button-idle.png` (`button-hover.png` on hover).
+      Both are used as CSS border-images, so the hand-drawn edge keeps its thickness at any size.
+    - Text is Sour Gummy in the shop yellow `#ffe8a3`.
+    - A slight "line boil": an SVG noise filter wobbles only the frame art at ~7 fps while anything's showing.
+      It's code only, with no new assets.
   - **Right-click Starby:** a dialogue box opens beside him, on his right when he's on the left half of the
     screen and on his left otherwise. It shows his line and a list of answers.
     - The answers are: Let's chat! / Wanna shop? / Do you want to play a game? / Sorry, I gotta focus /

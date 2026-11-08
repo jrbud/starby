@@ -131,7 +131,8 @@ export default {
     fx.preload(['impact', 'dust', 'starcloud']);
     ctx.events.onEntry((e) => {
       if (ctx.pet.hushed) return;
-      if (e.type === 'impact') wallHit(ctx, e.data);
+      // 'slam': events/focus.js slingshotting into the corner (same look, no starbit drops).
+      if (e.type === 'impact' || e.type === 'slam') wallHit(ctx, e.data);
       else if (e.type === 'pong-hit') wallHit(ctx, e.data); // { side: 'left' | 'right', speed }
       else if (e.type === 'swat') swat(ctx);
       else if (e.type === 'mood' && e.data.to === 'happy' && /shaken awake|thrown awake/.test(e.data.reason || '')) {

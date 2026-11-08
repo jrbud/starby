@@ -6,6 +6,7 @@
 // Lines come from shuffle bags, so the same line never shows twice in a row.
 // Moods without their own pool use the happy lines.
 import { chat, lineBag, lineBags } from './chatter.js';
+import { POKES_TO_MAD, POKE_WINDOW, strikePose } from './mood.js';
 
 const IDLE_LINES = [
   '*twinkle*',
@@ -47,7 +48,29 @@ const CLICK_LINES = [
   'did you need something?',
 ];
 
-// Per-mood pools. The 4th quick poke turns him mad *before* this click is answered (mood.js
+// Poke warnings: quick pokes in a row (happy/playful) get escalating warnings, so you can tell
+// you're making him mad before you do (people didn't notice before). Tier by how close the
+// count is to POKES_TO_MAD (mood.js); the last tier also flashes his grumpy face.
+const POKE_WARNINGS = [
+  lineBag(['hehe, that tickles!', 'boop?', 'hey! hi!', 'hm? yes?']),
+  lineBag(['okay okay, i see you!', "that's a lot of poking...", 'hey... easy there', 'poke... poke... hmm']),
+  lineBag(["one more poke and i'm gonna be mad!", 'seriously, stop poking me!', "i'm warning you... >:/", 'last warning!!']),
+];
+
+function clickLine(ctx) {
+  const { pet } = ctx;
+  if (pet.mood === 'happy' || pet.mood === 'playful') {
+    const pokes = ctx.events.count('click', POKE_WINDOW); // includes this click
+    if (pokes >= 2 && pokes < POKES_TO_MAD) {
+      const tier = Math.min(POKE_WARNINGS.length - 1, Math.floor(((pokes - 2) * POKE_WARNINGS.length) / Math.max(1, POKES_TO_MAD - 2)));
+      if (pokes === POKES_TO_MAD - 1) strikePose(ctx, 'sad', 1.2); // grumpy look: next poke = mad
+      return POKE_WARNINGS[tier]();
+    }
+  }
+  return forMood(CLICK_BY_MOOD, pet);
+}
+
+// Per-mood pools. The 5th quick poke (POKES_TO_MAD) turns him mad *before* this click is answered (mood.js
 // sees the click in the event log first), so that click already gets a mad line.
 const CLICK_BY_MOOD = lineBags({
   happy: CLICK_LINES,
@@ -91,7 +114,7 @@ export default {
   name: 'speech',
 
   init(ctx) {
-    ctx.petEl.addEventListener('pet:clicked', () => ctx.say(forMood(CLICK_BY_MOOD, ctx.pet), 2000));
+    ctx.petEl.addEventListener('pet:clicked', () => ctx.say(clickLine(ctx), 2000));
     scheduleChat(ctx);
   },
 };
