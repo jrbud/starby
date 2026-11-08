@@ -105,7 +105,12 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   grab him) while he peeks → found: "you found me!" + 10 starbits. After a peek he sometimes moves to a new spot.
   Not found in 150s → he comes out and wins. On the game buttons ([Tag] [Pong] [Hide & Seek]; `prompt.js` now
   takes any number of buttons) and in `HAPPENINGS` (he hides on his own), never in invites (`invite: false`).
-  DevTools: `starby.startEvent('hide-seek')`, `starby.setHideWindow({ x, y, width, height })`.
+  DevTools: `starby.startEvent('hide-seek')`, `starby.setHideWindow({ x, y, width, height })`, `starby.hideTest()`.
+- [x] **P1-12 (Nice) Developer menu.** Right-click → *Play hide & seek*, and a *Developer* submenu (`ipc.js`):
+  Open pet DevTools, Start star shower now, Hide & seek behind a test window (`starby.hideTest()`: forced window
+  spot behind a dashed pretend window), Starby invites you to a game, Skip game rest (`starby.skipRest()`), Stop
+  current event. Menu items send `{ type: 'starby', fn, args }` and `pet.js` calls `window.starby[fn](...args)`,
+  so any new debug helper can be added to the menu without touching `pet.js`.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors

@@ -8,6 +8,8 @@
 //   - GAMES: the list of games (also used by ./invite.js when he asks you to play)
 //   - createReady(): the "3...", "2...", "1...", "GO!" countdown before a game
 //
+// DevTools / Developer menu: starby.skipRest() ends the rest early.
+//
 // Not an event itself: events/index.js runs `gamesMenu` as a helper (init / watch / watchFrame
 // every tick/frame), and each game imports what it needs:
 //   canStart(ctx, reason) { if (!readyToPlay(ctx, reason)) return false; ... }
@@ -124,6 +126,10 @@ export const gamesMenu = {
   init(ctx) {
     chip = createPrompt(ctx.stage);
     ctx.petEl.addEventListener('pet:clicked', () => showChip(ctx));
+    // DevTools / Developer menu: forget the last game, so he'll play again right away.
+    if (typeof window !== 'undefined' && window.starby) {
+      window.starby.skipRest = () => { lastPlayedEndAt = -Infinity; return 'rested'; };
+    }
   },
 
   // Every tick: act on a pressed button, keep the rest countdown live, hide when done/busy.

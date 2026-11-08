@@ -10,7 +10,14 @@ npm install
 npm start
 ```
 
-Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Play pong** / **Quit**. Click him and
+Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Play pong** / **Play hide & seek** /
+**Developer** / **Quit**.
+
+**Developer** (for testing and demos): *Open pet DevTools* (console with the `starby.*` debug helpers), *Start
+star shower now*, *Hide & seek behind a test window* (a dashed outline shows the pretend window), *Starby invites
+you to a game*, *Skip game rest*, *Stop current event*. Dev triggers end whatever event is running first.
+
+Click him and
 **Play a game? [Tag] [Pong] [Hide & Seek]** pops up too (he needs a minute's rest between games). Settings has the *Fling power* slider
 (how hard throws fly and how bouncy the screen edges are).
 
