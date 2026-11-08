@@ -5,11 +5,14 @@
 // Plain text on a plain box: UI chrome, not character art. Not a `.hit` element, so it stays
 // click-through and never blocks the desktop.
 //
-// To hide it: set SHOW = false, or in DevTools run starby.showMood(false).
+// On/off: right-click menu → Admin Settings → Debug → "Show mood label" (OFF by default; followed
+// live; key showMoodLabel in ../../shared/starbitsTuning.js). DevTools: starby.showMood(true/false)
+// still works until the next Admin Settings change.
 // To remove it before the demo: delete this file and its line in behaviors/index.js.
 import { moodStatus } from './mood.js';
+import { resolveTuning } from '../../shared/starbitsTuning.js';
 
-const SHOW = true;
+const SHOW = false; // until Admin Settings load (the default is off)
 const GAP = 4; // px between the star and the label
 
 let el = null;
@@ -60,6 +63,13 @@ export default {
         return on;
       };
     }
+
+    // Admin Settings → Debug → "Show mood label".
+    const apply = (overrides) => {
+      el.style.display = resolveTuning(overrides).showMoodLabel ? 'block' : 'none';
+    };
+    ctx.api.getAdminSettings?.().then(apply).catch(() => {});
+    ctx.api.onAdminSettingsChanged?.(apply);
   },
 
   update(ctx) {
