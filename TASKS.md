@@ -110,6 +110,13 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   Not found in 150s → he comes out and wins. On the game buttons ([Tag] [Pong] [Hide & Seek]; `prompt.js` now
   takes any number of buttons) and in `HAPPENINGS` (he hides on his own), never in invites (`invite: false`).
   DevTools: `starby.startEvent('hide-seek')`, `starby.setHideWindow({ x, y, width, height })`, `starby.hideTest()`.
+- [x] **P1-13 (Nice) Shooting Star + slower random tosses.** `events/shootingStar.js`: a happening (shares the
+  20–50 min timer with Star Shower and Hide & Seek): he yells "WATCH OUT! STARS INCOMING!", then 1.5s later
+  10–16 starbits shoot across the screen from the left or right as one tight clump with trails (`shootStarbit` in
+  `starbits.js`; all launched within 0.2s, ±25px of one height, 910–970px/s, shared slant: ~180×50px mid-flight). Catch them as they fly past; uncaught ones fade at the far side.
+  Rain and shooting stars share one "flying starbit" path in `starbits.js`. Developer menu: "Start shooting star
+  now". Separately, Starby's own random tosses now default to every **30–60s** (`dropEveryMin/Max` in
+  `shared/starbitsTuning.js`, was 8–15s; Admin Settings overrides still win).
 - [x] **P1-12 (Nice) Developer menu.** Right-click → *Play hide & seek*, and a *Developer* submenu (`ipc.js`):
   Open pet DevTools, Start star shower now, Hide & seek behind a real window (`starby.hideReal()`: forces a real
   window spot; if the list is empty he says why, e.g. macOS Screen Recording), Hide & seek behind a fake test window
@@ -322,7 +329,7 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
 - [ ] **P4-1 (Must) Fill out and balance the catalog.** Add more colors and accessories in
   `shopCatalog.js` (the star has one shape, so no shape items); new accessories need a draw function in `sprite.js`. **Flat fills and simple
   primitives only — no gradients, glow, shading or images.** Price so the first purchase takes ~5 minutes
-  of play (drops are every 8–15s in `starbits.js`, so roughly 25 starbits).
+  of play (drops now default to every 30–60s, bursts of 1–4: see `shared/starbitsTuning.js`).
 - [x] **P4-2 (Must) Shop polish.** Make owned / equipped / can't-afford states obvious at a glance
   (e.g. lock label, dimmed card, "need N more"). Show a short confirmation after buying.
 - [ ] **P4-3 (Must) Demo shortcut.** A hidden key combo in the shop window (e.g. Ctrl+Shift+D) that adds
