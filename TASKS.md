@@ -100,7 +100,7 @@ before changing these — they're core).
   (CSS transition, plain text). Also show the total: e.g. a small plain-text badge near the star while the
   cursor is over it. Get the total from `ctx.api.getState()` / `ctx.api.onStateChanged`.
   Badge/float text must not have class `hit` (keep them click-through).
-- [ ] **P2-3 (Must) Old starbits fade.** Each drop gets a spawn time; after ~60s fade it out and remove it
+- [x] **P2-3 (Must) Old starbits fade.** Each drop gets a spawn time; after ~60s fade it out and remove it
   from `drops`.
 - [ ] **P2-4 (Nice) Drop animation.** Spawn at the star's center and fall/bounce to its feet with a CSS
   transition or per-frame update before it becomes collectable.
