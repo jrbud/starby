@@ -24,7 +24,12 @@ export const STARBITS_TUNING = [
   },
   {
     group: 'Starbits', key: 'burstMax', label: 'Burst size (max)', unit: '', min: 1, max: 10, step: 1, default: 4,
-    help: 'Most starbits thrown per drop (still capped at 8 on screen).',
+    help: 'Most starbits thrown per drop (still limited by "Max on screen").',
+  },
+  {
+    group: 'Starbits', key: 'maxOnScreen', label: 'Max on screen', unit: '', min: 1, max: 50, step: 1, default: 8,
+    help: 'Most starbits floating at once; no new drops until some are collected or fade. '
+      + 'Tag win rewards can go over this.',
   },
   {
     group: 'Starbits', key: 'value', label: 'Starbit value', unit: '', min: 1, max: 100, step: 1, default: 1,

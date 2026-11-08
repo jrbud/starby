@@ -25,7 +25,7 @@
 //
 // GAME REWARDS (called by events, e.g. ../events/tag.js):
 //   burstStarbits(ctx, 7)   he throws starbits out in a full ring, a bit farther than a normal drop,
-//                           ignoring MAX_ON_SCREEN; for REWARD_PICKUP_DELAY the magnet and pickup
+//                           ignoring tuning.maxOnScreen; for REWARD_PICKUP_DELAY the magnet and pickup
 //                           leave them alone, so you see them fly out before sweeping them up
 //   rainStarbit(ctx, x, speed)  one starbit falls from the top of the screen (star shower happening):
 //                           catch it with the cursor before it reaches the bottom, or it fades away
@@ -40,6 +40,7 @@ import { chat, lineBag } from './chatter.js';
 // changed live from the right-click menu → "Admin Settings…". Read them as `tuning.<key>`:
 //   tuning.dropEveryMin / dropEveryMax   seconds between drops (moods scale this)
 //   tuning.burstMin / burstMax           starbits per drop
+//   tuning.maxOnScreen                   most starbits floating at once (rewards can exceed it)
 //   tuning.value                         counter increase per starbit collected
 //   tuning.lifetime                      seconds before an uncollected starbit fades (P2-3)
 //   tuning.magnetStrength                cursor pull multiplier (0 = magnet off)
@@ -49,24 +50,29 @@ let tuning = { ...DEFAULT_TUNING }; // replaced with saved Admin Settings at sta
 // =======================================================================
 
 const rand = (a, b) => a + Math.random() * (b - a);
-const PICKUP_RADIUS = 22;
-const MAX_ON_SCREEN = 8;
+// Touch distance for pickup: 22px at the default size, growing with bigger starbits.
+const pickupRadius = () => Math.max(22, size / 2 + 12);
 // Old starbits fade (P2-3): after tuning.lifetime seconds uncollected, a starbit fades out over
 // FADE_OUT seconds (still floating, but no longer collectable or magnetic), then is removed.
 const FADE_OUT = 1.5;
-const SIZE = 20; // px on screen; matches .starbits width/height in pet.css
+// On-screen size in px, from Settings → Starbits → Size (followed live; see applySize).
+let size = STARBIT_SIZE.default;
 
-// ART: team-drawn PNGs in assets/starbits/, named <color><n>.png (e.g. pink3.png). Each
-// starbit picks one at random. The page can't list a folder, so the files are listed here:
-// to add a color, add it to STARBIT_COLORS; to add a 5th design per color, bump the count.
-// Paths are relative to src/renderer/pet/index.html.
-const STARBIT_ART_DIR = '../../../assets/starbits/';
-const STARBIT_COLORS = ['blue', 'green', 'pink', 'red', 'teal', 'yellow'];
-const STARBIT_VARIANTS_PER_COLOR = 4;
-const STARBIT_IMAGES = STARBIT_COLORS.flatMap((color) =>
-  Array.from({ length: STARBIT_VARIANTS_PER_COLOR }, (_, i) => `${STARBIT_ART_DIR}${color}${i + 1}.png`),
-);
-const randomStarbitImage = () => STARBIT_IMAGES[Math.floor(Math.random() * STARBIT_IMAGES.length)];
+// ART: team-drawn PNGs in assets/starbits/ (list of colors in ../../shared/starbitArt.js).
+// Each new starbit picks a random image from the colors switched on in Settings → Starbits →
+// Color (yellow only by default). Starbits already on screen keep their color when it's toggled.
+import { starbitImages, enabledColors, STARBIT_SIZE, clampStarbitSize } from '../../shared/starbitArt.js';
+let starbitImagePool = starbitImages(enabledColors()); // updated from Settings at startup
+// Size and center an element on (x, y). Movement is a transform relative to the spawn
+// point, so re-running this on a resize keeps it in the same place on screen.
+function sizeElement(el, x, y) {
+  el.style.width = `${size}px`;
+  el.style.height = `${size}px`;
+  el.style.left = `${x - size / 2}px`;
+  el.style.top = `${y - size / 2}px`;
+}
+
+const randomStarbitImage = () => starbitImagePool[Math.floor(Math.random() * starbitImagePool.length)];
 const EDGE_MARGIN = 12; // keep this far inside the screen
 
 // Throw: how far past the star's edge it lands, and how fast space-drag bleeds speed off.
@@ -80,7 +86,7 @@ const THROW_SPIN = 360; // deg/s, max spin right out of the throw (eases down af
 
 // Bursts (size set by tuning.burstMin/burstMax): a burst fans out across the throw arc
 // (each starbit gets its own slice of it, so they don't stack) and comes out
-// BURST_STAGGER seconds apart, so it reads as a little flurry. MAX_ON_SCREEN still caps it.
+// BURST_STAGGER seconds apart, so it reads as a little flurry. tuning.maxOnScreen still caps it.
 const BURST_STAGGER = 0.07; // s between starbits in one burst
 
 // Wall-hit drops (see WALL HITS above). They're thrown out from the star, fanned across
@@ -98,7 +104,7 @@ const RECLAIM_SPEED = 700; // px/s minimum while flying back into him
 const FALL_SWAY = [10, 28]; // px side-to-side sway
 const FALL_SWAY_FREQ = [1.2, 2.4]; // rad/s
 const FALL_SPIN = 160; // deg/s max
-const FALL_CATCH_BONUS = 8; // px added to PICKUP_RADIUS for a falling starbit (no magnet while falling)
+const FALL_CATCH_BONUS = 8; // px added to the pickup reach for a falling starbit (no magnet while falling)
 const FALL_MISS_FADE = 0.35; // s fade when one reaches the bottom uncaught
 const RECLAIM_SPIN = 720; // deg/s while flying back
 
@@ -185,8 +191,9 @@ function throwAngles(ctx, angles, opts) {
   return angles.length;
 }
 
-/** Reward: throw `count` starbits out of him in a full ring (ignores MAX_ON_SCREEN). */
+/** Reward: throw `count` starbits out of him in a full ring (ignores tuning.maxOnScreen). */
 export function burstStarbits(ctx, count = 7) {
+  if (!switches.spawning) return 0; // Settings → Starbits → Spawning is off
   const turn = rand(0, 360);
   const n = throwAngles(ctx, fanAngles(count, turn, turn + 360), {
     ignoreCap: true,
@@ -214,9 +221,10 @@ export function reclaimStarbits(ctx) {
  * Rain: drop one starbit from the top of the usable screen at x, falling at `speed` px/s.
  * It sways and spins on the way down. No magnet while falling: catch it with the cursor (slightly
  * bigger catch zone than a normal pickup) and it's collected like any starbit. If it reaches the
- * bottom uncaught it fades away. Doesn't count against MAX_ON_SCREEN.
+ * bottom uncaught it fades away. Doesn't count against tuning.maxOnScreen.
  */
 export function rainStarbit(ctx, x, speed = 240) {
+  if (!switches.spawning) return; // Settings → Starbits → Spawning is off (no drops of any kind)
   const a = area(ctx);
   const y = a.top + EDGE_MARGIN;
   const el = document.createElement('img');
@@ -224,8 +232,7 @@ export function rainStarbit(ctx, x, speed = 240) {
   el.src = randomStarbitImage();
   el.alt = '';
   el.draggable = false;
-  el.style.left = `${x - SIZE / 2}px`;
-  el.style.top = `${y - SIZE / 2}px`;
+  sizeElement(el, x, y); // Settings → Starbits → Size
   ctx.stage.appendChild(el);
   drops.push({
     el, spawnX: x, spawnY: y, px: x, py: y, x, y, vx: 0, vy: speed,
@@ -303,7 +310,9 @@ function impactDrops(ctx, impact) {
 // opts (for rewards): ignoreCap, past = [min, max] px past the star's edge to land,
 // pickupDelay = seconds before the magnet/pickup notice it.
 function spawn(ctx, deg, { ignoreCap = false, past, pickupDelay = 0 } = {}) {
-  if (!ignoreCap && drops.filter((d) => !d.falling).length >= MAX_ON_SCREEN) return;
+  if (!switches.spawning) return; // Settings → Starbits → Spawning is off (no drops of any kind)
+  // Falling (star shower) starbits don't count against the cap.
+  if (!ignoreCap && drops.filter((d) => !d.falling).length >= tuning.maxOnScreen) return;
   const { pet } = ctx;
   // Out of the star's center, wherever it is.
   const x = pet.x + pet.size / 2;
@@ -313,8 +322,7 @@ function spawn(ctx, deg, { ignoreCap = false, past, pickupDelay = 0 } = {}) {
   el.src = randomStarbitImage();
   el.alt = '';
   el.draggable = false;
-  el.style.left = `${x - SIZE / 2}px`;
-  el.style.top = `${y - SIZE / 2}px`;
+  sizeElement(el, x, y);
   ctx.stage.appendChild(el);
   const { vx, vy } = throwVelocity(pet.size / 2, deg, past);
   drops.push({
@@ -472,18 +480,22 @@ function animate(ctx, d, dt) {
 }
 
 // ---- Collection ----
-// COLLECT_STYLE picks what a starbit does when picked up:
-//   'zip'  — a notification card slides in at the bottom right; the starbit zips into it with
-//            a trail, and the count ticks up with a pulse. The card slides back out
-//            COUNTER_SHOW_SEC after the last arrival.
-//   'fade' — the original: rises a little, shrinks and fades where it was.
-// (Trying out 'zip'; set back to 'fade' to undo.)
-const COLLECT_STYLE = 'zip';
+// What a starbit does when picked up (Settings → Starbits → Shooting animation):
+//   on  — the count card slides in at the top right; the starbit zips into it with a trail,
+//         and the count ticks up with a pulse as it lands.
+//   off — it rises a little, shrinks and fades where it was; the card still slides in and
+//         ticks up with a pulse.
+// Either way the card slides back out COUNTER_SHOW_SEC after the last pickup lands.
+
+// Settings → Starbits on/off switches (followed live; see applySettings in init).
+const switches = { spawning: true, visible: true, shootAnimation: true };
 
 const ZIP_TIME = 0.5; // s, flight time to the corner
-const ZIP_ARC = 70; // px, how far the path bows out sideways (sign is random)
+// px, the most the zip path can bow out sideways. Each starbit picks a random bow anywhere
+// from -ZIP_ARC to +ZIP_ARC, so every one takes its own curve (straight-ish to full bend).
+const ZIP_ARC = 70;
 const ZIP_SPIN = 900; // deg/s while zipping
-const TOAST_MARGIN = 16; // px in from the bottom-right corner of the usable screen area
+const TOAST_MARGIN = 16; // px in from the top-right corner of the usable screen area
 const TRAIL_FADE_MS = 260; // how long each trail ghost takes to fade out
 const COUNTER_SHOW_SEC = 2; // how long the card stays up after the last arrival
 // Pulse when the number goes up: a quick springy pop (overshoots, settles back).
@@ -519,11 +531,12 @@ function ensureToast(ctx) {
 
 function placeToast(ctx) {
   const t = ensureToast(ctx);
-  // Bottom-right of the usable area, so it's never under the taskbar (bottom or right side).
-  // The stage covers the whole screen, taskbar included, so convert to right/bottom offsets.
+  // Top-right of the usable area, so it's never under the taskbar (top or right side).
+  // The stage covers the whole screen, taskbar included, so convert to right/top offsets.
   const a = area(ctx);
   t.el.style.right = `${Math.max(0, window.innerWidth - a.right) + TOAST_MARGIN}px`;
-  t.el.style.bottom = `${Math.max(0, window.innerHeight - a.bottom) + TOAST_MARGIN}px`;
+  t.el.style.top = `${Math.max(0, a.top) + TOAST_MARGIN}px`;
+  t.el.style.bottom = '';
 }
 
 function slideToastIn(ctx) {
@@ -566,9 +579,9 @@ function pulseCount(t) {
 function zipTarget(ctx) {
   const r = ensureToast(ctx).countEl.getBoundingClientRect();
   if (r.width === 0 && r.height === 0) {
-    // Not laid out yet: aim at the bottom-right corner.
+    // Not laid out yet: aim at the top-right corner.
     const a = area(ctx);
-    return { x: a.right - TOAST_MARGIN - 40, y: a.bottom - TOAST_MARGIN - 16 };
+    return { x: a.right - TOAST_MARGIN - 40, y: a.top + TOAST_MARGIN + 16 };
   }
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
@@ -576,12 +589,18 @@ function zipTarget(ctx) {
 function collect(ctx, index) {
   const [drop] = drops.splice(index, 1);
   const value = tuning.value;
+  const shoot = switches.shootAnimation;
+  slideToastIn(ctx); // shows the count before this pickup; it ticks up when it lands
   ctx.api.collectStarbits(value).then((state) => {
     if (state && Number.isFinite(state.starbits)) total = state.starbits;
+    if (!shoot) {
+      // No flight: tick the card up as soon as the pickup is saved.
+      pulseCount(toast);
+      scheduleToastOut(ctx);
+    }
   });
 
-  if (COLLECT_STYLE === 'zip') {
-    slideToastIn(ctx); // give it somewhere to land
+  if (shoot) {
     zipping.push({
       value,
       el: drop.el,
@@ -593,13 +612,13 @@ function collect(ctx, index) {
       y: drop.y,
       angle: drop.angle,
       t: 0,
-      arc: ZIP_ARC * (Math.random() < 0.5 ? -1 : 1),
+      arc: rand(-ZIP_ARC, ZIP_ARC),
     });
     return;
   }
 
-  // 'fade': movement sets an inline transform, so the pickup poof is done inline too:
-  // rise a little, shrink and fade from wherever it currently is.
+  // No shooting animation: movement sets an inline transform, so the pickup poof is done
+  // inline too: rise a little, shrink and fade from wherever it currently is.
   drop.el.style.transition = 'opacity 200ms, transform 200ms';
   drop.el.style.transform =
     `translate(${drop.x - drop.spawnX}px, ${drop.y - drop.spawnY - 12}px) rotate(${drop.angle}deg) scale(0.5)`;
@@ -656,8 +675,31 @@ export default {
     ctx.api.getAdminSettings?.().then(applyTuning);
     ctx.api.onAdminSettingsChanged?.(applyTuning);
 
+    // Colors switched on in Settings (Settings → Starbits → Color), followed live.
+    const applySettings = (settings) => {
+      // On/off switches (missing = on, so older settings files keep today's behavior).
+      const on = (v) => v === undefined || Number(v) !== 0;
+      switches.spawning = on(settings?.starbitSpawning);
+      switches.visible = on(settings?.starbitVisible);
+      switches.shootAnimation = on(settings?.starbitShootAnimation);
+      // Hidden starbits: one class on the stage hides every starbit and trail (see pet.css);
+      // the count card isn't a .starbits element, so it still shows.
+      ctx.stage.classList.toggle('starbits-hidden', !switches.visible);
+
+      starbitImagePool = starbitImages(enabledColors(settings?.starbitColors));
+      const next = clampStarbitSize(settings?.starbitSize);
+      if (next !== size) {
+        size = next;
+        // Resize the ones already on screen (floating and zipping) too.
+        for (const d of drops) sizeElement(d.el, d.spawnX, d.spawnY);
+        for (const z of zipping) sizeElement(z.el, z.spawnX, z.spawnY);
+      }
+    };
+    ctx.api.getSettings?.().then(applySettings);
+    ctx.api.onSettingsChanged?.(applySettings);
+
     // Preload every starbit image so the first throw of each color doesn't pop in late.
-    for (const src of STARBIT_IMAGES) {
+    for (const src of starbitImages()) {
       const img = new Image();
       img.onerror = () => console.warn(`[starbits] missing art: ${src}`);
       img.src = src;
@@ -702,7 +744,7 @@ export default {
       const d = drops[i];
       if (d.fading) continue; // too late, it's fading away
       if (d.reclaiming || now < (d.pickableAt ?? 0)) continue; // flying home / just thrown as a reward
-      const reach = PICKUP_RADIUS + (d.falling ? FALL_CATCH_BONUS : 0);
+      const reach = pickupRadius() + (d.falling ? FALL_CATCH_BONUS : 0);
       if (Math.hypot(ctx.cursor.x - d.x, ctx.cursor.y - d.y) < reach) {
         collect(ctx, i);
       }

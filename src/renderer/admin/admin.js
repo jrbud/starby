@@ -13,21 +13,42 @@ const fmt = (t, v) => {
   return t.unit === '×' ? `×${n}` : t.unit ? `${n} ${t.unit}` : n;
 };
 
-// One titled section per `group`, in the order groups first appear in the list.
+// One collapsible section per `group`, in the order groups first appear in the list.
+// Built on <details>/<summary>, so clicking the heading (or Enter/Space on it) toggles it.
+// Open/closed is remembered per group in this window's localStorage (a per-viewer
+// convenience only; if storage is unavailable, sections just start open).
+const COLLAPSE_KEY = (name) => `admin-settings:collapsed:${name}`;
+const readCollapsed = (name) => {
+  try { return localStorage.getItem(COLLAPSE_KEY(name)) === '1'; } catch { return false; }
+};
+const writeCollapsed = (name, collapsed) => {
+  try { localStorage.setItem(COLLAPSE_KEY(name), collapsed ? '1' : '0'); } catch { /* ignore */ }
+};
+
 const groups = new Map(); // group name -> element the rows go in
 function groupBody(name) {
   if (!groups.has(name)) {
-    const wrap = document.createElement('section');
+    const wrap = document.createElement('details');
     wrap.className = 'group';
-    const heading = document.createElement('h2');
-    heading.textContent = name;
+    wrap.open = !readCollapsed(name);
+    const heading = document.createElement('summary');
+    const title = document.createElement('span');
+    title.className = 'group-title';
+    title.textContent = name;
+    const count = document.createElement('span');
+    count.className = 'group-count';
+    heading.append(title, count);
     const body = document.createElement('div');
     body.className = 'group-body';
     wrap.append(heading, body);
+    wrap.addEventListener('toggle', () => writeCollapsed(name, !wrap.open));
     container.append(wrap);
-    groups.set(name, body);
+    groups.set(name, { body, count, rows: 0 });
   }
-  return groups.get(name);
+  const g = groups.get(name);
+  g.rows += 1;
+  g.count.textContent = `${g.rows} setting${g.rows === 1 ? '' : 's'}`;
+  return g.body;
 }
 
 // Build the rows.
