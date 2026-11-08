@@ -2,7 +2,12 @@
 // If you add a field: add it to createDefaultState() and make sure migrate() fills it in
 // for old save files (spreading the defaults usually handles it).
 
-const { getItem } = require('./shopCatalog');
+const { SHOP_ITEMS, getItem } = require('./shopCatalog');
+
+// FOR NOW every accessory is unlocked from the start (team decision). Old saves get them too,
+// because migrate() always merges the default `owned` list in. To make accessories buyable
+// again, set this to [] (players keep anything they already own).
+const UNLOCKED_FOR_NOW = SHOP_ITEMS.filter((item) => item.slot === 'accessory').map((item) => item.id);
 
 // v2: removed the 'shape' slot (the star has one shape). migrate() drops old shape items.
 // v3: currency renamed `stardust` -> `starbits`. migrate() carries old `stardust` counts over.
@@ -13,7 +18,7 @@ function createDefaultState() {
     version: SCHEMA_VERSION,
     starbits: 0,
     // Item ids from shopCatalog.js. The free starter items are always owned.
-    owned: ['color-sunny', 'accessory-none'],
+    owned: [...new Set(['color-sunny', 'accessory-none', ...UNLOCKED_FOR_NOW])],
     equipped: {
       color: 'color-sunny',
       accessory: 'accessory-none',

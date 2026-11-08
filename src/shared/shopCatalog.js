@@ -1,19 +1,25 @@
 // Shop items. Purely cosmetic: no item changes behavior (drop rate, speed, etc.).
 //
 // slot:  which part of the sprite it changes ('color' | 'accessory')
-// value: what the renderer uses (a hex color, or an accessory id)
+// value: what the renderer uses (a hex color, or an accessory id from
+//        src/renderer/pet/accessories.js, which knows the art file and where it goes)
 //
 // The star has ONE shape. There is no shape slot. Don't add shape items.
 //
 // ART RULE (claude.md): colors are just a fill value, so new colors can be added here freely.
-// New accessories need hand-drawn PNG art from the team. Don't add a draw function in
-// renderer/shared/sprite.js as a stand-in. The accessories below are the original
-// skeleton ones; new ones wait for art.
+// Accessories are hand-drawn PNGs in assets/accessories/; a new one needs its art plus an
+// entry in accessories.js (anchor/position), never a code-drawn stand-in.
+//
+// ACCESSORIES & WEARING SEVERAL (not yet): `place` says where on him an accessory goes. Today
+// he wears ONE accessory at a time (state.equipped.accessory). To allow several later, store a
+// list (e.g. state.equipped.accessories) and allow at most ONE item per place: that's the rule
+// that keeps e.g. boots and sneakers from being worn together (both 'feet'), or two hats.
+// accessoriesConflict() below already implements it; the renderer already takes a list.
+// For now every accessory is unlocked from the start (see stateSchema.js).
 //
 // BALANCE: starbits.js drops one every 8–15s (~11.5s average), so a player who collects most
 // drops earns ~5 per minute. Cheapest items cost 25 (~5 min of play, the first purchase).
-// Rough tiers: colors 25–60, accessories 50–100.
-// Buying everything costs 515 (~1.7 hours). For demos use the shop's demo shortcut (P4-3).
+// Rough tiers: colors 25–60, accessories 40–120 (prices only matter once they're locked again).
 
 const SHOP_ITEMS = [
   // Colors
@@ -27,15 +33,31 @@ const SHOP_ITEMS = [
   { id: 'color-lilac', slot: 'color', name: 'Lilac', price: 45, value: '#c6a2ff' },
   { id: 'color-moonbeam', slot: 'color', name: 'Moonbeam', price: 60, value: '#f4f1de' },
 
-  // Accessories
+  // Accessories (place: head | feet | neck | leftHand | rightHand | companion | trail;
+  // left/right = HIS left/right: he faces you, so his left hand is on the screen's right)
   { id: 'accessory-none', slot: 'accessory', name: 'None', price: 0, value: 'none' },
-  { id: 'accessory-bow', slot: 'accessory', name: 'Bow', price: 50, value: 'bow' },
-  { id: 'accessory-tophat', slot: 'accessory', name: 'Top hat', price: 70, value: 'tophat' },
-  { id: 'accessory-halo', slot: 'accessory', name: 'Halo', price: 100, value: 'halo' },
+  { id: 'accessory-tophat', slot: 'accessory', name: 'Top hat', price: 70, value: 'tophat', place: 'head' },
+  { id: 'accessory-propeller', slot: 'accessory', name: 'Propeller hat', price: 60, value: 'propeller', place: 'head' },
+  { id: 'accessory-bow', slot: 'accessory', name: 'Bow', price: 50, value: 'bow', place: 'head' },
+  { id: 'accessory-halo', slot: 'accessory', name: 'Halo', price: 100, value: 'halo', place: 'head' },
+  { id: 'accessory-tie', slot: 'accessory', name: 'Tie', price: 50, value: 'tie', place: 'neck' },
+  { id: 'accessory-sneakers', slot: 'accessory', name: 'Basketball shoes', price: 60, value: 'sneakers', place: 'feet' },
+  { id: 'accessory-boots', slot: 'accessory', name: 'Boots', price: 60, value: 'boots', place: 'feet' },
+  { id: 'accessory-lollipop', slot: 'accessory', name: 'Lollipop', price: 40, value: 'lollipop', place: 'leftHand' },
+  { id: 'accessory-balloon', slot: 'accessory', name: 'Balloon', price: 80, value: 'balloon', place: 'rightHand' },
+  { id: 'accessory-ufo', slot: 'accessory', name: 'UFO buddy', price: 120, value: 'ufo', place: 'companion' },
+  { id: 'accessory-startail', slot: 'accessory', name: 'Star trail', price: 90, value: 'startail', place: 'trail' },
 ];
 
 function getItem(id) {
   return SHOP_ITEMS.find((item) => item.id === id) || null;
 }
 
-module.exports = { SHOP_ITEMS, getItem };
+/** For wearing several later: two accessories can't be worn together if they share a place. */
+function accessoriesConflict(idA, idB) {
+  const a = getItem(idA);
+  const b = getItem(idB);
+  return Boolean(a && b && a.place && a.place === b.place && a.id !== b.id);
+}
+
+module.exports = { SHOP_ITEMS, getItem, accessoriesConflict };

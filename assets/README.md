@@ -50,6 +50,25 @@ Each shop color gets a folder named after the color, with the same file names:
 Any file missing from a color set falls back to the same file from `sunny`, so sets can be
 filled in gradually.
 
+## Accessories
+
+`assets/accessories/`: one PNG per accessory, on the **same 2048×2048 canvas as Starby**, drawn
+roughly where it goes on `idle-1`. Code (`src/renderer/pet/accessories.js`) moves, scales and
+tilts each one onto a body point that follows his pose in every frame, so it never covers his
+face. Changing a file's look needs no code change; a new accessory needs a short entry there.
+
+| File | Where it goes |
+|---|---|
+| `top hat`, `propeller hat` | On his head, covering the top of his point (brim just above the eyes) |
+| `bow` | Top-left of his point, tilted |
+| `halo` | Floating just above his head, bobbing slightly |
+| `tie` | Knot just below his mouth |
+| `basketball shoes`, `boots` | Over the ends of his feet. Each shoe is placed separately, so keep a gap between the two |
+| `lollipop` | In **his** left hand (screen right). Switches hands while he yawns |
+| `balloon` | Floats above him on a string tied to his right hand (the string is a code-drawn line, a team-approved exception) |
+| `ufo` | Flies around near him, always behind him |
+| `startail` | Streams behind whichever way he's moving. Draw it trailing off to the **left** (code mirrors it) |
+
 ## Stardust
 
 `assets/stardust/`: not used by code yet (stardust is still a plain CSS shape).

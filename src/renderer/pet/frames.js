@@ -131,18 +131,29 @@ export function createFrames(px) {
     },
 
     /**
-     * The image to show for `face` after it's been on screen for `elapsed` seconds, or null if
-     * nothing is loaded yet. Faces whose frames aren't loaded (yet) fall back to happy.
+     * The frame to show for `face` after it's been on screen for `elapsed` seconds:
+     * { img, file } (file = which PNG, e.g. 'idle-2', so accessories can follow that pose),
+     * or null if nothing is loaded yet. Faces whose frames aren't loaded (yet) fall back to happy.
      */
-    frameFor(face, set, elapsed) {
+    pick(face, set, elapsed) {
       for (const name of [face, 'happy']) {
         const def = FACES[name];
         if (!def) continue;
         const i = def.every ? Math.floor(elapsed / def.every) % def.files.length : 0;
-        const img = get(set, def.files[i]) || get(set, def.files[0]);
-        if (img) return img;
+        for (const file of [def.files[i], def.files[0]]) {
+          const img = get(set, file);
+          if (img) return { img, file };
+        }
       }
       return null;
+    },
+    /** Just the image (kept for older callers). */
+    frameFor(face, set, elapsed) {
+      return this.pick(face, set, elapsed)?.img || null;
+    },
+    /** A specific file's frame (e.g. 'idle-1'), or null. */
+    byFile(set, file) {
+      return get(set, file);
     },
   };
 }
