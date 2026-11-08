@@ -23,39 +23,55 @@ const bubbleEl = document.getElementById('bubble');
 const bubble = createBubble(bubbleEl);
 
 // How big Starby is on screen, in css px. Everything else (hit box, ground, drag physics,
-// starbits, prompts, labels) is sized from pet.size, so changing this one number is enough.
-const SIZE = 96;
+// starbits, prompts, labels) is sized from pet.size. It's a user setting ("Starby size" in the
+// Settings window, settingsStore.starbySize) applied live by applySize() below.
+const SIZE_DEFAULT = 96;
+const SIZE_MIN = 48; // keep in sync with the settings slider and settingsStore RANGES
+const SIZE_MAX = 144;
 const ART = 2048; // the art's canvas size (frames and accessories)
-const CSS_PER_ART = SIZE / ART;
 
 // The canvas holds his frame (SIZE×SIZE, exactly over the #pet box) plus room around it for
 // worn accessories that stick out (a raised lollipop, a hat). It's drawn at a higher internal
 // resolution (PX canvas px per css px) so the art stays crisp at 125%/150%/200% scaling.
 // pointer-events: none, so the extra room never blocks clicks: only the #pet box is clickable.
 const PX = Math.max(2, window.devicePixelRatio || 1);
-const PAD = { top: OVERHANG.top * CSS_PER_ART, side: OVERHANG.side * CSS_PER_ART, bottom: OVERHANG.bottom * CSS_PER_ART };
-const RES = Math.round(SIZE * PX); // his frame, in canvas px
-canvas.width = Math.round((SIZE + 2 * PAD.side) * PX);
-canvas.height = Math.round((SIZE + PAD.top + PAD.bottom) * PX);
-Object.assign(canvas.style, {
-  position: 'absolute',
-  left: `${-PAD.side}px`,
-  top: `${-PAD.top}px`,
-  width: `${SIZE + 2 * PAD.side}px`,
-  height: `${SIZE + PAD.top + PAD.bottom}px`,
-  pointerEvents: 'none',
-  zIndex: '1',
-  // Squash/stretch pivots at his feet: bottom-center of the #pet box (overrides pet.css).
-  transformOrigin: `${PAD.side + SIZE / 2}px ${PAD.top + SIZE}px`,
-});
+let SIZE = SIZE_DEFAULT;
+let CSS_PER_ART = SIZE / ART;
+let PAD = { top: 0, side: 0, bottom: 0 };
+let RES = 0; // his frame, in canvas px
+
+// Size the canvas and the clickable box for SIZE. Called at startup and whenever the setting
+// changes (applySize).
+function layoutForSize() {
+  CSS_PER_ART = SIZE / ART;
+  PAD = { top: OVERHANG.top * CSS_PER_ART, side: OVERHANG.side * CSS_PER_ART, bottom: OVERHANG.bottom * CSS_PER_ART };
+  RES = Math.round(SIZE * PX);
+  canvas.width = Math.round((SIZE + 2 * PAD.side) * PX);
+  canvas.height = Math.round((SIZE + PAD.top + PAD.bottom) * PX);
+  Object.assign(canvas.style, {
+    position: 'absolute',
+    left: `${-PAD.side}px`,
+    top: `${-PAD.top}px`,
+    width: `${SIZE + 2 * PAD.side}px`,
+    height: `${SIZE + PAD.top + PAD.bottom}px`,
+    pointerEvents: 'none',
+    zIndex: '1',
+    // Squash/stretch pivots at his feet: bottom-center of the #pet box (overrides pet.css).
+    transformOrigin: `${PAD.side + SIZE / 2}px ${PAD.top + SIZE}px`,
+  });
+  // The clickable box (#pet, the `.hit` element) follows SIZE too, overriding the 64px in pet.css.
+  petEl.style.width = `${SIZE}px`;
+  petEl.style.height = `${SIZE}px`;
+}
+layoutForSize();
 bubbleEl.style.zIndex = '2'; // speech bubble stays in front of hats
-// The clickable box (#pet, the `.hit` element) follows SIZE too, overriding the 64px in pet.css.
-petEl.style.width = `${SIZE}px`;
-petEl.style.height = `${SIZE}px`;
 
 // Starby's hand-drawn PNG frames (see ./frames.js) and accessories (./accessories.js).
-const frames = createFrames(RES);
-const accessoryArt = createAccessoryArt(RES);
+// Shrunk ONCE to the LARGEST size he can be, and drawn scaled to the current size, so changing
+// the size setting never re-decodes the 2048px art.
+const ART_RES = Math.round(SIZE_MAX * PX);
+const frames = createFrames(ART_RES);
+const accessoryArt = createAccessoryArt(ART_RES);
 
 /**
  * Shared pet state. Behaviors read and write this; pet.js renders it every frame.
@@ -249,6 +265,29 @@ const floaters = createFloaters({
   stage, petEl, art: accessoryArt, size: () => SIZE, anchor: anchorOnScreen, center,
 });
 
+// ---- Size setting (Settings → "Starby size") ----
+function applySize(px) {
+  const next = Math.round(Math.min(SIZE_MAX, Math.max(SIZE_MIN, Number(px) || SIZE_DEFAULT)));
+  if (next === SIZE) return;
+  const old = SIZE;
+  SIZE = next;
+  pet.size = next;
+  layoutForSize();
+  fallback = null; // the old drawn star (only used if the PNGs are missing) is sized per SIZE
+  // Grow/shrink around his feet: same middle, same ground line.
+  pet.x += (old - next) / 2;
+  pet.y += old - next;
+  if (pet.mode === 'idle') {
+    const kept = clampToScreen(ctx, pet.x, pet.y);
+    pet.x = kept.x;
+    pet.y = kept.y;
+  }
+  // Balloon/UFO/trail canvases are made for one size: rebuild them.
+  floaters.setActive([]);
+  floaters.setActive(pet.look.accessories);
+  log('size', { from: old, to: next });
+}
+
 // ---- Render ----
 const g = canvas.getContext('2d');
 g.imageSmoothingQuality = 'high';
@@ -321,6 +360,10 @@ async function boot() {
   await frames.loadEssentials(pet.look.colorSet);
   await frames.loadEssentials(DEFAULT_SET);
   frames.loadAll(DEFAULT_SET).then(() => accessoryArt.loadAll()); // accessories appear once loaded
+
+  // His size is a setting: apply it now and whenever the Settings slider moves.
+  if (api.getSettings) applySize((await api.getSettings()).starbySize);
+  api.onSettingsChanged?.((s) => applySize(s.starbySize));
 
   pet.x = workArea().left + 200;
   pet.y = groundY();

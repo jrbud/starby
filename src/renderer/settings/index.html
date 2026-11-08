@@ -6,6 +6,14 @@
     <title>sprite.exe — settings</title>
     <link rel="stylesheet" href="../shared/menuFrame.css" />
     <link rel="stylesheet" href="settings.css" />
+    <!-- Checkbox art, loaded up front so the first hover/click doesn't flicker. -->
+    <link rel="preload" as="image" href="../../../assets/menuIcons/unchecked-box-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/checked-box-idle.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/checked-box-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/yellow-square-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-idle.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-white-dark.png" />
   </head>
   <body class="menu-window">
     <!-- The background art (assets/backgrounds/settings.png) has "SETTINGS" written on it. -->
@@ -19,6 +27,15 @@
     <!-- The art's grey panel; everything below scrolls inside it. -->
     <main class="menu-panel settings-scroll">
       <div class="settings-content">
+        <!-- Starby's size on screen (settingsStore.starbySize; pet.js resizes him live). -->
+    <section class="setting">
+        <div class="label-row">
+            <label for="starby-size">Starby size</label>
+          <output id="starby-size-value" for="starby-size">96 px</output>
+        </div>
+      <input id="starby-size" type="range" min="48" max="144" step="4" value="96" />
+    </section>
+
 
     <section class="setting">
       <div class="label-row">
@@ -26,9 +43,9 @@
         <output id="fling-power-value" for="fling-power">50</output>
       </div>
       <input id="fling-power" type="range" min="0" max="100" step="1" value="50" />
-      <div class="ends"><span>Gentle</span><span>Extra</span></div>
-      <p id="fling-power-detail" class="detail">How hard throws fly and how much it bounces off the screen edges.</p>
     </section>
+
+
 
     <!-- Collapsible: click the heading (or Enter/Space). Open/closed is remembered (settings.js). -->
     <details class="group" data-key="starbits" open>
@@ -38,22 +55,22 @@
     <section class="setting switches">
       <label class="switch-row">
         <span class="switch-name">Spawning</span>
-        <input id="starbit-spawning" type="checkbox" role="switch" />
+        <input id="starbit-spawning" type="checkbox" class="art-check" />
       </label>
       <label class="switch-row">
         <span class="switch-name">Visible</span>
-        <input id="starbit-visible" type="checkbox" role="switch" />
+        <input id="starbit-visible" type="checkbox" class="art-check" />
       </label>
       <label class="switch-row">
         <span class="switch-name">Shooting animation</span>
-        <input id="starbit-shoot" type="checkbox" role="switch" />
+        <input id="starbit-shoot" type="checkbox" class="art-check" />
       </label>
     </section>
 
     <section class="setting">
       <div class="label-row">
         <span class="label" id="starbit-colors-label">Color</span>
-        <output id="starbit-colors-count"></output>
+<!--        <output id="starbit-colors-count"></output>-->
       </div>
       <!-- One checkbox per color in renderer/shared/starbitArt.js (built by settings.js). -->
       <div id="starbit-colors" class="color-grid" role="group" aria-labelledby="starbit-colors-label"></div>

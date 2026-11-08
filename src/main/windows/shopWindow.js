@@ -55,8 +55,23 @@ function parkPet() {
 
 const releasePet = () => sendToPet({ type: 'shop-release' });
 
+// The shop stays in front of other windows until it's closed (always-on-top). WINDOWS QUIRK:
+// always-on-top windows are ordered by which was raised last, so focusing/clicking the shop would
+// put it ABOVE the pet window and hide Starby standing in its display box. Every time the shop
+// is raised, move the pet window back on top (moveTop doesn't take focus).
+function keepPetAbove() {
+  const pet = getPetWindow();
+  if (pet && !pet.isDestroyed()) pet.moveTop();
+}
+
+function raiseShop() {
+  bringToFront(shopWindow, { stayOnTop: true });
+  keepPetAbove();
+}
+
 // Shop is back on screen: park him again and put the try-on back on.
 function returnPet() {
+  keepPetAbove();
   parkPet();
   if (preview) sendToPet({ type: 'shop-preview', accessory: preview });
   if (previewColor) sendToPet({ type: 'shop-preview-color', color: previewColor });
@@ -64,7 +79,7 @@ function returnPet() {
 
 function openShopWindow() {
   if (shopWindow) {
-    bringToFront(shopWindow);
+    raiseShop();
     returnPet();
     return shopWindow;
   }
@@ -92,8 +107,9 @@ function openShopWindow() {
     },
   });
 
-  shopWindow.once('ready-to-show', () => bringToFront(shopWindow));
+  shopWindow.once('ready-to-show', raiseShop);
   shopWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'shop', 'index.html'));
+  shopWindow.on('focus', keepPetAbove); // clicking the shop raises it: keep Starby above it
   shopWindow.on('move', parkPet);
   shopWindow.on('restore', returnPet);
   shopWindow.on('show', returnPet);

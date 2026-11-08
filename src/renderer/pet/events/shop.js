@@ -25,23 +25,28 @@ const ACCEL = 6; // 1/s, how fast he gets up to speed
 const ARRIVE = 1.5; // px: close enough, snap into place
 const FREE_MODES = ['idle', 'walk', 'follow', 'flee']; // landed after a throw, etc. → go back
 
-let target = null; // { x, y } top-left for the star so he's centered in the box
+let box = null; // { x, y } center of the shop's display box, in this window's coordinates
 let shopOpen = false; // between 'shop-park' and 'shop-release'
 let speed = 0;
 let arrived = false;
 let endFn = null;
 
 function setTarget(ctx, cmd) {
-  const { pet } = ctx;
+  box = { x: cmd.x, y: cmd.y };
+  arrived = false;
+}
+
+// Where his top-left goes so he's centered in the box. Worked out from his CURRENT size every
+// frame, so changing "Starby size" in Settings while the shop is open keeps him centered.
+function spotFor(pet) {
   const half = pet.size / 2;
   // Keep him inside this window (the box may be partly off the primary display).
   const maxX = window.innerWidth - pet.size;
   const maxY = window.innerHeight - pet.size;
-  target = {
-    x: Math.max(0, Math.min(maxX, cmd.x - half)),
-    y: Math.max(0, Math.min(maxY, cmd.y - half)),
+  return {
+    x: Math.max(0, Math.min(maxX, box.x - half)),
+    y: Math.max(0, Math.min(maxY, box.y - half)),
   };
-  arrived = false;
 }
 
 export default {
@@ -58,7 +63,7 @@ export default {
         if (ctx.activeEvent() !== 'shop') ctx.startEvent('shop', 'shop-open');
       } else if (cmd.type === 'shop-release') {
         shopOpen = false;
-        target = null;
+        box = null;
         ctx.previewAccessory?.(null); // take off anything he was only trying on
         ctx.previewColor?.(null);
         endFn?.('shop-closed');
@@ -76,7 +81,7 @@ export default {
   // priority 100, was still playing when the shop opened, or something higher interrupted),
   // keep asking until he's free. Without this he never went into the box.
   watch(ctx) {
-    if (shopOpen && target && ctx.activeEvent() !== 'shop') ctx.startEvent('shop', 'shop-open');
+    if (shopOpen && box && ctx.activeEvent() !== 'shop') ctx.startEvent('shop', 'shop-open');
   },
 
   start(ctx, end) {
@@ -89,7 +94,7 @@ export default {
 
   update(ctx, dt) {
     const { pet } = ctx;
-    if (!target) return;
+    if (!box) return;
     if (pet.mode === 'drag' || pet.mode === 'toss') {
       arrived = false; // grabbed or thrown: wait, then run back
       speed = 0;
@@ -107,6 +112,7 @@ export default {
     pet.bob = 0;
     pet.rotation = 0;
     pet.squash = approach(pet.squash, 1, dt, 10);
+    const target = spotFor(pet);
     if (arrived) {
       pet.x = target.x;
       pet.y = target.y;
