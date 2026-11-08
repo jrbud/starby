@@ -50,6 +50,12 @@ const IMPACT_SQUASH = 0.62; // how flat it gets against the wall (lower = flatte
 const UPRIGHT_STIFFNESS = 60; // spring pulling it back upright...
 const UPRIGHT_DAMPING = 9; // ...and how quickly the wobble settles
 
+// Ceiling (see tossStep): his frame has this much empty space above his head (fraction of his
+// size: the head tip sits at y≈307 of the 2048px art after the feet shift), so when thrown his
+// box can go this far above the top of the screen and his head just touches it.
+const HEAD_ROOM = 0.15;
+const SETTLE_SPEED = 150; // px/s: slower than this above the normal area → float down into it
+
 // Bounce spin: every wall bounce gives him some spin, so a throw that started with little spin
 // doesn't glide around as one still picture. Part "rolling" (from how fast he slid along the
 // wall), part a random kick; capped below WHEE_SPIN-ish so not every bounce says "wheee".
@@ -236,6 +242,12 @@ function tossStep(ctx, dt) {
   pet.y += vel.y * dt;
   // Walls = edges of the usable screen (a taskbar on any side counts as a wall).
   const { minX, maxX, minY, maxY } = petBounds(ctx);
+  // CEILING: thrown, he bounces off the REAL top of the screen, his head touching it. (petBounds'
+  // minY sits TOP_MARGIN lower, to leave room for his speech bubble while he walks around, which
+  // made throws hit an invisible line that looked like a window's title bar.) His frame has
+  // HEAD_ROOM of empty space above his head, so his box may poke that far past the edge.
+  const area = ctx.area ? ctx.area() : { top: 0 };
+  const ceiling = Math.min(area.top - HEAD_ROOM * pet.size, minY);
   if (pet.x < minX || pet.x > maxX) {
     const side = pet.x < minX ? 'left' : 'right';
     pet.x = clamp(pet.x, minX, maxX);
@@ -243,9 +255,9 @@ function tossStep(ctx, dt) {
     vel.x = -vel.x * t.bounce;
     hitWall(ctx, side, into);
   }
-  if (pet.y < minY || pet.y > maxY) {
-    const side = pet.y < minY ? 'top' : 'bottom';
-    pet.y = clamp(pet.y, minY, maxY);
+  if (pet.y < ceiling || pet.y > maxY) {
+    const side = pet.y < ceiling ? 'top' : 'bottom';
+    pet.y = clamp(pet.y, ceiling, maxY);
     const into = Math.abs(vel.y);
     vel.y = -vel.y * t.bounce;
     hitWall(ctx, side, into);
@@ -255,6 +267,9 @@ function tossStep(ctx, dt) {
   pet.bob = 0;
 
   const speed = Math.hypot(vel.x, vel.y);
+  // Slowing down up in the strip above the normal area: float gently down into it, so he never
+  // ends a throw with his speech bubble cut off (and doesn't snap down when he lands).
+  if (pet.y < minY && speed < SETTLE_SPEED) pet.y = approach(pet.y, minY, dt, 4);
   if (!uprighting) {
     omega *= Math.exp(-SPIN_FRICTION * dt);
     pet.rotation += omega * dt;
@@ -267,7 +282,7 @@ function tossStep(ctx, dt) {
   } else {
     omega += (-UPRIGHT_STIFFNESS * pet.rotation - UPRIGHT_DAMPING * omega) * dt;
     pet.rotation += omega * dt;
-    if (Math.abs(pet.rotation) < 0.02 && Math.abs(omega) < 0.3 && speed < 15) {
+    if (Math.abs(pet.rotation) < 0.02 && Math.abs(omega) < 0.3 && speed < 15 && pet.y >= minY - 1) {
       pet.rotation = 0;
       omega = 0;
       vel = { x: 0, y: 0 };

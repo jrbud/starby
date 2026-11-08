@@ -57,6 +57,8 @@ src/
                             categories: sky / games / dance (table at the top of index.js);
                             happenings.js = 20–50 min sky timer (starShower.js, shootingStar.js);
                             hideSeek.js = hide and seek; catchGame.js = catch; dance.js = dancing to music;
+                            constellation.js = constellation quiz (shapes in constellations.js);
+                            copycat.js = he copies your cursor's movement;
                             games.js = list of games, game buttons, rest, games timer, 3-2-1-GO;
                             prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements
