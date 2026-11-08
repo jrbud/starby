@@ -62,12 +62,12 @@ const CLICK_BY_MOOD = lineBags({
 
 const IDLE_BY_MOOD = lineBags({
   happy: IDLE_LINES,
-  mad: ['hmph.', "i'm still mad, you know", '*grumbles*', 'no stardust for pokers'],
+  mad: ['hmph.', "i'm still mad, you know", '*grumbles*', 'no starbits for pokers'],
   playful: ['throw me again!', 'that was fun!', 'hehe', 'wheee~ (remembering)', 'bet you can\'t throw me farther'],
   dizzy: ['the room is spinning...', '@_@', 'which way is up?'],
   yawning: ['*yaaawn*', 'so sleepy...', 'nap time soon...'],
   sad: ['*sigh*', 'i just wanted to play...', '...', 'oh well.', '*kicks a pixel*'],
-  sleepy: ['zzz...', '*snore*', 'zzz... mm... stardust...', '*mumbles in sleep*'],
+  sleepy: ['zzz...', '*snore*', 'zzz... mm... starbits...', '*mumbles in sleep*'],
 });
 
 const CHAT_EVERY = [20, 40]; // seconds between idle-chatter attempts

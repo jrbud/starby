@@ -1,4 +1,4 @@
-/* The whole window is transparent; only the sprite, bubble and stardust are drawn. */
+/* The whole window is transparent; only the sprite, bubble and starbits are drawn. */
 html,
 body {
   margin: 0;
@@ -58,18 +58,72 @@ body {
   opacity: 0;
 }
 
-/* Stardust: a tiny flat diamond. Collected by hovering, so it is NOT a .hit element. */
-.stardust {
+/* Starbits: a tiny flat diamond. Collected by hovering, so it is NOT a .hit element.
+   Position/rotation are set every frame by behaviors/starbits.js (inline transform), so
+   transform is NOT transitioned here — that would make the floating lag and smear. */
+.starbits {
   position: absolute;
   width: 8px;
   height: 8px;
   background: #ffe680;
   transform: rotate(45deg);
   pointer-events: none;
-  transition: opacity 200ms, transform 200ms;
+  will-change: transform;
+  transition: opacity 200ms;
 }
 
-.stardust.collected {
+/* The pickup rise/shrink is applied inline from starbits.js; this just fades it.
+   (Only used when COLLECT_STYLE = 'fade' in starbits.js.) */
+.starbits.collected {
   opacity: 0;
-  transform: rotate(45deg) translateY(-12px) scale(0.5);
+}
+
+/* Trail left behind a starbit zipping to the corner: copies of the starbit that fade out.
+   starbits.js sets the opacity/transform transition inline. */
+.starbits-ghost {
+  opacity: 0.55;
+}
+
+/* Starbits notification card (bottom right, above the taskbar). Slides in from the right edge
+   when a starbit is picked up and back out a couple of seconds after the last one lands.
+   Plain box + text, no icons or art. NOT a .hit element, so it stays click-through.
+   starbits.js sets right/bottom. */
+.starbits-toast {
+  position: absolute;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(43, 43, 58, 0.88);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  pointer-events: none;
+  /* Hidden: parked just off the right edge. Slide out = ease-in (speeds up as it leaves). */
+  opacity: 0;
+  transform: translateX(calc(100% + 24px));
+  transition: transform 320ms cubic-bezier(0.55, 0, 0.75, 0.2), opacity 320ms ease-in;
+}
+
+.starbits-toast.visible {
+  opacity: 1;
+  transform: translateX(0);
+  /* Slide in = springy ease-out with a slight overshoot, so it lands softly. */
+  transition: transform 380ms cubic-bezier(0.2, 1.4, 0.4, 1), opacity 160ms ease-out;
+}
+
+.starbits-toast-count {
+  display: inline-block; /* so the pulse can scale it */
+  min-width: 1ch;
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums; /* digits don't jiggle as the number changes */
+  transform-origin: 50% 60%;
+}
+
+.starbits-toast-label {
+  font-size: 13px;
+  opacity: 0.8;
 }

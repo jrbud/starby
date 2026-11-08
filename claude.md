@@ -22,7 +22,7 @@ below to save time; those are non-negotiable, not polish.
 - Keep PRs/commits small and focused on one feature area so people aren't
   stepping on each other's files
 - Favor the folder structure in "Code conventions" below so different people
-  can own different behaviors (e.g. one person on stardust/shop, another on
+  can own different behaviors (e.g. one person on starbits/shop, another on
   movement/idle, another on speech bubbles/system reads) without touching
   shared files unnecessarily
 - If a change would touch shared/core files (main process setup, window
@@ -45,7 +45,7 @@ behavior (e.g. vibrancy, dock quirks) — test and tune for Windows only.
 
 ## CRITICAL: Claude never generates or edits image assets
 
-The team is hand-drawing their own art for the sprite, stardust, and shop
+The team is hand-drawing their own art for the sprite, starbits, and shop
 items. **Claude Code must never generate, source, hallucinate, or edit any
 image/art/sound asset itself** — no placeholder shapes drawn in lieu of real
 art, no "temporary" SVG/canvas stand-ins, no icon generation. If a visual
@@ -60,7 +60,7 @@ to create the files themselves.
 ### Asset format
 
 - **PNG with transparent background** for all sprite/character art
-  (sprite, stardust, shop item previews) — standard for desktop-pet-style
+  (sprite, starbits, shop item previews) — standard for desktop-pet-style
   sprites sitting directly on the desktop with no background box
 - One PNG file per animation frame (not one combined sprite sheet) — e.g.
   `idle_1.png`, `idle_2.png`, `walk_1.png`, `walk_2.png` — simpler to wire up
@@ -69,7 +69,7 @@ to create the files themselves.
   the art centered (e.g. every sprite frame exactly 128×128px), so swapping
   frames during animation doesn't cause jitter or jumping
 - Suggested folder convention: `assets/sprite/idle/`, `assets/sprite/walk/`,
-  `assets/stardust/`, `assets/shop/<item-name>/` — mirrors the per-behavior
+  `assets/starbits/`, `assets/shop/<item-name>/` — mirrors the per-behavior
   code structure below
 - SVG is fine only for simple flat UI chrome (e.g. shop panel icons/buttons)
   if the team wants it there — not for the character art itself
@@ -103,13 +103,13 @@ In scope now:
   changing, the active/focused window, battery level, time of day. Read-only
   only (see Scope Boundaries).
 - **Click/drag interaction**: clickable, draggable across the screen
-- **Stardust drops**: the sprite occasionally drops a stardust particle near
+- **Starbit drops**: the sprite occasionally drops a starbit near
   itself; the user collects it by hovering their mouse over it (no click
   needed — just cursor proximity/overlap triggers pickup)
-- **Stardust currency + persistence**: collected stardust accumulates as a
+- **Starbits currency + persistence**: collected starbits accumulate as a
   simple counter that needs to persist across app restarts (local file or
   simple local storage is enough — no real backend)
-- **Shop UI**: a window/panel where the user spends stardust to customize
+- **Shop UI**: a window/panel where the user spends starbits to customize
   the sprite (e.g. swap its color, shape variant, accessory), using real
   hand-drawn PNG art the team supplies per item (see asset format above).
   Selecting a purchased item should visibly change the on-screen sprite by
@@ -120,7 +120,7 @@ In scope now:
 Explicitly out of scope for now (don't build toward these unless asked):
 - Any "helpful tool" functionality (that's a possible future direction, not
   this hackathon build)
-- Any backend/networking/accounts — stardust and customization state are
+- Any backend/networking/accounts — starbits and customization state are
   local-only
 - Anything requiring real elevated/admin permissions
 
