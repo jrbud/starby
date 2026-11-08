@@ -51,9 +51,9 @@ export default {
     });
   },
 
-  watch(ctx) {
-    if (wanted() && ctx.activeEvent() !== 'hush') ctx.startEvent('hush', inCall ? 'call' : 'fullscreen');
-  },
+  // Calls and fullscreen apps now put him in FOCUS mode instead (./focus.js: "i'll be quiet for
+  // now!", the slingshot to the corner, back out when it ends). Hush only starts from DevTools.
+  watch() {},
 
   start(ctx, end, reason) {
     const { pet } = ctx;

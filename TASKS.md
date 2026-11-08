@@ -491,6 +491,34 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - The top-right counter card is now a `.hit` button that opens the shop.
     - Hovering keeps it from sliding away and grows it a little.
     - It's parked off-screen when hidden, so it only catches clicks while it's showing.
+  - **Calls + fullscreen → focus mode** (`focus.js`; `hush.js` no longer auto-starts):
+    - Call: "i'll be quiet for now!", then the slingshot to the corner.
+    - Fullscreen: an instant, silent flip into focus.
+    - Either ending: out of focus at once, and he walks back to where he was ("call over? hi again!").
+    - Clicking him out during a call doesn't restart focus until the call ends.
+  - **Fullscreen detection fixed** (`activeWindow.js`):
+    - Windows overlays (snipping Win+Shift+S, Start/search, lock screen...) no longer count as fullscreen.
+      They used to send him to the bottom-left corner, where he'd stay.
+    - It must hold for 2 polls; leaving counts at once.
+  - **No squeezed bubbles:** the focus corner is 90px in from the edge. Copycat's wall smack recoils him
+    ~1.3 sizes off the wall before he speaks.
+  - **App/site-specific lines:** `activeWindow.js` sends a `key` (notepad, notepadpp, acrobat, pdf,
+    word/excel/powerpoint, taskmanager, calculator, paint, obs, steam, discord, vscode, terminal, files,
+    youtube, netflix, twitch, github, gmail, reddit, wikipedia, amazon, nasa...). Each has its own lines in
+    `systemReactions.js`, with a 2-min cooldown per key.
+    - A ".pdf" title in ANY app counts as reading (fixes Adobe).
+  - **New system triggers** (`systemReads/desktop.js` + `systemReactions.js`): dark/light mode, a monitor
+    plugged in/out, the CPU working hard (85%+ for 15s), an hour in one kind of app, 6 app switches in 30s,
+    and a day-of-week line at startup.
+  - **Song start = dance, always (demo):**
+    - `music.js` also reports `newSong` when the playing title changes. The title still never leaves the
+      main process.
+    - `dance.js` `songStartNow`: a song starting or changing makes him dance at once. No quiet wait, no
+      cooldown, any mood (music wakes / cheers him).
+    - Invite and copycat step aside for it. It waits for games, focus, hush, the shop, sky events, the
+      intro, or being held.
+    - Already dancing → a fresh burst. Tested in the real app: asleep, mad, new song, mid-invite.
+    - `spotifast` was added to the music app category.
   - **Fixes:**
     - Exit: he vanishes in place inside the burst (quick fade). Before, a CSS `scale` on #pet also scaled
       his position, so he zoomed off toward the top-left.
