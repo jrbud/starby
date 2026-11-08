@@ -268,7 +268,7 @@ export const TREE = {
       { label: 'Open settings', action: 'settings' },
       { label: 'Admin settings', action: 'admin' },
       { label: 'Developer stuff', next: 'dev' },
-      { label: 'Quit sprite.exe', next: 'quit' },
+      { label: 'bye starby!', next: 'quit' },
       { label: 'Back', next: 'start' },
     ],
   },

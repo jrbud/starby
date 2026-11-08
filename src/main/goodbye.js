@@ -1,6 +1,6 @@
-// GOODBYE ON QUIT: whenever sprite.exe quits (tray menu "Quit sprite.exe", the dialogue's Quit,
+// GOODBYE ON QUIT: whenever sprite.exe quits (tray menu "bye starby!", the dialogue's "bye starby!",
 // Windows closing it...), Starby says goodbye first: a fun line, then he bursts into star clouds
-// and shrinks away (src/renderer/pet/behaviors/goodbye.js), THEN the app quits.
+// and disappears in them (src/renderer/pet/behaviors/goodbye.js), THEN the app quits.
 //
 // Every quit path goes through app.quit(), which fires 'before-quit': we hold that quit once, ask
 // the pet window to say goodbye (pet:command → window.starby.goodbye()), and quit for real when it
