@@ -4,10 +4,21 @@
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
     <title>sprite.exe — settings</title>
+    <link rel="stylesheet" href="../shared/menuFrame.css" />
     <link rel="stylesheet" href="settings.css" />
   </head>
-  <body>
-    <h1>Settings</h1>
+  <body class="menu-window">
+    <!-- The background art (assets/backgrounds/settings.png) has "SETTINGS" written on it. -->
+    <h1 class="sr-only">Settings</h1>
+    <div class="menu-drag"></div>
+    <button id="close" class="close-button" type="button" title="Close" aria-label="Close settings">
+      <img class="idle" src="../../../assets/menuIcons/x-idle.png" alt="" draggable="false" />
+      <img class="hover" src="../../../assets/menuIcons/x-hover.png" alt="" draggable="false" />
+    </button>
+
+    <!-- The art's grey panel; everything below scrolls inside it. -->
+    <main class="menu-panel settings-scroll">
+      <div class="settings-content">
 
     <section class="setting">
       <div class="label-row">
@@ -64,6 +75,9 @@
     </details>
 
     <button id="reset" type="button">Reset to default</button>
+
+      </div>
+    </main>
 
     <script type="module" src="settings.js"></script>
   </body>
