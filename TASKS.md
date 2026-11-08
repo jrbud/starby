@@ -167,6 +167,15 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   win, 8 starbits; lose → nothing taken. (There's no "open the shop" command: the shop takes him over and would
   end the game.) He isn't taken over (no `pet.mode`), so grabbing and
   throwing work as usual.
+- [x] **P1-19 (Nice) Hoop Shot.** `events/hoopShot.js`, a game (invite "wanna play hoop shot?", game buttons,
+  menu "Play hoop shot"). He flies to a launch spot on his side; a hoop appears on the far side (random height).
+  **Right-click and drag** him back like a slingshot (he's pulled toward the cursor, max 170px) and let go: he
+  flies the other way in an **arc** (gravity 1500px/s², this game only), spinning, bouncing off the screen edges.
+  While pulling, 6 small starbit PNGs show only the **first 0.4s** of the arc. Passing down through the hoop's
+  opening → "SWISH!" + 10 starbits. A miss bounces on the floor and he flies back to try again. **15s** on the clock
+  (countdown top right); a shot in the air at 0 still counts. The right-click menu is blocked only while the game
+  runs (window capture listener; drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
+  (`HOOP_ART` / `HOOP_ART_BOX` in hoopShot.js; swap when a hoop is drawn).
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
