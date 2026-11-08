@@ -2,10 +2,11 @@
 //
 //   setup   he flies to a launch spot near his side of the screen; the hoop appears on the far
 //           side. "hoop shot! right-click and drag me back, let go to shoot!"
-//   aim     GAME_FOR seconds on the clock (countdown top right). RIGHT-click and drag him back like a
-//           slingshot: he's pulled toward the cursor, and a few small starbits show the START of
+//   aim     GAME_FOR seconds on the clock (countdown top right). Right- OR left-click and drag him back
+//           like a slingshot: he's pulled toward the cursor, and a few small starbits show the START of
 //           the arc he'd fly (PREVIEW_DOTS dots, only the first PREVIEW_FOR seconds of the flight,
-//           so you still have to judge the rest). Let go to shoot. A tiny pull (< PULL_MIN) cancels.
+//           so you still have to judge the rest). Let go to shoot. Just a click (or a pull < PULL_MIN):
+//           he stays put and says "right click or left click and drag me!"
 //   flight  he flies in an ARC: real gravity (GRAVITY) only in this game, spinning, bouncing off the
 //           screen edges. Passing DOWN through the hoop's opening → scored!
 //   miss    he bounces on the floor, says "so close!" and flies back to the launch spot to try again.
@@ -14,7 +15,8 @@
 //
 // RIGHT-CLICK: normally right-click on him opens the menu (drag.js). While this game runs, a
 // capture listener on window swallows the contextmenu event before it reaches him, so the menu stays shut; it's back
-// to normal the moment the game ends. Left-drag still grabs him as usual, which ends the game.
+// to normal the moment the game ends. LEFT presses on him are caught the same way (window capture
+// mousedown), so drag.js doesn't grab him: left-drag pulls the slingshot too, and never ends the game.
 // While pulling, click-through is pinned off (ctx.setPinned) so the release isn't lost when the
 // cursor leaves him (see ../clickThrough.js).
 //
@@ -63,7 +65,8 @@ const HOOP_ART_SIZE = 2048;
 const HOOP_ART_BOX = [412, 25, 1576, 403];
 
 const LINES = {
-  intro: 'hoop shot! right-click and drag me back, let go to shoot!',
+  intro: 'hoop shot! right click or left click and drag me back, let go to shoot!',
+  howTo: 'right click or left click and drag me!',
   scored: lineBag(['SWISH!', 'nothing but net! SWISH!', 'SWISH! what a shot!']),
   miss: lineBag(['so close!', 'again again!', 'ooh, almost!', 'one more try!']),
   timeUp: lineBag(['aww, out of time!', "time's up! next time!", 'aww, so close...']),
@@ -85,6 +88,7 @@ let scored = false;
 let landed = false; // a missed shot finished (acted on at the tick)
 let played = false;
 let hooked = false;
+let pullButton = 2; // which mouse button is pulling (0 = left, 2 = right)
 
 const areaOf = (ctx) => (ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + ctx.pet.size });
 const center = (pet) => ({ x: pet.x + pet.size / 2, y: pet.y + pet.size / 2 });
@@ -176,22 +180,32 @@ function hookMouse(ctx) {
     e.preventDefault();
     e.stopPropagation();
   }, true);
-  petEl.addEventListener('mousedown', (e) => {
-    if (e.button !== 2 || phase !== 'aim') return;
+  // Presses on him, LEFT or RIGHT button: the same kind of capture listener, so drag.js never sees
+  // them during the game (a left press would otherwise grab him, which used to end the game).
+  // Either button pulls the slingshot while he's waiting at the launch spot; any other moment of
+  // the game (setup, flight, flying back) the press is just ignored.
+  window.addEventListener('mousedown', (e) => {
+    if (!active() || !(e.target === petEl || petEl.contains?.(e.target))) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (phase !== 'aim' || (e.button !== 0 && e.button !== 2)) return;
     mouse = { x: e.clientX, y: e.clientY };
+    pullButton = e.button;
     phase = 'pull';
     ctx.setPinned(true); // keep getting mouse events when the cursor leaves him
-  });
+  }, true);
   window.addEventListener('mousemove', (e) => { mouse = { x: e.clientX, y: e.clientY }; });
   window.addEventListener('mouseup', (e) => {
-    if (e.button !== 2 || phase !== 'pull') return;
+    if (phase !== 'pull' || e.button !== pullButton) return;
     ctx.setPinned(false);
     const p = pullVector(ctx);
     hideDots();
-    if (p.d < PULL_MIN) { // too small: put him back, no shot
+    if (p.d < PULL_MIN) { // just a click (or a tiny pull): he stays put and tells you how
       ctx.pet.x = launch.x;
       ctx.pet.y = launch.y;
+      ctx.pet.squash = 1;
       phase = 'aim';
+      ctx.say(LINES.howTo, 2200);
       return;
     }
     vel = shotFrom(p);
@@ -304,7 +318,7 @@ export default {
   onTick(ctx) {
     const { pet } = ctx;
     if (!endGame || phase === 'done') return;
-    if (pet.mode !== 'hoop') { finish(`interrupted:${pet.mode}`); return; } // grabbed (left-drag), etc.
+    if (pet.mode !== 'hoop') { finish(`interrupted:${pet.mode}`); return; } // something else took him over
     if (phase === 'setup') return;
 
     gameLeft -= TICK_SECONDS;
@@ -343,7 +357,7 @@ export default {
       if (moveToward(pet, launch, phase === 'setup' ? SETUP_SPEED : RETURN_SPEED, dt)) {
         if (phase === 'setup') {
           played = true;
-          countdown.show('HOOP SHOT', gameLeft, 'right-drag Starby back, let go!');
+          countdown.show('HOOP SHOT', gameLeft, 'drag Starby back (either button), let go!');
         }
         phase = 'aim';
         startJump({ height: rand(6, 9), air: 0.2 }); // ready!

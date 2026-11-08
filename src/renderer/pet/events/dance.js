@@ -18,6 +18,9 @@
 // dizzy, sleepy...). He only dances again once DANCE_COOLDOWN (1 minute) has passed since the last
 // dance AND things have been quiet for QUIET_FOR seconds: no interaction and no other event.
 // Owns the star via pet.mode = 'dance' (behaviors stand down for modes they don't know).
+// RANDOM DANCE (very rare): with no music at all, the event runner rolls RANDOM_DANCE.chance every
+// RANDOM_DANCE.every seconds (at most once per RANDOM_DANCE.cooldown, and only when nothing else
+// is going on); he hums a little tune and does a short RANDOM_DANCE_FOR burst. Same snap-outs.
 // In DevTools: starby.startEvent('dance') dances one burst even without music.
 import { rand, approach, clampToScreen, startJump, updateJump, cancelJump } from '../behaviors/motion.js';
 import { chat, lineBag } from '../behaviors/chatter.js';
@@ -31,6 +34,9 @@ const MOODS_THAT_DANCE = ['happy', 'playful'];
 const MOVES = ['bounce', 'sway', 'step', 'hop', 'spin'];
 const STEP = 0.22; // side-step distance, in star-sizes
 const MID_LINE_CHANCE = 0.25; // per move change
+// Very rare dance with no music: ~2% a minute → about once an hour, never twice within 20 min.
+const RANDOM_DANCE = { every: 60, chance: 0.02, cooldown: 1200 };
+const RANDOM_DANCE_FOR = [6, 10]; // seconds: a short little bop
 const QUIET_FOR = 25; // seconds with no interaction / other event before he dances (again)
 // Things you do to him that snap him out of a dance (event log types).
 const SNAP_OUT = ['click', 'grab', 'toss', 'swat', 'flinch'];
@@ -39,6 +45,7 @@ const LINES = {
   start: lineBag(['ooh, i love this song!', '*dance time*', "this one's a bop!", '*starts bopping*', 'music!!']),
   mid: lineBag(['la la la!', 'woo!', 'look at my moves!', '*shimmy*', 'ba-dum tss']),
   stop: lineBag(['aww, the song stopped', 'that was fun!', 'encore?']),
+  random: lineBag(['*hums a little tune*', 'i feel like dancing!', '*bops to a song only i can hear*', 'dance break!']),
 };
 
 let musicPlaying = false;
@@ -51,7 +58,7 @@ let move = 'bounce';
 let moveIndex = -1;
 let lastBeat = -1;
 let homeX = 0; // where he dances (side steps go either side of this)
-let devtoolsRun = false; // started from DevTools: dance one burst even with no music
+let noMusicRun = false; // started from DevTools or at random: dance one burst even with no music
 
 const relaxed = (pet) => pet.mode === 'idle' || pet.mode === 'walk';
 
@@ -69,7 +76,8 @@ function nextMove() {
 export default {
   name: 'dance',
   category: 'dance',
-  priority: 2, // below everything: invites 5, games 10, sky events 14, hush 15, shop 20
+  priority: 2, // below everything: invites 5, games 10, sky events 14, hush 15, focus 16, shop 20
+  auto: RANDOM_DANCE, // the rare no-music dance (events/index.js rolls it; canStart reason 'random')
 
   init(ctx) {
     ctx.events.onEntry((e) => {
@@ -89,7 +97,7 @@ export default {
   canStart(ctx, reason) {
     const { pet } = ctx;
     if (!MOODS_THAT_DANCE.includes(pet.mood) || !relaxed(pet)) return false;
-    return musicPlaying || reason === 'devtools';
+    return musicPlaying || reason === 'devtools' || reason === 'random';
   },
 
   // Every tick, even when not dancing: start a burst when the song is on, he's free, and it's
@@ -103,22 +111,22 @@ export default {
   start(ctx, end, reason) {
     const { pet } = ctx;
     endDance = end;
-    devtoolsRun = reason === 'devtools';
+    noMusicRun = reason === 'devtools' || reason === 'random';
     t = 0;
-    danceFor = rand(...DANCE_FOR);
+    danceFor = reason === 'random' ? rand(...RANDOM_DANCE_FOR) : rand(...DANCE_FOR);
     moveIndex = -1;
     lastBeat = -1;
     homeX = pet.x;
     pet.mode = 'dance';
     nextMove();
-    chat(ctx, LINES.start(), 2200, { wait: 3 });
+    chat(ctx, reason === 'random' ? LINES.random() : LINES.start(), 2200, { wait: 3 });
   },
 
   onTick(ctx) {
     const { pet } = ctx;
     if (pet.mode !== 'dance') return finish('interrupted'); // grabbed, thrown, etc.
     if (!MOODS_THAT_DANCE.includes(pet.mood)) return finish('mood');
-    if (!musicPlaying && t > 1 && !devtoolsRun) { // (devtools dances run without music)
+    if (!musicPlaying && t > 1 && !noMusicRun) { // (devtools / random dances run without music)
       chat(ctx, LINES.stop(), 2200, { wait: 3 });
       return finish('song over');
     }

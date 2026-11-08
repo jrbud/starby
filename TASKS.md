@@ -105,8 +105,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   "you found me!" + 10 starbits. Not found in 150s → he comes out and wins. On the game buttons, the games timer
   (he hides on his own, P1-15) and the menu ("Play hide & seek"); never in invites (`invite: false`).
 - [x] **P1-14 (Nice) Catch.** `events/catchGame.js`, a game (buttons, invites, menu "Play catch"): "i'm gonna
-  throw myself! catch me in the box!" A dashed catch box (5 × 5 Starbys) appears on the right; he goes to the far
-  left, stretches out, says "ready?" and flings himself at the box (950px/s, ~0.35s inside it). Click/grab him
+  throw myself! catch me in the box!" A catch box (5 × 5 Starbys, the team's tan box art `assets/events/tan-translucent-box.png`, with 3 strike X's on top: `assets/menuIcons/x-idle.png`, each strike swaps the next to `x-hover.png`; "Catch Here!" inside at the top in Sour Gummy, blue, at the box's opacity) appears on the right; he goes to the far
+  left, stretches out, says "get ready to catch me!", counts down "3... 2... 1... GO!" (before every throw) and flings himself at the box (950px/s, ~0.35s inside it). Click/grab him
   **inside the box** → "NICE!" + 10 starbits. Missed → "STRIKE n!", he bonks the edge, flies back, tries again;
   3 strikes → out. He walks back to the left facing left (the 'left' art, via `pet.faceOverride`, which
   `mood.js` honours) on one straight path. Clicking him before or after the box (or while winding up / flying back) → "CHEATER!", game
@@ -171,12 +171,13 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   throwing work as usual.
 - [x] **P1-19 (Nice) Hoop Shot.** `events/hoopShot.js`, a game (invite "wanna play hoop shot?", game buttons,
   menu "Play hoop shot"). He flies to a launch spot on his side; a hoop appears on the far side (random height).
-  **Right-click and drag** him back like a slingshot (he's pulled toward the cursor, max 170px) and let go: he
+  **Right- or left-click and drag** him back like a slingshot (he's pulled toward the cursor, max 170px) and let go: he
   flies the other way in an **arc** (gravity 1500px/s², this game only), spinning, bouncing off the screen edges.
   While pulling, 6 small starbit PNGs show only the **first 0.4s** of the arc. Passing down through the hoop's
   opening → "SWISH!" + 10 starbits. A miss bounces on the floor and he flies back to try again. **15s** on the clock
-  (countdown top right); a shot in the air at 0 still counts. The right-click menu is blocked only while the game
-  runs (window capture listener; drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
+  (countdown top right); a shot in the air at 0 still counts. Just a click (either button) → he stays put: "right
+  click or left click and drag me!". During the game, presses on him and the right-click menu are caught by window
+  capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
   (`HOOP_ART` / `HOOP_ART_BOX` in hoopShot.js; swap when a hoop is drawn).
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
@@ -429,7 +430,41 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
   - **Update:** `wallImpact.js` became `behaviors/fx.js`. It also plays small crash lines on a swat, a
     star-cloud burst when he's shaken or thrown awake, and a bigger burst on a shop buy/equip. Wind
     effects were tried and removed. A throw of 300px/s or more wakes a sleeping Starby (`mood.js`).
-- [x] **P3-12 Right-click dialogue + focus mode + tray menu.** (Functionality only; visuals come later.)
+- [x] **P3-12 Right-click dialogue + focus mode + tray menu.**
+  - **Burst layout (replaces the single box):**
+    - Right-click → if he's too close to an edge, he slides away from it first.
+    - Then up to 6 answer boxes burst out of him with a snappy overshoot into a horseshoe, 3 down each
+      side. An odd last answer sits centered under him.
+    - His line is in a box above his head.
+    - Picking an answer: the others snap back into him and the picked one pops. A submenu's boxes burst
+      out from the picked box into a fresh horseshoe.
+    - Max 6 answers per node (`MAX_OPTIONS`). Games are split into Action / Chill; Developer is trimmed to 6
+      ("Invite me to a game" is still in the tray menu).
+    - Developer: "No game rest (5 min)" → `starby.noRest(5)` in `games.js`.
+  - **Focus slingshot:** he says something nice, pulls back, arcs into the bottom-left corner spinning, and
+    slams in. He logs `slam` for the left wall and floor, which `fx.js` plays as a wall hit. It isn't logged
+    as `impact`, so starbits.js doesn't drop starbits. Then he's parked and quiet as before.
+  - **All his speech = the team's talkbox art** (`assets/talkbox/`, small / medium / large × 2 frames).
+    The shared module is `src/renderer/pet/talkbox.js`, used by `bubble.js` (every `ctx.say`) and the dialogue.
+    - It picks the size that wastes least space and squishes it vertically (down to 55%, team-approved).
+      Short lines get short, wide bubbles with a short tail.
+    - Boil: the artist's frame 1 ↔ 2. Dark brown text.
+    - `bubble.js` keeps the bubble on screen: it slides sideways near an edge, and flips below him (tail up)
+      when there's no room above. pet.css's plain `.bubble` look is overridden only while a talkbox shows.
+    - The art loads once (large first) a moment after launch. Until then the old plain bubble is used.
+    - **Never two at once** (`takeSpeech` in `talkbox.js`):
+      - Opening the dialogue or an event menu hides the speech bubble.
+      - Lines said while it's open replace his line in it, and unprompted chatter waits.
+      - A closing dialogue talkbox vanishes the moment a new speech bubble appears.
+  - **Event choices use the same menu:** `showMenu` / `setMenuLine` / `closeMenu` in `dialogue.js`.
+    - The invite ("wanna play pong?" [Yes!] [No]) and the star quiz (4 answers, countdown in his bubble) use it.
+    - `prompt.js` is now unused.
+  - **Look (shop/settings style):**
+    - The answers are `button-idle.png` (`button-hover.png` on hover).
+      Both are used as CSS border-images, so the hand-drawn edge keeps its thickness at any size.
+    - Text is Sour Gummy in the shop yellow `#ffe8a3`.
+    - A slight "line boil": an SVG noise filter wobbles only the frame art at ~7 fps while anything's showing.
+      It's code only, with no new assets.
   - **Right-click Starby:** a dialogue box opens beside him, on his right when he's on the left half of the
     screen and on his left otherwise. It shows his line and a list of answers.
     - The answers are: Let's chat! / Wanna shop? / Do you want to play a game? / Sorry, I gotta focus /

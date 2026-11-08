@@ -10,6 +10,14 @@
 // when it loads (createImageBitmap, high quality), so we never keep ~370MB of full-size
 // images around and never resample 2048px every frame. The files themselves are never changed.
 //
+// ANIMATED GIF FACES (`gif:` in FACES): the team supplied spittle.gif. A <canvas> only shows a
+// GIF's first frame, so each GIF is decoded frame by frame at load (the browser's ImageDecoder,
+// read-only: the file isn't changed) and its frames become that face's frames ('spittle#0'...).
+// NOTE: claude.md prefers PNG frames over GIFs (GIF transparency is 1-bit, so edges can look
+// jagged over the desktop). If the artist exports spittle-1.png ... spittle-12.png, swap the
+// entry to `files: [...]` and drop `gif`. A color set whose GIF is missing or a single frame
+// holds that frame (pick() prefers the set's own frames).
+//
 // Every effect (squash/stretch, spin, swing, impact freeze, hops) is a CSS transform on the
 // canvas in pet.js, so it applies to these PNGs exactly like it did to the old drawn star.
 
@@ -31,6 +39,9 @@ export const FACES = {
   glistening: { files: ['kawaii-1', 'kawaii-2'], every: 0.3 }, // random sparkly-eyed moment
   dragged: { files: ['nervousexcited'] },
   wink: { files: ['wink'] }, // random wink
+  // Excited spit-laugh (spittle.gif, 12 frames x 80ms): when he wins a game, and rarely at random
+  // (mood.js). `files` is filled in once the GIF is decoded.
+  spittle: { gif: 'spittle', files: [], every: 0.08 },
   up: { files: ['up-1'] }, // cursor right above him, or watching a star shower
   down: { files: ['down'] }, // cursor right below him
   left: { files: ['left'] }, // normal and walking left
@@ -62,7 +73,40 @@ const ALIGN = {
 export const alignFor = (file) => ALIGN[file] || [0, 0];
 export const FEET_PADDING = (ART_SIZE - 1 - FEET_Y) / ART_SIZE;
 
-const allFiles = () => [...new Set(Object.values(FACES).flatMap((f) => f.files))];
+const allFiles = () => [...new Set(Object.values(FACES).filter((f) => !f.gif).flatMap((f) => f.files))];
+const gifFaces = () => Object.values(FACES).filter((f) => f.gif);
+
+// The raw bytes of a local file (XHR works for file:// pages in Electron; fetch may not).
+function loadBytes(src) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', src);
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = () => (xhr.response && xhr.response.byteLength ? resolve(xhr.response) : reject(new Error(`empty ${src}`)));
+    xhr.onerror = () => reject(new Error(`could not load ${src}`));
+    xhr.send();
+  });
+}
+
+/** Decode every frame of a GIF: [{ image: VideoFrame, ms }]. Empty if unsupported/missing. */
+async function decodeGif(src) {
+  if (typeof ImageDecoder === 'undefined') return [];
+  const data = await loadBytes(src);
+  const decoder = new ImageDecoder({ data, type: 'image/gif' });
+  try {
+    await decoder.tracks.ready;
+    await decoder.completed;
+    const count = decoder.tracks.selectedTrack.frameCount;
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const { image } = await decoder.decode({ frameIndex: i });
+      out.push({ image, ms: image.duration ? image.duration / 1000 : null }); // duration is in µs
+    }
+    return out;
+  } finally {
+    decoder.close();
+  }
+}
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -120,6 +164,31 @@ export function createFrames(px) {
     for (const f of files) await loadOne(set, f);
   }
 
+  // GIF faces: decode, shrink each frame like a PNG, cache as '<set>/<gif>#<i>'.
+  const gifsLoaded = new Set();
+  async function loadGifs(set) {
+    for (const def of gifFaces()) {
+      const key = `${set}/${def.gif}`;
+      if (gifsLoaded.has(key)) continue;
+      gifsLoaded.add(key);
+      try {
+        const frames = await decodeGif(`${SPRITE_DIR}/${set}/${def.gif}.gif`);
+        for (let i = 0; i < frames.length; i++) {
+          const name = `${def.gif}#${i}`;
+          cache.set(`${set}/${name}`, await shrink(frames[i].image, px, name));
+          frames[i].image.close();
+        }
+        // The longest version (any color set) defines the face's frames and timing.
+        if (frames.length > def.files.length) {
+          def.files = frames.map((_, i) => `${def.gif}#${i}`);
+          if (frames[0].ms) def.every = frames[0].ms / 1000;
+        }
+      } catch {
+        // Missing or undecodable: this face falls back to happy (pick()).
+      }
+    }
+  }
+
   const ready = (v) => (v && !(v instanceof Promise) ? v : null);
   const getExact = (set, file) => ready(cache.get(`${set}/${file}`));
   const get = (set, file) => getExact(set, file) || getExact(DEFAULT_SET, file);
@@ -131,6 +200,7 @@ export function createFrames(px) {
     },
     async loadAll(set = DEFAULT_SET) {
       await loadFiles(set, allFiles());
+      await loadGifs(set);
     },
 
     /**
@@ -141,7 +211,7 @@ export function createFrames(px) {
     pick(face, set, elapsed) {
       for (const name of [face, 'happy']) {
         const def = FACES[name];
-        if (!def) continue;
+        if (!def || !def.files.length) continue; // (a GIF face before it's decoded)
         const i = def.every ? Math.floor(elapsed / def.every) % def.files.length : 0;
         // Prefer this color set's own frames: if it's missing one frame of a face (e.g.
         // bubblegum has dizzy-1 but no dizzy-2), hold its other frame rather than flashing a

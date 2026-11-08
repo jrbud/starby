@@ -5,6 +5,7 @@
 // To change a DEFAULT, edit `default` here. To add a new knob: add an entry here, then read
 // it in starbits.js as `tuning.<key>`; the Admin Settings window picks it up automatically.
 // `group` is the section heading it appears under in Admin Settings (in list order).
+// `type: 'toggle'` = an on/off switch instead of a slider (stored as 1 / 0, min 0, max 1).
 //
 // Admin Settings only saves values someone changed (admin-settings.json in the app's data
 // folder); anything not saved uses the default below. "Reset to defaults" clears them all.
@@ -46,6 +47,10 @@ export const STARBITS_TUNING = [
   {
     group: 'Starbits', key: 'magnetRadius', label: 'Magnet reach', unit: 'px', min: 0, max: 400, step: 10, default: 90,
     help: 'How close the cursor has to get before starbits drift toward it.',
+  },
+  {
+    group: 'Debug', key: 'showMoodLabel', label: 'Show mood label', type: 'toggle', unit: '', min: 0, max: 1, step: 1, default: 0,
+    help: 'The little text under Starby with his mood and what\'s next (e.g. "happy · yawn in 1:52"). Read by behaviors/moodLabel.js.',
   },
 ];
 

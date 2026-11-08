@@ -4,7 +4,8 @@
 //   place   he throws one starbit per star, every PLACE_EVERY seconds; each flies to its spot and
 //           stays there (placeStarbit in ../behaviors/starbits.js: held, can't be collected yet)
 //   lines   the constellation's lines draw in, one after another (LINE_FOR seconds each)
-//   ask     "which constellation is this?" + a popup with 4 answers: the right one and 3 others
+//   ask     "which constellation is this? (20s)" in a talkbox, with 4 answers bursting out around him
+//           (the same menu as the right-click dialogue, showMenu): the right one and 3 others
 //           from CONSTELLATIONS (./constellations.js), shuffled. ANSWER_FOR seconds to choose.
 //   result  right       → "yes!! it's Orion!" and every starbit in it is released: they float like
 //                          normal drops, yours to collect by hovering (releaseStarbits)
@@ -28,7 +29,7 @@ import { lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
 import { placeStarbit, releaseStarbits, reclaimStarbits } from '../behaviors/starbits.js';
 import { TICK_SECONDS } from '../core/clock.js';
-import { createPrompt } from './prompt.js';
+import { showMenu, setMenuLine, closeMenu } from '../dialogue/dialogue.js';
 import { readyToPlay, markPlayed } from './games.js';
 import { CONSTELLATIONS } from './constellations.js';
 
@@ -75,7 +76,8 @@ let drawT = 0; // seconds into the current line
 let answer = null; // name picked in the popup (acted on at the next tick)
 let outcome = null; // 'right' | 'wrong' | 'timeout'
 let played = false; // got as far as asking (counts for the rest between games)
-let prompt = null;
+let askLine = ''; // his question this round; the menu shows it with the seconds left
+let shownSecs = -1;
 let left = 0;
 
 const areaOf = (ctx) => (ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + ctx.pet.size });
@@ -178,12 +180,12 @@ function clearLines() {
 function showQuestion(ctx) {
   const wrong = shuffle(CONSTELLATIONS.filter((c) => c !== shape)).slice(0, CHOICES - 1);
   const options = shuffle([shape, ...wrong]);
-  prompt = prompt || createPrompt(ctx.stage);
-  prompt.show({
-    text: `Which constellation? ${Math.ceil(ANSWER_FOR)}s`,
-    buttons: options.map((c) => ({ label: c.name, onClick: () => { if (phase === 'ask' && !answer) answer = c.name; } })),
+  askLine = LINES.ask();
+  shownSecs = Math.ceil(ANSWER_FOR);
+  showMenu(ctx, {
+    line: `${askLine} (${shownSecs}s)`,
+    options: options.map((c) => ({ label: c.name, onPick: () => { if (phase === 'ask' && !answer) answer = c.name; } })),
   });
-  prompt.place(ctx.pet, ctx.area?.());
 }
 
 function finishGame(result) {
@@ -264,16 +266,16 @@ export default {
         phase = 'ask';
         played = true;
         left = ANSWER_FOR;
-        ctx.say(LINES.ask(), 3000);
-        showQuestion(ctx);
+        showQuestion(ctx); // his question goes in the menu's talkbox
         ctx.log('constellation-ask', { shape: shape.name });
       }
     } else if (phase === 'ask') {
       left -= TICK_SECONDS;
-      prompt?.setText(`Which constellation? ${Math.max(0, Math.ceil(left))}s`);
+      const secs = Math.max(0, Math.ceil(left));
+      if (secs !== shownSecs) { shownSecs = secs; setMenuLine(ctx, `${askLine} (${secs}s)`); }
       if (answer || left <= 0) {
         outcome = !answer ? 'timeout' : answer === shape.name ? 'right' : 'wrong';
-        prompt?.hide();
+        closeMenu(ctx);
         const real = held.filter(Boolean);
         if (outcome === 'right') {
           ctx.say(LINES.right(shape.name), RESULT_FOR * 1000);
@@ -306,7 +308,6 @@ export default {
       growLine(drawing, Math.min(1, drawT / LINE_FOR));
       if (drawT >= LINE_FOR) { drawing++; drawT = 0; }
     }
-    if (phase === 'ask') prompt?.place(pet, ctx.area?.());
   },
 
   stop(ctx, result) {
@@ -315,7 +316,7 @@ export default {
     const leftover = held.filter(Boolean);
     if (leftover.length) reclaimStarbits(ctx, leftover); // ended early: he takes the stars back
     held = [];
-    prompt?.hide();
+    closeMenu(ctx);
     phase = 'done';
     fadeLines(ctx);
     if (pet.mode === 'quiz') pet.mode = 'idle';

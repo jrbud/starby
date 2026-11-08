@@ -87,6 +87,7 @@ const pet = {
   bob: 0, // vertical offset in px (idle bobbing, hops)
   squash: 1, // 1 = normal; <1 squashed, >1 stretched
   rotation: 0, // radians, clockwise, around the star's center (drag/toss spin)
+  warp: null, // { angle (rad), stretch (1 = none) }: stretched toward a direction (slingshot)
   lookX: 0, // -1..1 eye direction (only the old drawn star used it; the PNGs have painted eyes)
   blink: false, // (old drawn star only; blinks/closed eyes are in the PNG frames now)
   face: 'happy', // which PNG frames to show; set every frame by behaviors/mood.js
@@ -303,8 +304,14 @@ function render(now, dt) {
   // No mirroring by pet.facing: the PNGs face the viewer, and walking left/right has its own
   // frames (frames.js 'left' / 'right'). Mirroring would flip the wink and tongue to the wrong side.
   const half = SIZE / 2;
+  // pet.warp (optional, e.g. behaviors/slingshot.js): stretch him along a direction without
+  // turning the art: rotate to that direction, stretch along it, rotate back. Around his middle.
+  const w = pet.warp;
+  const warp = w && w.stretch !== 1
+    ? `rotate(${w.angle}rad) scale(${w.stretch}, ${1 / Math.sqrt(w.stretch)}) rotate(${-w.angle}rad) `
+    : '';
   canvas.style.transform =
-    `translateY(${-half}px) rotate(${rotation}rad) translateY(${half}px) ` +
+    `translateY(${-half}px) ${warp}rotate(${rotation}rad) translateY(${half}px) ` +
     `scale(${1 / Math.sqrt(squash)}, ${squash})`;
 
   // Which frame: pet.face (mood.js), alternating from when that face appeared.

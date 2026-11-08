@@ -9,7 +9,8 @@
 //   - GAMES: the list of games (also used by ./invite.js when he asks you to play)
 //   - createReady(): the "3...", "2...", "1...", "GO!" countdown before a game
 //
-// DevTools / Developer menu: starby.skipRest() ends the rest early.
+// DevTools / Developer menu: starby.skipRest() ends the rest early; starby.noRest(5) turns it off
+// for 5 minutes.
 //
 // THE GAMES TIMER (category: games). Every GAMES_TIMER.every seconds there's a GAMES_TIMER.chance
 // roll (at most once per GAMES_TIMER.cooldown) to start a game on his own, picked at random from
@@ -51,6 +52,7 @@ const LINES = {
 };
 
 let lastPlayedEndAt = -Infinity; // session seconds when the last actual game ended
+let noRestUntil = -Infinity; // session seconds: no rest between games before this (starby.noRest)
 
 // Games timer
 const GAMES_TIMER = { every: 60, chance: 0.2, cooldown: 240 }; // seconds, chance per roll, seconds
@@ -105,6 +107,7 @@ function rollGamesTimer(ctx) {
 
 /** Seconds of rest he still needs after the last game (0 = ready to play). */
 export function restLeft(ctx) {
+  if (ctx.clock.seconds < noRestUntil) return 0; // rest turned off for a while (Developer menu)
   return Math.max(0, lastPlayedEndAt + GAME_REST - ctx.clock.seconds);
 }
 
@@ -156,6 +159,12 @@ export const gamesMenu = {
     // DevTools / Developer menu: forget the last game, so he'll play again right away.
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.skipRest = () => { lastPlayedEndAt = -Infinity; return 'rested'; };
+      // Dialogue → Developer stuff → "No game rest (5 min)": no rest between games for N minutes.
+      window.starby.noRest = (minutes = 5) => {
+        noRestUntil = ctx.clock.seconds + Number(minutes) * 60;
+        lastPlayedEndAt = -Infinity;
+        return `no game rest for ${minutes} min`;
+      };
     }
   },
 
