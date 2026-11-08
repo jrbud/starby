@@ -21,7 +21,10 @@
 //
 // Ends when you click him or pick him up (he says hi), or you pick "Okay, I'm done focusing!" in
 // the dialogue. The shop window (priority 20) also ends it.
-// You can still right-click him while he focuses: the dialogue opens and he stays parked.
+// No dialogue until he's landed (pet.noDialogue): right-clicking him mid-slingshot would open the
+// boxes and then he'd fly off and scramble them.
+// You can still right-click him while he focuses: the dialogue flies him out of the corner so its
+// boxes fit (pet.dialogueHold: we let go of him meanwhile), and he flies back when it closes.
 // Above hush (15): if a call starts while focusing he's already quiet and parked.
 // Owns the star via pet.mode = 'focus'; sets pet.faceOverride (mood.js honours it).
 // DevTools: starby.startEvent('focus').
@@ -102,6 +105,7 @@ function land(ctx, hit) {
     ctx.log('slam', { side: 'left', speed: IMPACT_SPEED.left });
     ctx.log('slam', { side: 'bottom', speed: IMPACT_SPEED.bottom });
   }
+  pet.noDialogue = false; // landed: right-click works again
   parkedFor = 0;
   flourish = null;
   nextFlourishAt = rand(...FLOURISH_EVERY);
@@ -127,6 +131,7 @@ export default {
     ctx.say(LINES.okay(), TALK_FOR * 1000 + 300);
     if (pet.mode !== 'drag' && pet.mode !== 'toss') pet.mode = 'focus';
     pet.faceOverride = null;
+    pet.noDialogue = true; // until he lands (see land())
   },
 
   update(ctx, dt) {
@@ -183,8 +188,17 @@ export default {
     // Parked: perfectly still, calm face (talking face if he's mid-line).
     parkedFor += dt;
     if (parkedFor >= QUIET_AFTER_LANDING) pet.hushed = true;
-    pet.x = target.x;
-    pet.y = target.y;
+    if (pet.dialogueHold) {
+      // The right-click dialogue moved him out of the corner to fit its boxes; it owns where he is.
+      pet.rotation = 0;
+      pet.bob = 0;
+      pet.squash = approach(pet.squash, 1, dt, 10);
+      pet.faceOverride = null;
+      return;
+    }
+    // Back to (and staying in) the corner: a quick glide if the dialogue had moved him.
+    pet.x = approach(pet.x, target.x, dt, 9);
+    pet.y = approach(pet.y, target.y, dt, 9);
     pet.rotation = 0;
     pet.bob = 0;
     pet.squash = approach(pet.squash, 1, dt, 10);
@@ -196,6 +210,8 @@ export default {
     endFocus = null;
     flourish = null;
     pet.hushed = false;
+    pet.dialogueHold = false;
+    pet.noDialogue = false;
     pet.bob = 0;
     pet.rotation = 0;
     pet.faceOverride = null;

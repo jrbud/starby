@@ -185,6 +185,7 @@ function showQuestion(ctx) {
   showMenu(ctx, {
     line: `${askLine} (${shownSecs}s)`,
     options: options.map((c) => ({ label: c.name, onPick: () => { if (phase === 'ask' && !answer) answer = c.name; } })),
+    onCancel: () => { if (phase === 'ask' && !answer) left = 0; }, // clicked away: gives up ("nope! it was...")
   });
 }
 

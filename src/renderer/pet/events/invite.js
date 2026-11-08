@@ -103,6 +103,7 @@ export default {
         { label: 'Yes!', onPick: () => { answer = 'yes'; } },
         { label: 'No', onPick: () => { answer = 'no'; } },
       ],
+      onCancel: () => { left = 0; }, // clicked away: same as not answering ("...maybe later then")
     });
   },
 

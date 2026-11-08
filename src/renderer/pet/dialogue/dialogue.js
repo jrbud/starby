@@ -8,9 +8,18 @@
 //   pick an answer    the other boxes snap back into him; the picked one pops. If it opens another
 //                     menu, the new boxes burst out FROM the picked box into a fresh horseshoe.
 //   while it's open   he stands still (only if he was just hanging around: idle / walk / follow).
-//                     If an event owns him (focus, hush), he isn't moved: the boxes shift instead.
+//                     In focus mode he's HELD (pet.dialogueHold): events/focus.js lets go of him, so he
+//                     flies out of his corner like at any edge, and flies back when it closes.
+//                     Other events that own him (hush) don't move him: the boxes shift instead.
 //   it closes when    you pick an answer that ends it, he's picked up, an event takes over, or
 //                     you leave it alone for AUTO_CLOSE seconds (the cursor over a box keeps it open)
+//   click away        a left or right click anywhere that isn't a box (or Starby) cancels it: the
+//                     boxes snap back into him. The pet window is normally click-through (clicks go
+//                     to the desktop), so while a menu is open a transparent full-screen CATCHER sits
+//                     behind him and the boxes and click-through is pinned off (ctx.setPinned). That
+//                     click only dismisses the menu (like any popup menu); after it, clicks go
+//                     through to the desktop again. His line's talkbox isn't a button: clicking it
+//                     counts as clicking away.
 //   one talkbox       while it's open it holds his speech (../talkbox.js takeSpeech): the speech bubble
 //                     he had up goes away as it opens, and any new line he says replaces his line
 //                     here (a little pop) instead of stacking a second bubble on top.
@@ -31,15 +40,18 @@
 // (../clickThrough.js); the gaps between them stay click-through.
 // Run by events/index.js as a helper (init / watch / watchFrame).
 // EVENT MENUS: events show their choices the same way (talkbox line + burst horseshoe + boil):
-//   showMenu(ctx, { line, options: [{ label, onPick }] })   e.g. "wanna play pong?" [Yes!] [No]
+//   showMenu(ctx, { line, options: [{ label, onPick }], onCancel })   e.g. "wanna play pong?" [Yes!] [No]
 //   setMenuLine(ctx, text)                                   update his line (e.g. a countdown)
 //   closeMenu(ctx)                                           take it away (the event ended / timed out)
 // An event menu never moves him (the event owns him; the boxes shift to fit instead), doesn't
 // auto-close (the event has its own timer), closes when the event ends, and ignores right-clicks.
+// Pass onCancel to let a click away cancel it (called after the boxes go back); without it the
+// menu doesn't catch clicks at all (they go through to the desktop).
 // Used by events/invite.js and events/constellation.js (the star quiz).
 // DevTools: starby.dialogue() opens it, starby.dialogue('settings') opens a node directly.
 import { TREE } from './tree.js';
 import { requestGame } from '../events/games.js';
+import { strikePose } from '../behaviors/mood.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { createTalkbox, loadTalkbox, talkboxReady, takeSpeech, releaseSpeech, onSpeechBubbleShown } from '../talkbox.js';
 
@@ -58,6 +70,7 @@ const STAGGER_MS = 28; // ...one after another
 const OUT_MS = 150; // unpicked boxes snapping back into him
 const POP_MS = 170; // the picked box popping
 const SAY_MS = 200; // speech box popping up
+const POSE_FOR = 1.4; // seconds a node's `pose` face shows (unless it says otherwise)
 const ASSETS = '../../../assets'; // relative to src/renderer/pet/index.html
 const BOIL_EVERY = 140; // ms per boil step (~7 fps, the classic hand-drawn boil rate)
 const BOIL_SEEDS = [3, 11, 27];
@@ -74,6 +87,7 @@ const TALK_MAX = 210; // px: his line wraps past this
 const IGNORE = ['intro', 'shop', 'hoop-shot']; // nothing: the launch animation / he's in the shop window
 const SNAP_OUT = ['dance', 'invite']; // stop it, then talk normally
 const CALM = ['focus', 'hush']; // talk normally, the event keeps going (he stays parked/quiet)
+const HOLD = ['focus']; // ...and these let the dialogue move him while it's open (pet.dialogueHold)
 // anything else (games, sky events) → the 'busy' node: keep going, or stop it
 
 // ---- State ----
@@ -87,6 +101,8 @@ let froze = false; // we put him in 'dialogue' mode (and must hand him back)
 let quietFor = 0;
 let boilTimer = null;
 let ctxRef = null;
+let catcher = null; // full-screen click catcher behind the boxes (see 'click away' above)
+let catching = false;
 // While open, his ctx.say lines land here (replacing his line) instead of a second bubble.
 const takeLine = (text) => { if (ctxRef && open && say) replaceLine(ctxRef, text, true); };
 let boilStep = 0;
@@ -115,6 +131,7 @@ function injectStyles() {
       position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none;
       font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif; color: var(--dialogue-yellow);
     }
+    .dlg-catcher { position: fixed; inset: 0; display: none; background: transparent; }
     .dlg-slot {
       /* max-content: the root is 0 wide, so without it text would wrap at every word. */
       position: absolute; left: 0; top: 0; width: max-content; opacity: 0; pointer-events: none;
@@ -136,6 +153,7 @@ function injectStyles() {
       border: 0; background: none; margin: 0; padding: 9px 16px 10px;
       font: inherit; font-size: 14px; font-weight: 700; color: var(--dialogue-yellow);
       text-align: center; white-space: nowrap; transition: transform 110ms ease-out;
+      text-transform: lowercase; /* every choice is lowercase (tree, invites, quiz answers) */
     }
     .dialogue-option::before {
       content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
@@ -188,6 +206,35 @@ function build(ctx) {
   root.className = 'dlg-root';
   root.addEventListener('contextmenu', (e) => e.preventDefault());
   ctx.stage.appendChild(root);
+  // Behind everything on the stage (Starby and the boxes stay clickable above it).
+  catcher = document.createElement('div');
+  catcher.className = 'dlg-catcher hit';
+  catcher.addEventListener('mousedown', (e) => {
+    if (e.button === 0 || e.button === 2) cancel(ctx);
+  });
+  catcher.addEventListener('contextmenu', (e) => e.preventDefault());
+  ctx.stage.insertBefore(catcher, ctx.stage.firstChild);
+}
+
+// Catch clicks everywhere (on) / hand them back to the desktop (off).
+function setCatching(ctx, on) {
+  if (catching === on) return;
+  catching = on;
+  if (catcher) catcher.style.display = on ? 'block' : 'none';
+  ctx.setPinned?.(on);
+  if (!on && ctx.cursor && ctx.cursor.x > -1000) {
+    // Re-check click-through for where the cursor is now (clickThrough.js does it on mousemove).
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: ctx.cursor.x, clientY: ctx.cursor.y }));
+  }
+}
+
+// Clicked away: the boxes go back into him.
+function cancel(ctx) {
+  if (!open) return;
+  const onCancel = open.onCancel;
+  ctx.log('dialogue-cancel', { node: open.id });
+  close(ctx);
+  onCancel?.();
 }
 
 // ---- Layout (offsets from his middle) ----
@@ -270,12 +317,12 @@ const resolve = (ctx, line) => {
 function makeSay() {
   const base = { w: 0, h: 0, slot: { x: 0, y: 0 }, from: { x: 0, y: 0 }, kind: 'wait', start: 0, dur: 0, tailFrac: 0.5 };
   if (talkboxReady()) {
-    const tb = createTalkbox({ fontSize: TALK_FONT, maxText: TALK_MAX, padX: 12, padY: 5, className: 'dlg-slot hit' });
+    const tb = createTalkbox({ fontSize: TALK_FONT, maxText: TALK_MAX, padX: 12, padY: 7, className: 'dlg-slot' }); // not a button: clicking it = clicking away
     root.appendChild(tb.el);
     return { ...base, el: tb.el, tb, talk: true };
   }
   const el = document.createElement('div');
-  el.className = 'dlg-slot dlg-say hit';
+  el.className = 'dlg-slot dlg-say';
   const frame = document.createElement('div');
   frame.className = 'dlg-frame';
   const textEl = document.createElement('div');
@@ -325,6 +372,11 @@ function showNode(ctx, id, origin = { x: 0, y: 0 }) {
   }
   if (!say) say = makeSay();
   setSayText(ctx, resolve(ctx, node.line));
+  // A face to make while he says it (tree.js `pose`), e.g. really winking on "*wink*".
+  if (node.pose) {
+    const pose = typeof node.pose === 'string' ? { face: node.pose } : node.pose;
+    strikePose(ctx, pose.face, pose.for || POSE_FOR);
+  }
   boxes.push(...options.map((o) => makeBox(ctx, o, origin)));
   const fresh = boxes.filter((b) => b.kind === 'wait');
   // Measure (they're laid out but invisible), then place everything.
@@ -339,7 +391,7 @@ function showNode(ctx, id, origin = { x: 0, y: 0 }) {
   // Too close to an edge? Slide him away first (only if he's ours to move), then burst.
   const c = centerOf(ctx.pet);
   const fit = fitCenter(ctx, c);
-  if (froze && Math.hypot(fit.x - c.x, fit.y - c.y) > 1) {
+  if ((froze || ctx.pet.dialogueHold) && Math.hypot(fit.x - c.x, fit.y - c.y) > 1) {
     room = { x: fit.x - ctx.pet.size / 2, y: fit.y - ctx.pet.size / 2, until: performance.now() + ROOM_MAX_MS };
   } else {
     burst(performance.now());
@@ -359,6 +411,7 @@ function burst(now) {
 function openDialogue(ctx, id = null) {
   const { pet } = ctx;
   if (pet.mode === 'drag' || pet.mode === 'toss') return false;
+  if (pet.noDialogue) return false; // e.g. mid focus slingshot (events/focus.js)
   let active = ctx.activeEvent();
   if (IGNORE.includes(active)) return false;
   if (SNAP_OUT.includes(active)) {
@@ -371,6 +424,8 @@ function openDialogue(ctx, id = null) {
   if (pet.mode === 'idle' || pet.mode === 'walk' || pet.mode === 'follow') {
     pet.mode = 'dialogue';
     froze = true;
+  } else if (HOLD.includes(active)) {
+    pet.dialogueHold = true; // focus lets go of him while we talk (he goes back after)
   }
   root.style.display = '';
   startBoil();
@@ -378,6 +433,7 @@ function openDialogue(ctx, id = null) {
   const node = id || (active && !CALM.includes(active) ? 'busy' : 'start');
   showNode(ctx, node);
   takeSpeech(takeLine); // his speech bubble goes away; new lines come here
+  setCatching(ctx, true); // a click anywhere else cancels
   ctx.log('dialogue-open', { node, event: active });
   return true;
 }
@@ -417,6 +473,7 @@ function close(ctx, picked = null) {
   if (!open) return;
   open = null;
   releaseSpeech(takeLine); // lines go back to his speech bubble
+  setCatching(ctx, false); // clicks go to the desktop again
   room = null;
   const now = performance.now();
   retire(picked, now);
@@ -426,6 +483,7 @@ function close(ctx, picked = null) {
   }
   if (froze && ctx.pet.mode === 'dialogue') ctx.pet.mode = 'idle';
   froze = false;
+  ctx.pet.dialogueHold = false; // focus takes him back to his corner
 }
 
 function clearAll() {
@@ -463,14 +521,15 @@ function draw(b, anchor, now) {
   b.el.style.transform = `translate(${(anchor.x + st.x - b.w / 2).toFixed(1)}px, ${(anchor.y + st.y - b.h / 2).toFixed(1)}px) scale(${st.s.toFixed(3)})`;
   b.el.style.opacity = st.o.toFixed(3);
   // Clickable once it's (nearly) in place; never while flying back in.
-  b.el.style.pointerEvents = (b.kind === 'shown' || (b.kind === 'in' && st.p > 0.6)) ? 'auto' : 'none';
+  const clickable = b !== say && (b.kind === 'shown' || (b.kind === 'in' && st.p > 0.6));
+  b.el.style.pointerEvents = clickable ? 'auto' : 'none';
   if (b.kind === 'in' && st.p >= 1) b.kind = 'shown';
   return (b.kind === 'out' || b.kind === 'pop') && st.p >= 1; // finished leaving
 }
 
 // ---- Event menus (see the header) ----
 /** Show an event's choices like the dialogue: his `line` in a talkbox, `options` bursting out. */
-export function showMenu(ctx, { line, options }) {
+export function showMenu(ctx, { line, options, onCancel = null }) {
   if (!root) build(ctx);
   clearAll();
   if (froze && ctx.pet.mode === 'dialogue') ctx.pet.mode = 'idle'; // (the player's dialogue was open)
@@ -480,7 +539,9 @@ export function showMenu(ctx, { line, options }) {
   startBoil();
   open = null;
   showNode(ctx, { line, options: options.slice(0, MAX_OPTIONS), menu: true });
+  open.onCancel = onCancel;
   takeSpeech(takeLine);
+  if (onCancel) setCatching(ctx, true); // click away = cancel; otherwise clicks pass through
 }
 
 /** Change his line in an open event menu (the answer boxes stay put). */
@@ -532,6 +593,7 @@ export const dialogue = {
   // Every tick: close when he's taken, an event takes over, or it's been left alone too long.
   watch(ctx) {
     if (!open) return;
+    if (catching) ctx.setPinned?.(true); // a poke's mouseup (drag.js) unpins; keep catching
     const { pet, cursor } = ctx;
     const under = cursor.x > -1000 ? document.elementFromPoint(cursor.x, cursor.y) : null;
     quietFor = under && under.closest('.dlg-root') ? 0 : quietFor + TICK_SECONDS;

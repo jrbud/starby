@@ -32,9 +32,11 @@ const FOLLOW_STOP = 70; // stops this far (px) from the cursor, center to cursor
 const FOLLOW_TOO_FAR = 450; // cursor got this far away → stop following
 
 // Flinch tuning
-const FLINCH_RADIUS = 180; // the cursor's path has to come this close (px) to the star's center
-const MIN_RUSH_SPEED = 1300; // px/s toward the star (a quick flick, not a normal mouse move)
-const MAX_MISS = 70; // ignore fast cursors whose straight-line path passes further than this from the star
+// (Made harder to scare by Person 3 at the team's request: only a really fast rush right at him.)
+const FLINCH_RADIUS = 130; // the cursor's path has to come this close (px) to the star's center (was 180)
+const MIN_RUSH_SPEED = 2600; // px/s toward the star: a really fast lunge, not a quick move (was 1300)
+const CALM_SPEED = 650; // px/s: slower than this toward him counts as a calm cursor ("oh! hi" / follow)
+const MAX_MISS = 50; // ignore fast cursors whose straight-line path passes further than this from the star (was 70)
 const MAX_REAL_SPEED = 8000; // px/s; faster than this is a cursor jump, not a hand movement
 const FLINCH_COOLDOWN = 2.5; // seconds between flinches
 const FLEE_DIST = [170, 280]; // px to run
@@ -203,7 +205,7 @@ export default {
     const free = pet.mode === 'idle' || pet.mode === 'walk' || pet.mode === 'follow';
     const rules = rulesFor(pet);
     const isNear = dist < NOTICE_RADIUS;
-    const calm = approach < MIN_RUSH_SPEED / 2;
+    const calm = approach < CALM_SPEED;
     if (isNear && !near && calm && free && pet.mode !== 'follow' && rules.follow) {
       if (noticeCooldown === 0) {
         ctx.say('oh! hi :)', 1500);

@@ -21,6 +21,10 @@ const BOIL_EVERY = 140; // ms between frame swaps (matches the dialogue boxes' b
 const MIN_SQUISH = 0.55; // a bubble may be squished down to this share of its natural height
 const MIN_W = 96; // px: never narrower than this
 const LOAD_DELAY = 600; // ms after startup before loading (don't compete with the first frames)
+// The white area was measured along one line; the hand-drawn outline wobbles inward elsewhere, so
+// text stays this far (art px) inside the measured edges. Vertical is bigger: squishing makes the
+// top/bottom outline closer to the text.
+const INSET = { x: 50, y: 110 };
 
 // Measured from the PNGs (4096×4096 canvas, art px): `crop` covers the bubble in both frames
 // [x, y, w, h], `inner` is the white inside [left, top, right, bottom] (inside both frames'
@@ -79,12 +83,13 @@ function injectStyles() {
       font-display: swap;
     }
     .talkbox { isolation: isolate; font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif; }
-    .talkbox canvas {
+    /* (direct children only: canvases INSIDE the text area, e.g. dreamed items, are content) */
+    .talkbox > canvas {
       position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none;
     }
-    .talkbox.flipped canvas { transform: scaleY(-1); }
-    .talkbox .f2, .talk-alt .talkbox .f1 { visibility: hidden; }
-    .talk-alt .talkbox .f2 { visibility: visible; }
+    .talkbox.flipped > canvas { transform: scaleY(-1); }
+    .talkbox > .f2, .talk-alt .talkbox > .f1 { visibility: hidden; }
+    .talk-alt .talkbox > .f2 { visibility: visible; }
     .talkbox-text {
       position: absolute; display: flex; align-items: center; justify-content: center;
       text-align: center; color: #372118; /* the bubble's outline brown */
@@ -166,18 +171,16 @@ export function createTalkbox({ fontSize, maxText, padX = 10, padY = 4, classNam
     Object.assign(textEl.style, { left: `${left}px`, top: `${y}px`, width: `${width}px`, height: `${height}px` });
   }
 
-  /** Show `text`; sizes the bubble. Returns false if the art isn't loaded (use a fallback). */
-  box.setText = (text) => {
-    if (!talkboxReady()) return false;
-    measureEl.textContent = text;
-    const tw = measureEl.offsetWidth + padX * 2;
-    const th = measureEl.offsetHeight + padY * 2;
+  // Size the bubble so a tw × th box (content + padding) fits inside its white area.
+  function fit(tw, th) {
     let best = null;
     for (const [size, def] of Object.entries(TALKBOX)) {
       if (!art[size]) continue;
       const [cx, cy, cw, ch] = def.crop;
-      const [il, it, ir, ib] = def.inner;
-      const sx = Math.max(tw / (ir - il), MIN_W / cw); // css px per art px, across
+      const [il, it, ir, ib] = [def.inner[0] + INSET.x, def.inner[1] + INSET.y, def.inner[2] - INSET.x, def.inner[3] - INSET.y];
+      // css px per art px, across. Never below what the content's HEIGHT needs at the natural
+      // (unsquished) shape either, or tall content (a dreamed balloon) wouldn't fit inside.
+      const sx = Math.max(tw / (ir - il), MIN_W / cw, th / (ib - it));
       const sy = Math.min(sx, Math.max(th / (ib - it), sx * MIN_SQUISH)); // ...down: squished
       const area = cw * sx * ch * sy;
       if (!best || area < best.area) best = { size, def, sx, sy, area, cx, cy, cw, ch, il, it, ir, ib };
@@ -189,7 +192,6 @@ export function createTalkbox({ fontSize, maxText, padX = 10, padY = 4, classNam
     box.tailFrac = (def.tailX - cx) / cw;
     box.inner = { left: (il - cx) * sx, top: (it - cy) * sy, width: (ir - il) * sx, height: (ib - it) * sy };
     Object.assign(el.style, { width: `${box.w}px`, height: `${box.h}px` });
-    textEl.textContent = text;
     placeText();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     art[best.size].forEach((frame, i) => {
@@ -200,6 +202,23 @@ export function createTalkbox({ fontSize, maxText, padX = 10, padY = 4, classNam
       g.imageSmoothingQuality = 'high';
       g.drawImage(frame, 0, 0, c.width, c.height);
     });
+    return true;
+  }
+
+  /** Show `text`; sizes the bubble. Returns false if the art isn't loaded (use a fallback). */
+  box.setText = (text) => {
+    if (!talkboxReady()) return false;
+    measureEl.textContent = text;
+    if (!fit(measureEl.offsetWidth + padX * 2, measureEl.offsetHeight + padY * 2)) return false;
+    textEl.textContent = text;
+    return true;
+  };
+
+  /** Show an element (e.g. a dreamed object) of w × h px instead of text. */
+  box.setContent = (node, w, h) => {
+    if (!talkboxReady()) return false;
+    if (!fit(w + padX * 2, h + padY * 2)) return false;
+    textEl.replaceChildren(node);
     return true;
   };
 

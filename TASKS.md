@@ -441,6 +441,29 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - Max 6 answers per node (`MAX_OPTIONS`). Games are split into Action / Chill; Developer is trimmed to 6
       ("Invite me to a game" is still in the tray menu).
     - Developer: "No game rest (5 min)" → `starby.noRest(5)` in `games.js`.
+  - **Chat tree** (`tree.js`, `chat*` nodes): star friends (names, light speed, meeting them), favorite moon
+    (io!, our moon), age (rude!), aliens (e.t., martian parties), your desktop (favorite thing: the cursor).
+    It's built from the team's draft.
+    - Middle nodes have Back. Final replies end the chat with closing answers instead ("Haha, okay!" /
+      "Talk to you later!" + a goodbye line), via `end()`.
+    - A node can `pose` while he says it (`strikePose`): a real wink on "*wink*", sparkly eyes, the spit-laugh
+      for "martians know how to party", and a grumpy face on "rude!".
+  - **Dreams** (`behaviors/dream.js`):
+    - While asleep, every 10-18s (first one 5-10s after he falls asleep) he dreams for 4.5s, shown in his
+      speech bubble.
+    - What he dreams: an accessory (wiggling and shaking) or a row of 3 random starbits (bouncing). The art's
+      empty canvas is trimmed at load.
+    - It goes through `bubble.js showContent` (`talkbox.setContent`), so it follows the one-bubble rule.
+    - Thought-bubble art isn't in `assets/` yet, so dreams use the speech talkbox for now.
+  - **Choices are lowercase:** `text-transform: lowercase` on every answer box (tree, invites, quiz).
+  - **Harder to scare** (`cursorReact.js`, P1's file):
+    - Flinching needs a really fast lunge right at him: 2600px/s (was 1300), path within 130px (was 180),
+      missing by at most 50px (was 70).
+    - The "calm cursor" for greeting/following keeps its old 650px/s.
+  - **No dialogue mid-slingshot:** after "Sorry, I gotta focus", right-click does nothing until he's landed
+    (`pet.noDialogue`), so the boxes don't open and then get scrambled by the jump.
+  - **Right-click while focusing:** the dialogue holds him (`pet.dialogueHold`) and flies him out of the corner
+    so its boxes fit, like at any edge. He glides back to the corner when it closes, still focusing.
   - **Focus slingshot:** he says something nice, pulls back, arcs into the bottom-left corner spinning, and
     slams in. He logs `slam` for the left wall and floor, which `fx.js` plays as a wall hit. It isn't logged
     as `impact`, so starbits.js doesn't drop starbits. Then he's parked and quiet as before.
@@ -456,6 +479,12 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
       - Opening the dialogue or an event menu hides the speech bubble.
       - Lines said while it's open replace his line in it, and unprompted chatter waits.
       - A closing dialogue talkbox vanishes the moment a new speech bubble appears.
+  - **Click away = cancel:**
+    - A left or right click anywhere that isn't a box (his line's talkbox counts as "away") sends the boxes
+      back into him.
+    - How: while a menu is open, a transparent full-screen catcher sits behind Starby and the boxes, and
+      click-through is pinned off. That one click only dismisses the menu, then clicks reach the desktop again.
+    - Event menus opt in with `onCancel`: the invite treats it as "maybe later", the quiz as giving up.
   - **Event choices use the same menu:** `showMenu` / `setMenuLine` / `closeMenu` in `dialogue.js`.
     - The invite ("wanna play pong?" [Yes!] [No]) and the star quiz (4 answers, countdown in his bubble) use it.
     - `prompt.js` is now unused.
