@@ -20,9 +20,10 @@
 // Owns the star via pet.mode = 'pong' (behaviors stand down for modes they don't know).
 // Decisions (AI aim, scoring, ending) run on ticks; motion runs every frame.
 //
-// ART: the paddles are plain flat CSS bars, i.e. UI chrome like the countdown box, not character
-// art. Only YOUR paddle gets a "YOU" label (Sour Gummy on the team's button-white-light.png), and it fades out YOU_LABEL_FOR seconds after "GO!" (the
-// other paddle is obviously the AI's, so it has no label). Swap in team art here if wanted.
+// ART: each paddle is the team's hand-drawn stroke (menuIcons/line.png) stood upright, in the app's
+// yellow with the app's dark purple outline (see LINE_ART). Only YOUR paddle gets a "YOU" label
+// (Sour Gummy in yellow on the team's button-hover.png); it fades out YOU_LABEL_FOR seconds after
+// "GO!" (the other paddle is obviously the AI's, so it has no label).
 import { rand, clamp, approach, startJump, cancelJump, updateJump } from '../behaviors/motion.js';
 import { chat, lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
@@ -43,12 +44,21 @@ const SERVE_ANGLE = [12, 30]; // degrees off horizontal
 const SPEEDUP = 1.09; // speed multiplier per paddle hit
 const MAX_SPEED = 1500; // px/s
 const MAX_BOUNCE = 55; // degrees: hitting the very end of a paddle
-const AI_SPEED = 430; // px/s top speed of the AI paddle
+const AI_SPEED = 520; // px/s top speed of the AI paddle (was 430: a bit more challenging)
 const YOU_LABEL_FOR = 1.5; // seconds after "GO!" before the "YOU" label fades out
 const YOU_LABEL_FADE = 0.6; // seconds the fade takes
-const LABEL_ART = '../../../assets/menuIcons/button-white-light.png'; // team art behind "YOU" (relative to src/renderer/pet/index.html)
-const AI_ERROR_BASE = 40; // px of aiming error per rally hit...
-const AI_ERROR_PER_SPEED = 0.09; // ...plus this much per px/s of ball speed
+const LABEL_ART = '../../../assets/menuIcons/button-hover.png'; // team art behind "YOU" (relative to src/renderer/pet/index.html)
+const YELLOW = '#ffe8a3'; // the app's yellow (shop.css --yellow): text, starbit counter, paddles
+const OUTLINE = '#2d2335'; // the app's dark purple outline (the colour of line.png / the buttons' edges)
+// Paddles: the team's hand-drawn stroke (menuIcons/line.png, horizontal), stood upright. Drawn twice
+// from the PNG's shape (CSS masks, the file isn't changed): a back copy in OUTLINE, and a slightly
+// smaller front copy filled YELLOW, so each paddle is yellow with a wobbly purple outline.
+const LINE_ART = '../../../assets/menuIcons/line.png';
+const LINE_PNG = [1853, 164]; // the PNG's size...
+const LINE_BOX = [65, 44, 1783, 121]; // ...and where the stroke sits in it (left, top, right, bottom)
+const LINE_OUTLINE = 3; // px of purple showing around the yellow
+const AI_ERROR_BASE = 28; // px of aiming error per rally hit... (was 40)
+const AI_ERROR_PER_SPEED = 0.07; // ...plus this much per px/s of ball speed (was 0.09)
 const SPIN_PER_SPEED = 1 / 120; // rad/s of spin per px/s of speed
 const WIN_REWARD = 7; // starbits he bursts out when you win
 
@@ -87,6 +97,14 @@ const rightFace = (a) => a.right - PADDLE_INSET - PADDLE_W;
 const clampPaddle = (a, y) => clamp(y, a.top + PADDLE_H / 2, a.bottom - PADDLE_H / 2);
 
 // ---- Paddles (plain DOM) ----
+// CSS mask that stretches line.png's stroke (LINE_BOX) to exactly fill a w × h box (before rotating).
+function lineMask(w, h) {
+  const sx = w / (LINE_BOX[2] - LINE_BOX[0]);
+  const sy = h / (LINE_BOX[3] - LINE_BOX[1]);
+  return `mask-size: ${(LINE_PNG[0] * sx).toFixed(2)}px ${(LINE_PNG[1] * sy).toFixed(2)}px; `
+    + `mask-position: ${(-LINE_BOX[0] * sx).toFixed(2)}px ${(-LINE_BOX[1] * sy).toFixed(2)}px;`;
+}
+
 function injectStyles() {
   if (document.getElementById('pong-styles')) return;
   const style = document.createElement('style');
@@ -94,19 +112,29 @@ function injectStyles() {
   style.textContent = `
     .pong-paddle {
       position: absolute; left: 0; top: 0; width: ${PADDLE_W}px; height: ${PADDLE_H}px;
-      box-sizing: border-box; background: #2b2b3a; border: 2px solid #ffffff; border-radius: 7px;
       pointer-events: none; display: none; will-change: transform;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
     }
-    /* "YOU": Sour Gummy (declared in pet.css) on the team's button art (menuIcons/button-white-light.png)
-       as a border-image, so the hand-drawn edge stays the same thickness at any label size (like the
-       dialogue's buttons). The drop-shadow follows the art's wobbly edge. */
+    /* line.png's stroke, stood upright (rotated 90°) and stretched to the paddle; see LINE_ART. */
+    .pong-line {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(90deg);
+      mask-image: url('${LINE_ART}'); mask-repeat: no-repeat;
+    }
+    .pong-line.outline { width: ${PADDLE_H}px; height: ${PADDLE_W}px; background: ${OUTLINE}; ${lineMask(PADDLE_H, PADDLE_W)} }
+    .pong-line.fill {
+      width: ${PADDLE_H - 2 * LINE_OUTLINE}px; height: ${PADDLE_W - 2 * LINE_OUTLINE}px; background: ${YELLOW};
+      ${lineMask(PADDLE_H - 2 * LINE_OUTLINE, PADDLE_W - 2 * LINE_OUTLINE)}
+    }
+    /* "YOU": Sour Gummy (declared in pet.css) in the app's yellow, on the team's purple button art
+       (menuIcons/button-hover.png) as a border-image, so the hand-drawn edge stays the same thickness at
+       any label size (like the dialogue's buttons). The drop-shadow follows the art's wobbly edge. */
     .pong-label {
       position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
       font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif; font-weight: 800; font-size: 22px; line-height: 1;
-      color: #2b2b3a; white-space: nowrap; margin-bottom: 10px; letter-spacing: 1px;
+      color: ${YELLOW}; white-space: nowrap; margin-bottom: 10px; letter-spacing: 1px;
       padding: 4px 10px 5px;
       border: 10px solid transparent;
-      border-image: url('${LABEL_ART}') 110 fill / 10px stretch;
+      border-image: url('${LABEL_ART}') 120 fill / 10px stretch;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35)); /* big + shadowed: readable at any resolution */
       transition: opacity ${YOU_LABEL_FADE}s ease-out;
     }
@@ -119,6 +147,11 @@ function buildPaddles(stage) {
   const make = () => {
     const el = document.createElement('div');
     el.className = 'pong-paddle';
+    for (const part of ['outline', 'fill']) { // purple stroke behind, yellow stroke on top
+      const line = document.createElement('div');
+      line.className = `pong-line ${part}`;
+      el.appendChild(line);
+    }
     stage.appendChild(el);
     return el;
   };
