@@ -2,7 +2,7 @@
 //
 //   intro    "let's play starby says! only do it if i say 'starby says'!" (INTRO_FOR seconds)
 //   game     GAME_FOR seconds (countdown top right). He gives commands one after another; each one
-//            shows in his bubble and under the countdown, with or without "Starby says" (SAYS_CHANCE).
+//            shows in his bubble, with or without "Starby says" (SAYS_CHANCE).
 //              "Starby says spin me!"  → do it within COMMAND_FOR seconds. Done → next command.
 //                                        Not done in time → you lose ("too slow!").
 //              "spin me!"              → DON'T. Doing it → you lose ("i didn't say starby says!").
@@ -18,7 +18,7 @@
 //   throw me into the wall   'impact'  (drag.js: hit a screen edge in flight)
 //   spin me                  'spin'    (drag.js: spun fast enough for "wheee!")
 //   tap me N times           'click' N times (N = 2–5, random each time). The progress (2/4) shows in
-//                            his bubble and under the countdown. Without "Starby says", even ONE tap
+//                            his bubble. Without "Starby says", even ONE tap
 //                            counts as falling for it.
 // After a command is done he waits until he's landed (+ GAP_AFTER) before the next one, so the
 // tail of one throw can't trip the next command.
@@ -97,7 +97,7 @@ function nextCommand(ctx) {
   phaseLeft = COMMAND_FOR;
   commandText = command.says ? `Starby says ${text}!` : `${text}!`;
   ctx.say(commandText, COMMAND_FOR * 1000);
-  countdown?.show('STARBY SAYS', gameLeft, commandText);
+  countdown?.show('Starby Says', gameLeft);
   ctx.log('says-command', { id: command.id, says: command.says, need });
 }
 
@@ -105,7 +105,6 @@ function nextCommand(ctx) {
 function showProgress(ctx) {
   const text = `${commandText} (${count}/${command.need})`;
   ctx.say(text, Math.max(500, phaseLeft * 1000));
-  countdown?.show('STARBY SAYS', gameLeft, text);
 }
 
 function win(ctx) {

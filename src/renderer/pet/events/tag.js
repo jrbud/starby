@@ -150,7 +150,7 @@ function startPlay(ctx) {
   accel = 10;
   cancelJump();
   startJump({ height: rand(16, 24), air: 0.3 });
-  countdown.show('TAG', timeLeft, "Starby's it, run!");
+  countdown.show('Tag', timeLeft);
   ctx.log('tag-go', { seconds: GAME_SECONDS });
 }
 
@@ -164,7 +164,7 @@ function starTagsUser(ctx) {
   cancelJump();
   startJump({ height: rand(16, 24), air: 0.28 });
   ctx.say(LINES.tag(), 1500);
-  countdown.show('TAG', timeLeft, "you're it! tag Starby back");
+  countdown.show('Tag', timeLeft);
   ctx.log('tag-it', { it: 'user', timeLeft: Math.round(timeLeft * 10) / 10 });
 }
 
@@ -180,7 +180,7 @@ function userTagsStar(ctx) {
   cancelJump();
   startJump({ height: rand(8, 12), air: 0.22 });
   ctx.say(LINES.tagged(), 1500);
-  countdown.show('TAG', timeLeft, "Starby's it, run!");
+  countdown.show('Tag', timeLeft);
   ctx.log('tag-it', { it: 'star', timeLeft: Math.round(timeLeft * 10) / 10 });
 }
 

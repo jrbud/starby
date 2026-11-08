@@ -1,8 +1,11 @@
 // The game timer card (tag, Starby Says, hoop shot...), styled exactly like the starbit counter
 // (behaviors/starbits.js + pet.css .starbits-toast): the team's card art (starCardBg.png, stretched),
-// Sour Gummy (declared in pet.css), the shop's tan/yellow #ffe8a3, small. One line: the time, big,
-// then the game's name, small ("0:12 TAG"); an optional hint as a small second line (Starby Says puts
-// the current command there). The last URGENT_AT seconds the time turns a soft red.
+// Sour Gummy (declared in pet.css), the shop's tan/yellow #ffe8a3, small. Just one line: the time,
+// big, then the game's name, small ("0:12 Tag"). No descriptions or hints, only the name. The last
+// URGENT_AT seconds the time turns a soft red.
+//
+//   const countdown = createCountdown(ctx.stage, () => ctx.area());
+//   countdown.show('Tag', 15);   countdown.set(secondsLeft);   countdown.hide();
 //
 // Sits at the top right of the usable screen (getArea = ctx.area, so it dodges the taskbar on any
 // side), just BELOW where the starbit counter slides in, so the two never overlap.
@@ -26,7 +29,6 @@ export function createCountdown(stage, getArea = null) {
   let el = null;
   let titleEl = null;
   let timeEl = null;
-  let hintEl = null;
   let lastShown = '';
 
   function build() {
@@ -38,9 +40,9 @@ export function createCountdown(stage, getArea = null) {
       right: `${INSET}px`,
       display: 'none',
       minWidth: '150px', // same as the starbit counter
-      minHeight: '58px',
+      height: '58px', // exactly the counter's height: one line
       boxSizing: 'border-box',
-      padding: '8px 22px 10px', // clear of the art's thick hand-drawn border (like the counter)
+      padding: '0 22px 2px', // clear of the art's thick hand-drawn border (like the counter)
       background: `url("${CARD_ART}") center / 100% 100% no-repeat`,
       color: TAN,
       fontFamily: FONT,
@@ -50,24 +52,21 @@ export function createCountdown(stage, getArea = null) {
       textAlign: 'center',
     });
     const line = document.createElement('div');
-    Object.assign(line.style, { display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '8px', lineHeight: '1', marginTop: '6px' });
+    // Vertically centered in the 58px card, like the counter's flex row.
+    Object.assign(line.style, { display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '8px', lineHeight: '1', height: '100%', paddingTop: '17px', boxSizing: 'border-box' });
     timeEl = document.createElement('span');
     Object.assign(timeEl.style, { fontSize: '26px', fontWeight: '800', fontVariantNumeric: 'tabular-nums' }); // = counter number
     titleEl = document.createElement('span');
     Object.assign(titleEl.style, { fontSize: '15px', fontWeight: '700', opacity: '0.85' }); // = counter label
     line.append(timeEl, titleEl);
-    hintEl = document.createElement('div');
-    Object.assign(hintEl.style, { fontSize: '13px', fontWeight: '600', opacity: '0.85', marginTop: '4px', lineHeight: '1.15' });
-    el.append(line, hintEl);
+    el.append(line);
     stage.appendChild(el);
   }
 
   return {
-    show(title, seconds, hint = '') {
+    show(title, seconds) {
       if (!el) build();
-      titleEl.textContent = title;
-      hintEl.textContent = hint;
-      hintEl.style.display = hint ? '' : 'none'; // no hint → just the one line, counter-sized
+      titleEl.textContent = title; // just the game's name
       lastShown = '';
       this.set(seconds);
       el.style.display = 'block';
