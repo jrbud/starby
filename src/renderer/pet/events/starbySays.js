@@ -17,9 +17,9 @@
 //   throw me                 'toss'    (drag.js)
 //   throw me into the wall   'impact'  (drag.js: hit a screen edge in flight)
 //   spin me                  'spin'    (drag.js: spun fast enough for "wheee!")
-//   open the shop            the shop event starting (right-click → Open shop). The shop takes him
-//                            over (priority 20), so this command always decides the game right
-//                            there: "Starby says open the shop" → you win; without it → you lose.
+//   tap me N times           'click' N times (N = 2–5, random each time). The progress (2/4) shows in
+//                            his bubble and under the countdown. Without "Starby says", even ONE tap
+//                            counts as falling for it.
 // After a command is done he waits until he's landed (+ GAP_AFTER) before the next one, so the
 // tail of one throw can't trip the next command.
 //
@@ -42,7 +42,7 @@ const COMMAND_FOR = 4; // seconds to do a "starby says" command (and how long a 
 const GAP_AFTER = 0.6; // seconds after a done command (once he's landed) before the next
 const SAYS_CHANCE = 0.6; // chance a command starts with "Starby says"
 const WIN_REWARD = 8;
-const SHOP_JUDGE_WINDOW = 0.3; // s: the shop opening this soon after we were interrupted counts
+const TAPS = [2, 5]; // "tap me N times": N from this range (inclusive)
 
 const COMMANDS = [
   { id: 'tap', text: 'tap me', log: 'click' },
@@ -50,7 +50,7 @@ const COMMANDS = [
   { id: 'toss', text: 'throw me', log: 'toss' },
   { id: 'wall', text: 'throw me into the wall', log: 'impact' },
   { id: 'spin', text: 'spin me', log: 'spin' },
-  { id: 'shop', text: 'open the shop', shop: true },
+  { id: 'taps', text: 'tap me N times', log: 'click', times: TAPS }, // text filled in with N
 ];
 
 const LINES = {
@@ -69,10 +69,11 @@ let phaseLeft = 0;
 let gameLeft = 0;
 let command = null; // { ...COMMANDS entry, says: bool }
 let lastCommandId = null;
-let did = false; // the current command's action happened (noted from the log, judged at the tick)
+let did = false; // the current command is fully done (noted from the log, judged at the tick)
+let count = 0; // how many times the current command's action happened (taps for "tap me N times")
+let commandText = ''; // what he said, e.g. "Starby says tap me 3 times!"
 let countdown = null;
 let played = false;
-let interruptedWith = null; // { command, at } when something interrupted us (to judge "open the shop")
 
 const flying = (pet) => pet.mode === 'drag' || pet.mode === 'toss';
 
@@ -86,15 +87,25 @@ function nextCommand(ctx) {
   // Any command except the one just given.
   const options = COMMANDS.filter((c) => c.id !== lastCommandId);
   const pick = options[Math.floor(Math.random() * options.length)];
-  command = { ...pick, says: Math.random() < SAYS_CHANCE };
+  const need = pick.times ? pick.times[0] + Math.floor(Math.random() * (pick.times[1] - pick.times[0] + 1)) : 1;
+  const text = pick.times ? `tap me ${need} times` : pick.text;
+  command = { ...pick, text, need, says: Math.random() < SAYS_CHANCE };
   lastCommandId = pick.id;
   did = false;
+  count = 0;
   phase = 'command';
   phaseLeft = COMMAND_FOR;
-  const text = command.says ? `Starby says ${command.text}!` : `${command.text}!`;
-  ctx.say(text, COMMAND_FOR * 1000);
+  commandText = command.says ? `Starby says ${text}!` : `${text}!`;
+  ctx.say(commandText, COMMAND_FOR * 1000);
+  countdown?.show('STARBY SAYS', gameLeft, commandText);
+  ctx.log('says-command', { id: command.id, says: command.says, need });
+}
+
+// "tap me N times" (said with "Starby says"): show how far along you are.
+function showProgress(ctx) {
+  const text = `${commandText} (${count}/${command.need})`;
+  ctx.say(text, Math.max(500, phaseLeft * 1000));
   countdown?.show('STARBY SAYS', gameLeft, text);
-  ctx.log('says-command', { id: command.id, says: command.says });
 }
 
 function win(ctx) {
@@ -117,18 +128,13 @@ export default {
 
   init(ctx) {
     ctx.events.onEntry((e) => {
-      // A logged action during a command: note it if it's the command's action.
-      if (phase === 'command' && command && !command.shop && e.type === command.log) did = true;
-      // The shop opened right after it interrupted us: that decides the game.
-      if (e.type === 'event-start' && e.data.name === 'shop' && interruptedWith
-        && ctx.clock.seconds - interruptedWith.at <= SHOP_JUDGE_WINDOW) {
-        const c = interruptedWith.command;
-        interruptedWith = null;
-        if (c && c.shop) {
-          if (c.says) win(ctx);
-          else lose(ctx, LINES.tricked(), 'opened the shop');
-        }
-      }
+      // A logged action during a command: count it if it's the command's action.
+      if (phase !== 'command' || !command || did || e.type !== command.log) return;
+      count++;
+      // Done once it's happened `need` times. Without "Starby says", the first one already counts
+      // as doing it (you fell for it).
+      if (count >= command.need || !command.says) did = true;
+      else showProgress(ctx);
     });
   },
 
@@ -146,8 +152,8 @@ export default {
     command = null;
     lastCommandId = null;
     did = false;
+    count = 0;
     played = false;
-    interruptedWith = null;
     countdown = countdown || createCountdown(ctx.stage, () => (ctx.area ? ctx.area() : null));
     requestMood(ctx, 'playful', 'starby says');
     ctx.say(LINES.intro, INTRO_FOR * 1000 + 300);
@@ -192,11 +198,8 @@ export default {
     }
   },
 
-  stop(ctx, result) {
+  stop(ctx) {
     endGame = null;
-    // Interrupted (e.g. the shop just opened): remember the command, so init's log listener can
-    // judge "open the shop" when the shop's start is logged right after this.
-    interruptedWith = result === 'interrupted' && phase === 'command' ? { command, at: ctx.clock.seconds } : null;
     phase = 'done';
     command = null;
     countdown?.hide();
