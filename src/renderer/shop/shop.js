@@ -18,7 +18,7 @@ const api = window.sprite;
 const ASSETS = '../../../assets'; // relative to src/renderer/shop/index.html
 const SECTIONS = [
   { slot: 'color', title: 'Colors', open: true },
-  { slot: 'accessory', title: 'Accessories', open: false },
+  { slot: 'accessory', title: 'Accessories', open: true },
 ];
 
 let catalog = [];

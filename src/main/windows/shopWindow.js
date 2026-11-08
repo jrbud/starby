@@ -17,6 +17,7 @@
 const { BrowserWindow } = require('electron');
 const path = require('path');
 const { getPetWindow } = require('./petWindow');
+const { bringToFront } = require('./bringToFront');
 
 // Content size (the page draws its own title bar + border inside this).
 const WIDTH = 524;
@@ -48,9 +49,7 @@ const releasePet = () => sendToPet({ type: 'shop-release' });
 
 function openShopWindow() {
   if (shopWindow) {
-    if (shopWindow.isMinimized()) shopWindow.restore();
-    shopWindow.show();
-    shopWindow.focus();
+    bringToFront(shopWindow);
     parkPet();
     return shopWindow;
   }
@@ -65,6 +64,8 @@ function openShopWindow() {
     maximizable: false,
     fullscreenable: false,
     backgroundColor: '#010021',
+    // Shown once the page has painted (no blank window), and in front (see bringToFront.js).
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload', 'preload.js'),
       contextIsolation: true,
@@ -72,6 +73,7 @@ function openShopWindow() {
     },
   });
 
+  shopWindow.once('ready-to-show', () => bringToFront(shopWindow));
   shopWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'shop', 'index.html'));
   shopWindow.on('move', parkPet);
   shopWindow.on('restore', parkPet);
