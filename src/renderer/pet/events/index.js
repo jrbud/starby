@@ -34,8 +34,8 @@
 //   category  events                              starts from                         priority
 //   sky       star-shower, shooting-star          sky timer, 20–50 min (happenings.js)  14
 //   games     tag, pong, hide-seek, catch,        buttons / menu / games timer         10 (invite 5)
-//             constellation, invite
-//             (games.js: every 60s, 20%, 4 min cooldown; hide-seek starts silently)
+//             constellation, copycat, invite
+//             (games.js: every 60s, 20%, 4 min cooldown; hide-seek and copycat start silently)
 //   dance     dance                               music playing, 1 min cooldown (dance.js)  2
 //   system    intro (100), shop (20), hush (15)   launch / the shop window / a call or fullscreen app
 // A sky event interrupts a dance; the sky timer waits for games, invites, the shop, hush and the intro.
@@ -51,6 +51,7 @@ import shop from './shop.js';
 import dance from './dance.js';
 import hush from './hush.js';
 import constellation from './constellation.js';
+import copycat from './copycat.js';
 import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
 
@@ -63,7 +64,8 @@ import { happenings } from './happenings.js';
 // dance = its own category: dances while a song plays in Spotify, 1 min apart (dance.js).
 // hush = quiet and still during video calls / fullscreen apps (hush.js); above the games.
 // constellation = a game: he draws a constellation out of starbits, you guess it (constellation.js).
-export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance, hush, constellation];
+// copycat = a game: he copies your cursor's movement for 30s, starts silently (copycat.js).
+export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance, hush, constellation, copycat];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the "Play a game?" buttons, the rest between games and the games
