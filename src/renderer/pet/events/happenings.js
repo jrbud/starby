@@ -1,7 +1,7 @@
 // SKY EVENTS — the sky-event category: things that fall out of the sky now and then (star shower,
 // shooting star). Not games, not dancing, not something you ask for. High priority (14).
 //
-// One shared timer on the session clock: the next sky event is due a random GAP (20–50 minutes)
+// One shared timer on the session clock: the next sky event is due a random GAP (10–15 minutes)
 // after the last one started. When it's due, one is picked at random from HAPPENINGS (by weight)
 // and started with ctx.startEvent(name, 'happening').
 //   A dance running? The sky event interrupts it. A game, an invite, the shop, hush or the intro
@@ -24,7 +24,7 @@ export const HAPPENINGS = [
 // Running events a due sky event may interrupt (lower-priority categories).
 const INTERRUPTS = ['dance'];
 
-const GAP = [20 * 60, 50 * 60]; // seconds between happenings
+const GAP = [10 * 60, 15 * 60]; // seconds between sky events (10–15 minutes)
 const RETRY = 60; // seconds to wait when it's not a good moment
 const USER_AWAY = 120; // seconds without cursor movement = nobody's watching, so wait
 

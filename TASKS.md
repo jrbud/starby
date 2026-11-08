@@ -88,7 +88,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   moved in the last 10s. **New games join automatically:** add them to `GAMES` with their ask lines.
   DevTools: `starby.invite()` / `starby.invite('pong')`. The menu items start games directly (no invite).
 - [x] **P1-10 (Nice) Happenings timer + Star Shower.** `events/happenings.js`: one shared timer on the session
-  clock; every 20–50 min (random gap) it starts a random *happening* from `HAPPENINGS` (weighted). Not a good
+  clock; every 10–15 min (random gap; was 20–50) it starts a random *happening* from `HAPPENINGS` (weighted). Not a good
   moment (a game/invite running, or the cursor hasn't moved for 2 min)? It retries every 60s instead of
   skipping. **Add a happening:** write its event, register it in `events/index.js`, add it to `HAPPENINGS`.
   First one, `events/starShower.js`: he shouts "THE SKY IS FALLING!" and hops; for 12s, 30 starbits fall from
@@ -113,7 +113,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   over. During the game the box is a `.hit` element, so a click with a still cursor still reaches us (the pet
   window is otherwise click-through until the cursor moves over him). Clicks are judged at the next tick.
 - [x] **P1-13 (Nice) Shooting Star + slower random tosses.** `events/shootingStar.js`: a sky event (shares the
-  20–50 min timer with Star Shower, P1-15): he yells "WATCH OUT! STARS INCOMING!", then 1.5s later
+  10–15 min timer with Star Shower, P1-15): he yells "WATCH OUT! STARS INCOMING!", then 1.5s later
   10–16 starbits shoot across the screen from the left or right as one tight clump with trails (`shootStarbit` in
   `starbits.js`; all launched within 0.2s, ±25px of one height, 910–970px/s, shared slant: ~180×50px mid-flight). Catch them as they fly past; uncaught ones fade at the far side.
   Rain and shooting stars share one "flying starbit" path in `starbits.js`. Developer menu: "Start shooting star
@@ -125,7 +125,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   so any new debug helper can be added to the menu without touching `pet.js`.
 - [x] **P1-15 (Nice) Event categories: sky, games, dance.** Each event has a `category`, and each category
   starts its own way (table in `events/index.js`):
-  - **Sky events** (`category: 'sky'`, priority 14; hush is 15): Star Shower, Shooting Star. Only these are on the 20–50 min
+  - **Sky events** (`category: 'sky'`, priority 14; hush is 15): Star Shower, Shooting Star. Only these are on the 10–15 min
     timer in `events/happenings.js`. A due sky event **interrupts a dance**; if a game, invite, the shop or the
     intro is running, it waits and retries every 60s.
   - **Games** (`category: 'games'`, priority 10; invite 5): Tag, Pong, Hide & Seek, Catch. They start from the

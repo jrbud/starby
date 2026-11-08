@@ -32,7 +32,7 @@
 //
 // CATEGORIES — each has its own way of starting, so they don't share a timer:
 //   category  events                              starts from                         priority
-//   sky       star-shower, shooting-star          sky timer, 20–50 min (happenings.js)  14
+//   sky       star-shower, shooting-star          sky timer, 10–15 min (happenings.js)  14
 //   games     tag, pong, hide-seek, catch,        dialogue / tray menu / games timer   10 (invite 5)
 //             constellation, starby-says, hoop-shot, invite
 //             (games.js: every 60s, 20%, 4 min cooldown; hide-seek starts silently)
@@ -78,7 +78,7 @@ export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideS
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the rest between games, requestGame and the games timer (games.js);
-// dialogue = the right-click dialogue box (../dialogue/dialogue.js); happenings = the 20–50 minute sky timer that starts a sky event (happenings.js).
+// dialogue = the right-click dialogue box (../dialogue/dialogue.js); happenings = the 10–15 minute sky timer that starts a sky event (happenings.js).
 const HELPERS = [gamesMenu, happenings, dialogue];
 const WITH_HOOKS = [...EVENTS, ...HELPERS];
 
