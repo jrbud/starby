@@ -357,7 +357,7 @@ export default {
       if (moveToward(pet, launch, phase === 'setup' ? SETUP_SPEED : RETURN_SPEED, dt)) {
         if (phase === 'setup') {
           played = true;
-          countdown.show('HOOP SHOT', gameLeft, 'drag Starby back (either button), let go!');
+          countdown.show('Hoop Shot', gameLeft);
         }
         phase = 'aim';
         startJump({ height: rand(6, 9), air: 0.2 }); // ready!
