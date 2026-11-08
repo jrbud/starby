@@ -1,0 +1,358 @@
+@font-face {
+  font-family: 'Sour Gummy';
+  src: url('../assets/fonts/SourGummy.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* Every surface on this page is one of the team's PNGs from ../assets. Panels use `border-image`
+   so the hand-drawn outline keeps its thickness while the panel grows to fit its content.
+   Text colors are sampled from that art (cream stars, gold Starby, brown outline). */
+:root {
+  --cream: #e2d6a0;
+  --gold: #e7a845;
+  --gold-2: #f8cc5c;
+  --ink: #3a221b;
+  --ink-soft: #6a4c42;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  /* the night sky from the shop, repeated down the page */
+  background: #3e2f4b;
+  color: var(--cream);
+  font-family: 'Sour Gummy', 'Comic Sans MS', system-ui, sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+/* The shop's night sky, pinned behind the page and visible at the sides (one copy: the art doesn't
+   tile seamlessly). Sized to just cover the screen height, so it's shown at about half its
+   native 4069×2048 and never blown up past that on normal screens. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url('../assets/backgrounds/shopBg.png') center / auto max(1024px, 100vh) no-repeat;
+}
+
+/* Solid column down the middle so all the text sits on one calm color (darkest purple of the sky). */
+.column {
+  position: relative;
+  max-width: 960px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: #3e2f4b;
+}
+
+/* Column edges: the hand-drawn assets/menuIcons/line.png, turned on its side and repeated down
+   each side of the column. The line is horizontal art, so each edge is a strip as wide as the
+   column is tall (--col-h, set in main.js) rotated 90° around its top-left corner. Two copies
+   offset by half a tile overlap so the line's tapered ends never leave gaps. */
+.edge {
+  --thick: 48px; /* strip height; the drawn stroke is about half of that */
+  position: absolute;
+  top: 0;
+  width: var(--col-h, 100vh);
+  height: var(--thick);
+  transform-origin: top left;
+  transform: rotate(90deg);
+  pointer-events: none;
+  z-index: 1;
+  background:
+    url('../assets/menuIcons/line.png') 0 0 / auto 100% repeat-x,
+    url('../assets/menuIcons/line.png') 271px 0 / auto 100% repeat-x; /* half a tile: 1853/164 × 48 / 2 */
+}
+/* rotate(90deg) swings the strip to the LEFT of its anchor, so shift by half its thickness to
+   center the stroke on the column's edge. */
+.edge-left { left: calc(var(--thick) / 2); }
+.edge-right { left: calc(100% + var(--thick) / 2); }
+@media (max-width: 960px) {
+  .edge { display: none; } /* the column fills the screen: no galaxy at the sides to separate */
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 0.85em; }
+
+/* ---------- Asset frames ---------- */
+.tan {
+  border: 20px solid transparent;
+  border-image: url('../assets/events/tan-translucent-box.png') 110 fill / 20px stretch;
+  color: var(--ink);
+}
+.starcard {
+  border: 26px solid transparent;
+  border-image: url('../assets/backgrounds/starCardBg.png') 125 fill / 26px stretch;
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  min-height: min(100vh, 900px);
+  padding: 16px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.nav {
+  display: flex;
+  gap: 8px 22px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.nav a { text-decoration: none; opacity: 0.85; }
+.nav a:hover { opacity: 1; color: var(--gold-2); }
+
+.title { margin: 8px 0 0; width: min(560px, 92vw); }
+.title img { width: 100%; }
+.tagline { margin: 0; font-size: clamp(18px, 2.4vw, 24px); }
+
+.stage { margin-top: 8px; display: flex; flex-direction: column; align-items: center; }
+.starby {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: grab;
+  width: clamp(180px, 28vw, 260px);
+  animation: bob 2.4s ease-in-out infinite;
+  -webkit-tap-highlight-color: transparent;
+}
+.starby:active { cursor: grabbing; }
+.starby.boing { animation: boing 0.45s ease-out; }
+@keyframes bob { 50% { transform: translateY(-8px); } }
+@keyframes boing {
+  30% { transform: scale(1.12, 0.88); }
+  60% { transform: scale(0.94, 1.08) translateY(-10px); }
+}
+
+/* Talkbox: the medium speech bubble art, cropped to the bubble (numbers from
+   src/renderer/pet/talkbox.js: crop [556, 986, 2910, 2042] on a 4096 canvas). */
+.talkbox {
+  position: relative;
+  width: clamp(220px, 30vw, 300px);
+  aspect-ratio: 2910 / 2042;
+  margin-bottom: -6px;
+}
+.talkbox-art { position: absolute; inset: 0; overflow: hidden; }
+.tb-frame {
+  position: absolute;
+  max-width: none;
+  width: calc(4096 / 2910 * 100%);
+  left: calc(-556 / 2910 * 100%);
+  top: calc(-986 / 2042 * 100%);
+}
+.tb-2 { visibility: hidden; }
+.boil .tb-1 { visibility: hidden; }
+.boil .tb-2 { visibility: visible; }
+.talkbox-text {
+  position: absolute;
+  left: 7%; right: 8%; top: 10%; bottom: 31%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  font-size: clamp(16px, 2vw, 20px);
+  line-height: 1.2;
+}
+
+.cta { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+.fine { margin: 10px 0 0; font-size: 15px; opacity: 0.8; }
+
+/* Buttons: the hand-drawn button art, idle and hover. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 210px;
+  height: 74px;
+  padding: 0 34px;
+  border: 0;
+  font: inherit;
+  font-size: 22px;
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent center / 100% 100% no-repeat;
+  transition: transform 0.15s;
+}
+.btn:hover { transform: translateY(-2px) rotate(-1deg); }
+.btn-tan { color: var(--ink); background-image: url('../assets/menuIcons/button-tan-idle.png'); }
+.btn-tan:hover { background-image: url('../assets/menuIcons/button-tan-hover.png'); }
+.btn-purple { color: var(--cream); background-image: url('../assets/menuIcons/button-idle.png'); }
+.btn-purple:hover { background-image: url('../assets/menuIcons/button-hover.png'); }
+.btn.small { min-width: 180px; height: 60px; font-size: 18px; margin: 6px 0; }
+
+/* ---------- Sections ---------- */
+.section { max-width: 1080px; margin: 0 auto; padding: 72px 16px; text-align: center; }
+h2 {
+  margin: 0 0 8px;
+  font-size: clamp(34px, 5vw, 48px);
+  font-weight: 600;
+  color: var(--gold-2);
+  line-height: 1.1;
+}
+.tan h2 { color: var(--gold); }
+h3 { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
+.lead { max-width: 640px; margin: 0 auto 36px; font-size: 20px; }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+.card { padding: 6px 8px 10px; transition: transform 0.2s; }
+.card:hover { transform: rotate(-1.5deg) translateY(-3px); }
+.card:nth-child(even):hover { transform: rotate(1.5deg) translateY(-3px); }
+.card .pose { width: 130px; margin: 0 auto 6px; }
+.card p { margin: 0; color: var(--ink-soft); }
+
+/* ---------- Starbits field ---------- */
+.field { position: relative; height: 360px; cursor: crosshair; }
+.counter {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 28px;
+  color: var(--cream);
+}
+.counter img { width: 44px; }
+.counter.pop { animation: pop 0.3s; }
+@keyframes pop { 50% { transform: scale(1.18); } }
+.bit {
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  animation: twinkle 1.8s ease-in-out infinite;
+  transition: opacity 0.35s, transform 0.35s;
+}
+.bit img { width: 100%; pointer-events: none; }
+.bit.got { opacity: 0; transform: translateY(-40px) scale(1.5); animation: none; }
+@keyframes twinkle { 50% { transform: translateY(-5px) rotate(8deg); } }
+
+/* ---------- Dress him up: Starby wearing a hat ---------- */
+.dressed { display: flex; justify-content: center; gap: 48px; flex-wrap: wrap; }
+.dressed figure { margin: 0; }
+.dressed figcaption { font-size: 20px; margin-top: 6px; }
+.wearer {
+  position: relative;
+  width: 220px;
+  margin-top: 30px; /* room for the hat poking above his 2048 canvas */
+}
+.wearer .pose { width: 100%; }
+/* Hats share Starby's 2048 canvas. Placement copies src/renderer/pet/accessories.js for idle-1/2:
+   head anchor (1003, 160) + `at`, accessory `pivot` scaled by `scale`, all ÷ 2048:
+     left = (1003 + at.x − pivot.x·scale) / 2048,  top = (160 + at.y − pivot.y·scale) / 2048 */
+.hat { position: absolute; max-width: none; pointer-events: none; }
+.hat-propeller { width: 72%; left: 14.80%; top: -12.28%; } /* pivot [972,870] at [0,215] ×0.72 */
+.hat-tophat { width: 78%; left: 10.89%; top: -11.97%; }    /* pivot [1000,840] at [0,250] ×0.78 */
+/* bow: pivot [784,330] at [-70,130] ×0.56, tilted −22° around its pivot */
+.hat-bow { width: 56%; left: 24.12%; top: 5.14%; transform-origin: 38.28% 16.11%; transform: rotate(-22deg); }
+
+/* Each dressed-up Starby floats on its own rhythm so they never bob in sync. */
+.wearer { animation: float 3s ease-in-out infinite; }
+.dressed figure:nth-child(2) .wearer { animation-duration: 3.6s; animation-delay: -1.2s; }
+.dressed figure:nth-child(3) .wearer { animation-duration: 2.7s; animation-delay: -2.1s; }
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(1.5deg); }
+}
+
+/* ---------- Setup ---------- */
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto;
+  max-width: 720px;
+  text-align: left;
+  display: grid;
+  gap: 14px;
+}
+.step { display: flex; gap: 14px; align-items: flex-start; padding: 6px 10px; }
+.step p { margin: 4px 0; }
+.step a:not(.btn) { color: var(--ink); font-weight: 600; }
+.alt { font-size: 15px; color: var(--ink-soft); overflow-wrap: anywhere; }
+
+/* Checkbox art from the settings menu: tick a step when it's done. */
+.check {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  margin-top: 2px;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: transparent url('../assets/menuIcons/unchecked-box-idle.png') center / contain no-repeat;
+}
+.check:hover { background-image: url('../assets/menuIcons/unchecked-box-hover.png'); }
+.check[aria-pressed='true'] { background-image: url('../assets/menuIcons/checked-box-idle.png'); }
+.check[aria-pressed='true']:hover { background-image: url('../assets/menuIcons/checked-box-hover.png'); }
+
+/* The command box sits on the plain purple button art. */
+.code {
+  margin: 10px 0 2px;
+  border: 22px solid transparent;
+  border-image: url('../assets/menuIcons/button-idle.png') 125 fill / 22px stretch;
+}
+.code pre {
+  margin: -6px 0;
+  color: var(--cream);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 17px;
+  overflow-x: auto;
+}
+
+.tips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin: 24px auto 0;
+  max-width: 720px;
+  text-align: left;
+}
+.tip { padding: 4px 6px; }
+.tip h3 { color: var(--gold-2); }
+.tip ul { margin: 6px 0 0; padding-left: 20px; }
+.tip li { margin: 4px 0; }
+
+/* ---------- Safety + footer ---------- */
+.safe {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  text-align: left;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 8px 14px;
+}
+.safe-pose { width: 160px; flex: none; }
+.safe p { margin: 0; font-size: 19px; }
+.footer { text-align: center; padding: 20px 16px 48px; }
+.footer-pose { width: 150px; margin: 0 auto 8px; }
+.footer p { margin: 4px auto; max-width: 560px; }
+.small-print { opacity: 0.75; font-size: 16px; }
+.credit { font-size: 19px; }
+.credit a { color: var(--gold-2); font-weight: 600; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.credit a:hover { color: var(--gold); }
+
+@media (max-width: 640px) {
+  body { font-size: 17px; }
+  .section { padding: 52px 16px; }
+  .safe { flex-direction: column; text-align: center; }
+  .safe-pose { width: 120px; }
+  .field { height: 300px; }
+  .btn { min-width: 180px; height: 64px; font-size: 20px; }
+  .dressed { gap: 24px; }
+  .wearer { width: 150px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
