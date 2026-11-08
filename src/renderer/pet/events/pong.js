@@ -54,8 +54,9 @@ const WIN_REWARD = 7; // starbits he bursts out when you win
 const LINES = {
   start: lineBag(["pong? i'll be the ball!", 'ooh, pong! bonk me across!', "boing boing! let's play pong"]),
   hit: lineBag(['boing!', 'bonk!', 'wheee!', 'whoa!', 'ping!']),
-  userWon: lineBag(['you got one past the AI! you win ✦', 'woo! point to you! you win', 'nice shot! you win ✦']),
-  aiWon: lineBag(['aw, you missed me! the AI wins', 'whoops! point to the AI', 'so close! the AI wins this one']),
+  // (Never mention "AI" in what he says: the other side is just "the other paddle".)
+  userWon: lineBag(['you got me past the other paddle! you win ✦', 'woo! point to you! you win', 'nice shot! you win ✦']),
+  aiWon: lineBag(['aw, you missed me! the other paddle wins', 'whoops! point to the other paddle', 'so close! the other paddle gets this one']),
   foul: lineBag(['hey! no grabbing the ball!', "you can't hold the ball! game over"]),
   dizzy: lineBag(['too dizzy to be a ball...', '@_@ game over...']),
 };

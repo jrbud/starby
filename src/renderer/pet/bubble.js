@@ -5,6 +5,8 @@
 // with the tail pointing at him, and is kept ON SCREEN every frame while it shows:
 //   - near the left/right edge it slides sideways (the tail stays as close to him as it can)
 //   - no room above him (top of the screen) → it flips below him, tail pointing up
+// It can also show an OBJECT instead of words (showContent): behaviors/dream.js uses it for his
+// dreams while he sleeps, so dreams follow the same one-bubble-at-a-time rule as his speech.
 // Until the talkbox art has loaded (a moment after launch), lines use the old plain box from
 // pet.css. The #bubble element lives inside #pet, so it moves with him; pet.css's .bubble look
 // is switched off with the `talkbox-host` class while a talkbox is showing.
@@ -38,6 +40,10 @@ function injectHostStyles() {
  * @param {() => {left:number, top:number, right:number, bottom:number}} [opts.area]
  *        usable screen area to stay inside (default: the whole window)
  */
+let instance = null; // the one speech bubble (pet.js creates it)
+/** The speech bubble (for behaviors that show things in it, e.g. dreams). */
+export const speechBubble = () => instance;
+
 export function createBubble(el, opts = {}) {
   injectHostStyles();
   loadTalkbox();
@@ -73,7 +79,30 @@ export function createBubble(el, opts = {}) {
   }
   registerSpeechBubble(hide); // the dialogue hides this bubble when it opens
 
-  return {
+  // Put a filled talkbox up for `ms` (`fill(tb)` sets its text or content; false = art not ready).
+  function show(fill, ms, fallbackText) {
+    if (!tb) tb = createTalkbox({ fontSize: FONT, maxText: MAX_TEXT, padX: 9, padY: 6 });
+    if (fill(tb)) {
+      el.textContent = '';
+      el.appendChild(tb.el);
+      el.classList.add('talkbox-host');
+      // A quick pop from the tail (the `scale` property, so it doesn't fight the placement transform).
+      tb.el.animate([{ scale: '0.85' }, { scale: '1' }], { duration: 170, easing: 'cubic-bezier(0.2, 1.4, 0.4, 1)' });
+    } else if (fallbackText != null) {
+      el.classList.remove('talkbox-host'); // art not loaded yet: the plain box
+      el.textContent = fallbackText;
+    } else {
+      return false;
+    }
+    el.classList.remove('hidden');
+    speechBubbleShown(); // a dialogue talkbox still shrinking away disappears now (no overlap)
+    if (!raf) raf = requestAnimationFrame(place);
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => el.classList.add('hidden'), ms);
+    return true;
+  }
+
+  instance = {
     say(text, ms = 3000) {
       const taker = speechTakenBy();
       if (taker) { // the dialogue is open: the line replaces his line there (no second bubble)
@@ -81,26 +110,20 @@ export function createBubble(el, opts = {}) {
         taker(text);
         return;
       }
-      if (!tb) tb = createTalkbox({ fontSize: FONT, maxText: MAX_TEXT, padX: 9, padY: 3 });
-      if (tb.setText(text)) {
-        el.textContent = '';
-        el.appendChild(tb.el);
-        el.classList.add('talkbox-host');
-        // A quick pop from the tail (the `scale` property, so it doesn't fight the placement transform).
-        tb.el.animate([{ scale: '0.85' }, { scale: '1' }], { duration: 170, easing: 'cubic-bezier(0.2, 1.4, 0.4, 1)' });
-      } else {
-        el.classList.remove('talkbox-host'); // art not loaded yet: the plain box
-        el.textContent = text;
-      }
-      el.classList.remove('hidden');
-      speechBubbleShown(); // a dialogue talkbox still shrinking away disappears now (no overlap)
-      if (!raf) raf = requestAnimationFrame(place);
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => el.classList.add('hidden'), ms);
+      show((t) => t.setText(text), ms, text);
+    },
+    /**
+     * Show an element (w × h px) in the bubble instead of words, e.g. a dream. Not while the
+     * dialogue holds his speech. Returns false if it couldn't show (art not loaded yet / dialogue).
+     */
+    showContent(node, w, h, ms = 4000) {
+      if (speechTakenBy()) return false;
+      return show((t) => t.setContent(node, w, h), ms, null);
     },
     // While the dialogue holds his speech he counts as speaking (so chatter waits its turn).
     isShowing: () => Boolean(speechTakenBy()) || !el.classList.contains('hidden'),
     /** Hide right now (e.g. a video call just started, see events/hush.js). */
     hide,
   };
+  return instance;
 }
