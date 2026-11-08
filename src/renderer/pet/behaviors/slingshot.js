@@ -13,14 +13,17 @@
 // pulled, we swallow it so the dialogue box doesn't pop up after a slingshot. If it ever arrives
 // while the button is still down, we hold it until mouse-up and only open the box if you didn't pull.
 // (Hoop Shot, ../events/hoopShot.js, has its own right-click slingshot inside its game; this one
-// only works while he's wandering, so they never overlap.)
+// never runs during games or other scripted events, so they never overlap.)
 //
-// Like a grab, it respects moods: a star that can't be picked up (mad) can't be slingshotted
-// either, and only works while he's just wandering around (idle / walk / follow / flee).
+// Works ANY time he's not in a game/event: standing, walking, following, fleeing, mid-hop, or
+// flying through the air after a throw or a slingshot (catch him mid-flight and sling him again).
+// The lock is taken where his feet and head are DRAWN the moment the pull starts (his spin
+// included), so he never jumps when you grab him on the move. Like a grab, it respects moods: a
+// star that can't be picked up (mad) can't be slingshotted either.
 // Owns pet.mode 'sling' while pulling.
 import { launch } from './drag.js';
 import { rulesFor } from './moods.js';
-import { rand } from './motion.js';
+import { rand, cancelJump } from './motion.js';
 
 // ---- Tuning ----
 const PULL_SLOP = 6; // px of pull before it counts as a slingshot (less = a right-click)
@@ -40,20 +43,22 @@ const TREMBLE_PX = 1.5;
 // (a damped spring on the stretch, along his body as he spins). It starts from exactly the
 // stretch he had (no jump on release). Frequency in wobbles per second, DAMPING 0…1 (lower = more
 // wobbles). The squash side is softened by SQUASH_SOFT so a big stretch doesn't flatten him on
-// the first swing back (a 2.2× release still bottoms out around 0.6×).
-const WOBBLE_HZ = 6;
-const WOBBLE_DAMPING = 0.16;
-const SQUASH_SOFT = 1.5;
+// the first swing back (a 2.2× release bottoms out around 0.5×).
+const WOBBLE_HZ = 5;
+const WOBBLE_DAMPING = 0.07; // low = dramatically wobbly (lots of big swings, ~2s to settle)
+const SQUASH_SOFT = 1;
 // Spring offset → drawn stretch: as-is when stretched, eased off when squashed.
 const wobbleStretch = (x) => (x >= 0 ? 1 + x : 1 + x / (1 - SQUASH_SOFT * x));
-const SLING_MODES = ['idle', 'walk', 'follow', 'flee'];
+// The behaviors' own modes. Anything else belongs to a game or scripted event: hands off.
+// 'toss' = flying after a throw/slingshot, so you can catch him mid-air.
+const SLING_MODES = ['idle', 'walk', 'follow', 'flee', 'toss'];
 
 let pressing = false; // right button down on him
 let pulled = false; // pulled past PULL_SLOP: it's a slingshot, not a click
 let press = null; // cursor at press (the pull is measured from here, so where you clicked on him doesn't matter)
 let cursor = null; // latest cursor
-let headRest = null; // the top of his head at press: the grab point
-let feet = null; // the bottom-center of his sprite at press: pinned while you pull
+let headRest = null; // the top of his head (as drawn) when the pull started: the grab point
+let feet = null; // the bottom-middle of his sprite (as drawn) when the pull started: pinned
 let lastStretch = 1; // his stretch on the last pulled frame (where the release wobble starts)
 let wobble = null; // { x, v } after a release: stretch offset from normal and its speed
 let menuWaiting = false; // a contextmenu arrived while the button was still down
@@ -95,24 +100,45 @@ export default {
       if (!canSling) return; // plain right-click behavior (menu)
       pressing = true;
       pulled = false;
-      wobble = null; // a new slingshot ends any leftover wobble
       press = { x: e.clientX, y: e.clientY };
       cursor = { ...press };
-      // Where they're DRAWN right now: his idle bob (pet.bob) shifts him up/down by a few px, and
-      // the slingshot sets it to 0, so include it or his feet would jump by the bob.
-      const drawnY = pet.y + (pet.bob || 0);
-      headRest = { x: pet.x + pet.size / 2, y: drawnY }; // top-center of his box = top of his head
-      feet = { x: pet.x + pet.size / 2, y: drawnY + pet.size }; // bottom-center = his feet
       ctx.setPinned(true); // keep click-through off while the cursor leaves him (see clickThrough.js)
+      // (The lock points are taken when the pull actually starts, below: he may still be moving.)
     });
 
     window.addEventListener('mousemove', (e) => {
       if (!pressing) return;
       cursor = { x: e.clientX, y: e.clientY };
       if (!pulled && Math.hypot(cursor.x - press.x, cursor.y - press.y) > PULL_SLOP) {
+        // Still allowed? (an event may have taken him over since the press)
+        if (!SLING_MODES.includes(pet.mode)) return;
         pulled = true;
-        pet.mode = 'sling';
-        pet.rotation = 0;
+        // Lock where his feet and head are DRAWN right now: from his middle (idle bob included),
+        // turned by his current spin (around his middle: his feet are along (−sin r, cos r)), and
+        // stretched by any wobble still going (pet.warp: × stretch along its angle, ÷ √stretch across),
+        // exactly like pet.js draws him.
+        const half = pet.size / 2;
+        const r = pet.rotation || 0;
+        const cx = pet.x + half;
+        const cy = pet.y + (pet.bob || 0) + half;
+        let vx = -Math.sin(r) * half; // middle → feet
+        let vy = Math.cos(r) * half;
+        if (pet.warp && pet.warp.stretch !== 1) {
+          const s = pet.warp.stretch;
+          const dx = Math.cos(pet.warp.angle);
+          const dy = Math.sin(pet.warp.angle);
+          const along = vx * dx + vy * dy;
+          const px = vx - dx * along;
+          const py = vy - dy * along;
+          vx = dx * along * s + px / Math.sqrt(s);
+          vy = dy * along * s + py / Math.sqrt(s);
+        }
+        feet = { x: cx + vx, y: cy + vy };
+        headRest = { x: cx - vx, y: cy - vy };
+        wobble = null; // a leftover release wobble ends here
+        pet.warp = null;
+        cancelJump(); // stop a hop in progress
+        pet.mode = 'sling'; // flying (toss) stops: drag.js only moves him in 'toss'
         ctx.log('slingshot-pull', {});
       }
     });

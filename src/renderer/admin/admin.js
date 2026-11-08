@@ -1,6 +1,6 @@
-// Admin Settings window: a slider for every starbits tuning knob. Moving a slider saves the
-// value (main process → admin-settings.json) and the pet picks it up live via
-// 'admin:changed'. Knobs, defaults and ranges come from ../shared/starbitsTuning.js.
+// Admin Settings window: a slider (or an on/off switch, for `type: 'toggle'`) for every knob.
+// Changing one saves the value (main process → admin-settings.json) and the pet picks it up live
+// via 'admin:changed'. Knobs, defaults and ranges come from ../shared/starbitsTuning.js.
 import { STARBITS_TUNING, MIN_MAX_PAIRS, resolveTuning } from '../shared/starbitsTuning.js';
 
 const api = window.sprite;
@@ -51,8 +51,32 @@ function groupBody(name) {
   return g.body;
 }
 
+// An on/off row for `type: 'toggle'` settings (saved as 1 / 0).
+function toggleRow(t) {
+  const section = document.createElement('div');
+  section.className = 'setting';
+  const row = document.createElement('label');
+  row.className = 'switch-row';
+  const name = document.createElement('span');
+  name.className = 'switch-name';
+  name.textContent = t.label;
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.setAttribute('role', 'switch');
+  box.id = `knob-${t.key}`;
+  row.append(name, box);
+  const help = document.createElement('p');
+  help.className = 'detail';
+  help.textContent = `${t.help} Default: ${t.default ? 'on' : 'off'}.`;
+  section.append(row, help);
+  groupBody(t.group || 'Other').append(section);
+  rows.set(t.key, { t, toggle: box, section });
+  box.addEventListener('change', () => api.setAdminSettings({ [t.key]: box.checked ? 1 : 0 }));
+}
+
 // Build the rows.
 for (const t of STARBITS_TUNING) {
+  if (t.type === 'toggle') { toggleRow(t); continue; }
   const section = document.createElement('div');
   section.className = 'setting';
 
@@ -108,13 +132,17 @@ for (const t of STARBITS_TUNING) {
 }
 
 function currentValues() {
-  return Object.fromEntries([...rows].map(([k, r]) => [k, Number(r.slider.value)]));
+  return Object.fromEntries([...rows].map(([k, r]) => [k, r.toggle ? (r.toggle.checked ? 1 : 0) : Number(r.slider.value)]));
 }
 
 function show(tuning) {
   for (const [key, r] of rows) {
-    r.slider.value = tuning[key];
-    r.output.textContent = fmt(r.t, tuning[key]);
+    if (r.toggle) {
+      r.toggle.checked = Boolean(tuning[key]);
+    } else {
+      r.slider.value = tuning[key];
+      r.output.textContent = fmt(r.t, tuning[key]);
+    }
     r.section.classList.toggle('changed', tuning[key] !== r.t.default);
   }
 }
