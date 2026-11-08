@@ -187,12 +187,12 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   sized and scored by the pink rim, `HOOP_ART_BOX`, with the net hanging below).
 
 - [x] **P1-20 (Nice) Moon timer.** The game timer (`events/countdown.js`; tag, Starby Says, hoop shot) is a "moon"
-  that **ticks** away: full at the start, one slice disappears each second (clockwise from the top, like a pie
-  chart), gone at 0; it pulses for the last 5s. No numbers or text, just the moon (78px) in the starbit counter's card
-  art (110px), in the top-left corner of the usable screen. **The moon is a PLACEHOLDER: the starbit cluster PNG**
-  (`assets/starbits/cluster.png`) until moon art exists; swap `MOON_ART` (square PNG on transparent). The slices
-  are a CSS conic-gradient mask over the PNG (code only hides parts of team art; nothing is drawn).
-
+  that **wanes like the real moon**, ticking once a second: full → gibbous (3/4) → half → crescent (1/4) → gone at 0
+  (the dark side creeps in from the right); it pulses for the last 5s. No numbers or text: just the moon (110px) on
+  the team's purple button art (`menuIcons/button-hover.png`, border-image) as a 150px card in the top-left corner.
+  **The moon is a PLACEHOLDER: the starbit cluster PNG** (`assets/starbits/cluster.png`) until moon art exists; swap
+  `MOON_ART`. The phases are a CSS mask over the PNG (lit left half ± a terminator ellipse, mask-composite add /
+  subtract): code only hides parts of team art; nothing is drawn.
 - [x] **P1-21 (Nice) "How To Care for Your New Starby" popup.** `src/renderer/pet/howTo.js` (a helper in
   `events/index.js`): after the launch intro, a popup centered on screen with the basics (left click + drag to carry
   him, let go to throw, right click to talk, play games to keep him happy, watch out for limited events, collect

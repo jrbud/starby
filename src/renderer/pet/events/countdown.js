@@ -1,7 +1,8 @@
-// The game timer (tag, Starby Says, hoop shot...): a "moon" that ticks away. A full moon at the
-// start; every second ONE more slice disappears, clockwise from the top, like a pie chart, until
-// it's gone when time's up. No numbers or text, just the moon, in the same card art as the
-// starbit counter (starCardBg.png). The last URGENT_AT seconds it gently pulses.
+// The game timer (tag, Starby Says, hoop shot...): a "moon" that WANES like the real moon. Full at
+// the start; every second the dark side creeps a little further across from the right, through the
+// moon's phases: full → gibbous (3/4 lit) → half → crescent (1/4) → new (gone) when time's up. No
+// numbers or text, just the moon, on the team's purple button art (menuIcons/button-hover.png).
+// The last URGENT_AT seconds it gently pulses.
 //
 //   const countdown = createCountdown(ctx.stage, () => ctx.area());
 //   countdown.show('Tag', 15);   countdown.set(secondsLeft);   countdown.hide();
@@ -10,8 +11,11 @@
 //
 // ART: there's no moon art yet, so the "moon" is a PLACEHOLDER: the team's starbit cluster PNG
 // (assets/starbits/cluster.png, the starbit counter's icon). When a moon is drawn, change MOON_ART
-// (square PNG on a transparent background). Nothing is drawn by code: the slices are a CSS mask
-// (a conic-gradient) that hides part of the PNG, i.e. code only shows/hides the team's art.
+// (square PNG on a transparent background). Nothing is drawn by code: the phases are a CSS mask that
+// hides part of the PNG, i.e. code only shows/hides the team's art. A phase = the lit LEFT half of
+// the moon plus (gibbous) or minus (crescent) an ellipse down the middle, the "terminator": two
+// mask layers combined with mask-composite add / subtract. Lit share f: the ellipse is
+// |2f − 1| of the moon's radius wide, so f = 3/4, 1/2, 1/4 give the right lit areas.
 //
 // Sits at the TOP LEFT of the usable screen (getArea = ctx.area, so it dodges the taskbar on any
 // side). The starbit counter lives top right, so the two never overlap.
@@ -19,9 +23,11 @@
 
 const URGENT_AT = 5; // seconds: pulse for the last few
 const MOON_ART = '../../../assets/starbits/cluster.png'; // PLACEHOLDER moon; relative to src/renderer/pet/index.html
-const CARD_ART = '../../../assets/backgrounds/starCardBg.png'; // the starbit counter's card art
-const CARD = 110; // px: the card (square), big enough to read at a glance
-const MOON = 78; // px: the moon inside it
+const CARD_ART = '../../../assets/menuIcons/button-hover.png'; // team button art behind the moon
+const CARD_EDGE = 16; // px: the art's hand-drawn edge (CSS border-image keeps it this thick)
+const CARD_SLICE = 120; // art px of that edge in the PNG (same as the dialogue's buttons)
+const CARD = 150; // px: the card (square), big enough to read at a glance
+const MOON = 110; // px: the moon inside it
 const INSET = 16; // px from the usable area's top-left corner (the same margin as the starbit counter)
 
 // The pulse for the last seconds (a style tag, injected once).
@@ -54,7 +60,8 @@ export function createCountdown(stage, getArea = null) {
       width: `${CARD}px`,
       height: `${CARD}px`,
       boxSizing: 'border-box',
-      background: `url("${CARD_ART}") center / 100% 100% no-repeat`,
+      border: `${CARD_EDGE}px solid transparent`,
+      borderImage: `url("${CARD_ART}") ${CARD_SLICE} fill / ${CARD_EDGE}px stretch`,
       filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3))', // follows the art's wobbly edge
       pointerEvents: 'none',
     });
@@ -66,8 +73,8 @@ export function createCountdown(stage, getArea = null) {
     moonEl.onerror = () => console.warn(`[timer] missing moon art: ${MOON_ART}`);
     Object.assign(moonEl.style, {
       position: 'absolute',
-      left: `${(CARD - MOON) / 2}px`,
-      top: `${(CARD - MOON) / 2}px`,
+      left: `${(CARD - 2 * CARD_EDGE - MOON) / 2}px`, // (positioned inside the border)
+      top: `${(CARD - 2 * CARD_EDGE - MOON) / 2}px`,
       width: `${MOON}px`,
       height: `${MOON}px`,
       objectFit: 'contain',
@@ -76,12 +83,20 @@ export function createCountdown(stage, getArea = null) {
     stage.appendChild(el);
   }
 
-  // Hide the part of the moon that's gone: the first `gone` degrees clockwise from the top.
+  // Show the moon's phase for `left` of `total` seconds: lit share f, dark creeping in from the right.
   function slice(left) {
-    const gone = Math.round((1 - left / total) * 360 * 100) / 100;
-    const mask = gone <= 0 ? 'none' : `conic-gradient(from 0deg, transparent 0deg ${gone}deg, #000 ${gone}deg 360deg)`;
-    moonEl.style.maskImage = mask;
-    moonEl.style.webkitMaskImage = mask;
+    const f = left / total;
+    const st = moonEl.style;
+    if (f >= 1) { st.maskImage = 'none'; return; } // full moon
+    if (f <= 0) { st.maskImage = 'linear-gradient(transparent, transparent)'; return; } // new moon: gone
+    const rx = Math.max(0.01, Math.abs(2 * f - 1) * 50); // terminator ellipse half-width, % of the moon's width
+    const half = 'linear-gradient(to right, #000 50%, transparent 50%)'; // the lit left half
+    const ellipse = `radial-gradient(ellipse ${rx.toFixed(2)}% 50% at 50% 50%, #000 99%, transparent 100%)`;
+    st.maskImage = `${half}, ${ellipse}`;
+    st.maskSize = '100% 100%';
+    st.maskRepeat = 'no-repeat';
+    // Gibbous: half PLUS the ellipse. Crescent: half MINUS the ellipse (top layer outside the one below).
+    st.maskComposite = f >= 0.5 ? 'add' : 'subtract';
   }
 
   return {
