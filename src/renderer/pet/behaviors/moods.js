@@ -15,12 +15,14 @@
 //              'corner' = walk to pet.goal (set by mood.js) instead of random spots         (idle.js / walk.js)
 //   follow     may say "oh! hi" to a calm cursor and walk over to it                       (cursorReact.js)
 //   flee       may flinch & run from a rushing cursor                                       (cursorReact.js)
-//   lookAway   eyes avoid the cursor instead of following it                                (cursorReact.js)
+//   lookAway   eyes avoid the cursor instead of following it (old drawn star only: the PNGs
+//              have painted eyes, so this has no visible effect now)                        (cursorReact.js)
 //   hop        may do random happy hops                                                     (idle.js / walk.js)
 //   grabbable  false = a grab attempt becomes a swat instead of a drag                      (drag.js)
 //   quiet      true = unprompted lines (system reactions etc.) are dropped                  (chatter.js)
 //   bobSpeed   idle breathing speed (3 = the original)                                      (idle.js)
-//   eyesShut   eyes stay closed (uses the existing blink drawing, no new art)               (idle.js)
+//   eyesShut   eyes stay closed (old drawn star only; the asleep-1/2 PNGs already have
+//              closed eyes)                                                                  (idle.js)
 //   speed      walk-speed multiplier: 0.5 = shuffles along at half speed                    (walk.js)
 
 const BASE = {
