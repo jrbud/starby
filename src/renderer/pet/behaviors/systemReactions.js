@@ -151,7 +151,7 @@ const APP_SPECIFIC = lineBags({
   youtube: ['ooh, what are we watching?', 'youtube! anything with space in it?', 'we have youtube in space too!'],
   netflix: ['netflix! is it a space movie?', "movie time? i'll grab the starbits"],
   twitch: ['twitch! who are we watching?', 'we have twitch in space too!'],
-  github: ['github! very official coder stuff'],
+  github: ['github! very official coder stuff', 'we have github in space too!'],
   gmail: ['checking emails? good luck in there'],
   // Twitter and reddit can also get a wary "oh...", "hmm..." or "*fog horn*".
   reddit: ['reddit! rabbit hole time?', 'we have reddit in space too!', 'oh...', 'hmm...', '*fog horn*'],
