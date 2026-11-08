@@ -160,11 +160,12 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   buttons, menu "Play starby says"), like Simon says. After a short intro the clock runs **15s** (countdown top
   right). He gives commands one after another, in his bubble and under the countdown, 60% of them starting with
   "Starby says": tap me (`click`), pick me up (`grab`), throw me (`toss`), throw me into the wall (`impact`), spin me
-  (`spin`), open the shop (the shop event starting). **With "Starby says"**: do it within 4s or you lose ("too
+  (`spin`), tap me N times (`click` ×N, N = 2–5; progress like "(2/4)" in his bubble and under the countdown;
+  without "Starby says" even one tap counts as doing it). **With "Starby says"**: do it within 4s or you lose ("too
   slow!"). **Without**: doing it loses ("i didn't say starby says!"); leaving it alone is safe. Only the current
   command's action counts. After a done command he waits until he's landed (+0.6s) before the next. Last the 15s →
-  win, 8 starbits; lose → nothing taken. Opening the shop takes him over and ends the game, so that command decides
-  it on the spot (with "Starby says" → win, without → lose). He isn't taken over (no `pet.mode`), so grabbing and
+  win, 8 starbits; lose → nothing taken. (There's no "open the shop" command: the shop takes him over and would
+  end the game.) He isn't taken over (no `pet.mode`), so grabbing and
   throwing work as usual.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
