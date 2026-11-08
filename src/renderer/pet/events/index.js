@@ -31,14 +31,18 @@
 import tag from './tag.js';
 import pong from './pong.js';
 import invite from './invite.js';
+import starShower from './starShower.js';
 import { gamesMenu } from './games.js';
+import { happenings } from './happenings.js';
 
 // invite = Starby asking you to play one of the games (picks from GAMES in games.js).
-export const EVENTS = [tag, pong, invite];
+// star-shower = a happening, started by the happenings timer (happenings.js).
+export const EVENTS = [tag, pong, invite, starShower];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
-// watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js).
-const HELPERS = [gamesMenu];
+// watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js);
+// happenings = the 20–50 minute timer that starts a random happening (happenings.js).
+const HELPERS = [gamesMenu, happenings];
 const WITH_HOOKS = [...EVENTS, ...HELPERS];
 
 export function createEventRunner(ctx) {
