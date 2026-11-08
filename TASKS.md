@@ -72,7 +72,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   0:42". Mad / dizzy: he refuses. Asleep: no buttons. Sad: the click cheers him up, so he says yes.
   `games.js` also has `createReady()` (the 3-2-1-GO countdown) used by tag and pong.
 - [x] **P1-8 (Nice) Pong event.** `events/pong.js`: Starby is the ball. He glides to the middle; a paddle
-  appears on each side (plain CSS bars; only yours is labelled "YOU" in a big label that fades out 1.5s after "GO!"; every paddle hit plays the wall-hit effect via `behaviors/fx.js`): left = yours, follows the mouse up and down; right =
+  appears on each side (plain CSS bars; only yours is labelled "YOU" (Sour Gummy on `menuIcons/button-white-light.png`), fading out 1.5s after "GO!"; every paddle hit plays the wall-hit effect via `behaviors/fx.js`): left = yours, follows the mouse up and down; right =
   the AI. "3... 2... 1... GO!", served toward you; bounces off the top/bottom of the usable area and off the
   paddles (hit position sets the angle, max 55°; +9% speed per hit, max 1500px/s), spinning. The AI predicts
   where he'll arrive but misjudges more as he speeds up (and tops out at 430px/s), so a decent player wins about
@@ -174,14 +174,17 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   throwing work as usual.
 - [x] **P1-19 (Nice) Hoop Shot.** `events/hoopShot.js`, a game (invite "wanna play hoop shot?", game buttons,
   menu "Play hoop shot"). He flies to a launch spot on his side; a hoop appears on the far side (random height).
-  **Right- or left-click and drag** him back like a slingshot (he's pulled toward the cursor, max 170px) and let go: he
-  flies the other way in an **arc** (gravity 1500px/s², this game only), spinning, bouncing off the screen edges.
+  **Right- or left-click and drag** him back like a slingshot, with the same look as the normal slingshot
+  (`behaviors/slingshot.js`): feet pinned, head held by the cursor, body stretched like a rubber band, trembling near
+  full pull (max 170px). Let go: he flies the other way in an **arc** (gravity 1500px/s², this game only) with the
+  rubber-band wobble, **spinning** 7–14 rad/s (harder pull = faster), bouncing off the screen edges, and tips back
+  upright after landing. (Hoop shot keeps its own angle because drag.js straightens him every frame otherwise.)
   While pulling, 6 small starbit PNGs show only the **first 0.4s** of the arc. Passing down through the hoop's
   opening → "SWISH!" + 10 starbits. A miss bounces on the floor and he flies back to try again. **15s** on the clock
   (countdown top right); a shot in the air at 0 still counts. Just a click (either button) → he stays put: "right
   click or left click and drag me!". During the game, presses on him and the right-click menu are caught by window
-  capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
-  (`HOOP_ART` / `HOOP_ART_BOX` in hoopShot.js; swap when a hoop is drawn).
+  capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art: `assets/events/hoop.png`** (the team's rim + net;
+  sized and scored by the pink rim, `HOOP_ART_BOX`, with the net hanging below).
 
 - [x] **P1-20 (Nice) Moon timer.** The game timer (`events/countdown.js`; tag, Starby Says, hoop shot) is a "moon"
   that **ticks** away: full at the start, one slice disappears each second (clockwise from the top, like a pie
@@ -491,6 +494,43 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - The top-right counter card is now a `.hit` button that opens the shop.
     - Hovering keeps it from sliding away and grows it a little.
     - It's parked off-screen when hidden, so it only catches clicks while it's showing.
+  - **"feeling sleepy?"** (right-click dialogue → Settings → `starby:getSleepy`, in `mood.js`): "yeah...
+    *yawn*", then he goes straight into the sleepy walk to his nap spot on the taskbar and falls asleep.
+    It isn't on the settings page.
+  - **Un-clickable screen fixed** (`clickThrough.js`, `drag.js`, `slingshot.js`, `hoopShot.js`):
+    - Pins are named ('press' for drags/pulls, 'menu' for the dialogue catcher), so one can't clear another.
+    - A mousemove with no button held drops a stale 'press' pin and replays the lost mouseup (drag /
+      slingshot / hoop pull end normally).
+    - Before: an event interrupting a press could leave the whole screen catching clicks (window X buttons
+      dead) or Starby glued to the cursor.
+  - **Calls + fullscreen → focus mode** (`focus.js`; `hush.js` no longer auto-starts):
+    - Call: "i'll be quiet for now!", then the slingshot to the corner.
+    - Fullscreen: an instant, silent flip into focus.
+    - Either ending: out of focus at once, and he walks back to where he was ("call over? hi again!").
+    - Clicking him out during a call doesn't restart focus until the call ends.
+  - **Fullscreen detection fixed** (`activeWindow.js`):
+    - Windows overlays (snipping Win+Shift+S, Start/search, lock screen...) no longer count as fullscreen.
+      They used to send him to the bottom-left corner, where he'd stay.
+    - It must hold for 2 polls; leaving counts at once.
+  - **No squeezed bubbles:** the focus corner is 90px in from the edge. Copycat's wall smack recoils him
+    ~1.3 sizes off the wall before he speaks.
+  - **App/site-specific lines:** `activeWindow.js` sends a `key` (notepad, notepadpp, acrobat, pdf,
+    word/excel/powerpoint, taskmanager, calculator, paint, obs, steam, discord, vscode, terminal, files,
+    youtube, netflix, twitch, github, gmail, reddit, wikipedia, amazon, nasa...). Each has its own lines in
+    `systemReactions.js`, with a 2-min cooldown per key.
+    - A ".pdf" title in ANY app counts as reading (fixes Adobe).
+  - **New system triggers** (`systemReads/desktop.js` + `systemReactions.js`): dark/light mode, a monitor
+    plugged in/out, the CPU working hard (85%+ for 15s), an hour in one kind of app, 6 app switches in 30s,
+    and a day-of-week line at startup.
+  - **Song start = dance, always (demo):**
+    - `music.js` also reports `newSong` when the playing title changes. The title still never leaves the
+      main process.
+    - `dance.js` `songStartNow`: a song starting or changing makes him dance at once. No quiet wait, no
+      cooldown, any mood (music wakes / cheers him).
+    - Invite and copycat step aside for it. It waits for games, focus, hush, the shop, sky events, the
+      intro, or being held.
+    - Already dancing → a fresh burst. Tested in the real app: asleep, mad, new song, mid-invite.
+    - `spotifast` was added to the music app category.
   - **Fixes:**
     - Exit: he vanishes in place inside the burst (quick fade). Before, a CSS `scale` on #pet also scaled
       his position, so he zoomed off toward the top-left.

@@ -34,7 +34,7 @@
 // Everything is logged as 'mood' { from, to, reason }. In DevTools: starby.setMood('sleepy').
 import { chat, lineBag } from './chatter.js';
 import { MOODS } from './moods.js';
-import { petBounds } from './motion.js';
+import { petBounds, CORNER_WALK_SPEED } from './motion.js';
 import { setSpeechGate } from '../talkbox.js';
 
 // ---- Tuning ----
@@ -74,8 +74,8 @@ const LINES = {
   sleepy: lineBag(['zzz...', '*snore*', 'zzz... mm... starbits...']),
   wake: lineBag(["huh?! i'm up, i'm up!", 'whoa! good morning?', 'okay okay, no more naps']),
   roused: lineBag(["oh! hi, i'm awake", 'hm? oh, hi!', "i wasn't sleeping!"]),
-  calmDown: lineBag(['hmph. fine.', "ok... i'm not mad anymore", 'we good.']),
-  cheerUp: lineBag(["ok, i'm feeling better!", 'cheered up ✦', 'maybe next time!']),
+  calmDown: lineBag(['hmph. fine.', "ok... i'm not mad anymore", 'we\'re good.']),
+  cheerUp: lineBag(["ok, i'm feeling better!", 'i\'m all good now!', 'maybe next time!']),
 };
 
 // ---- State ----
@@ -474,6 +474,22 @@ export default {
         return pet.mood;
       };
       window.starby.mood = () => ({ mood: pet.mood, face: pet.face, goal: pet.goal });
+      // Dialogue → Settings → "feeling sleepy?": "yeah..." and straight into the sleepy walk to his nap spot on
+      // the taskbar (no waiting for a random rest first); he falls asleep when he gets there.
+      window.starby.getSleepy = () => {
+        if (pet.mood === 'sleepy') return 'already asleep';
+        const active = ctx.activeEvent();
+        if (active === 'intro' || active === 'goodbye') return 'not now';
+        if (active) ctx.stopEvent('feeling sleepy');
+        if (pet.mode === 'drag' || pet.mode === 'toss') return 'being held';
+        ctx.say(['yeah... *yawn*', 'yeah... kinda...', 'mmm... yeah... nap time'][Math.floor(Math.random() * 3)], 2500);
+        setMood(ctx, 'yawning', 'feeling sleepy (settings)'); // sets pet.goal = his nap spot
+        const [lo, hi] = CORNER_WALK_SPEED;
+        Object.assign(pet, {
+          targetX: pet.goal.x, targetY: pet.goal.y, walkSpeed: lo + Math.random() * (hi - lo), walkKind: 'to-corner', mode: 'walk',
+        });
+        return 'sleepy';
+      };
       // starby.flourish('wink') / starby.flourish('glistening') to see one right now
       window.starby.flourish = (face = 'glistening') => {
         flourish = { face, until: ctx.clock.seconds + (face === 'wink' ? WINK_FOR : GLISTEN_FOR) };

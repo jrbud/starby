@@ -20,8 +20,8 @@
 // While pulling, click-through is pinned off (ctx.setPinned) so the release isn't lost when the
 // cursor leaves him (see ../clickThrough.js).
 //
-// ART: the hoop is the team's halo PNG (assets/accessories/halo.png) as a PLACEHOLDER until a hoop
-// is drawn: swap HOOP_ART (and HOOP_ART_BOX, the visible part of the PNG) when it exists. The aim
+// ART: the hoop is the team's hoop PNG (assets/events/hoop.png): a pink rim with the net hanging
+// below it. The game sizes and scores by the RIM (HOOP_ART_BOX); the net just hangs under it. The aim
 // dots are the team's starbit PNGs. Nothing is drawn by code.
 //
 // Starts like the other games: his "wanna play hoop shot?" invite (./invite.js, via the games timer),
@@ -43,14 +43,25 @@ const GRAVITY = 1500; // px/s² pulling him down in flight (this game only)
 const PULL_MAX = 170; // px: the furthest you can pull him back
 const PULL_MIN = 20; // px: smaller pulls are cancelled, not shot
 const SHOT_SPEED_MAX = 1750; // px/s at a full pull
-const PULL_SHOW = 0.45; // how far he visibly moves back with the pull (fraction of the pull)
+// The pull LOOKS like the normal slingshot (../behaviors/slingshot.js): his feet stay pinned at the
+// launch spot and his head is held by the cursor, so his body stretches between them like a rubber
+// band (pet.warp), turning upside down if you pull below him and trembling near full pull. Let go
+// and he flies off with the same damped rubber-band wobble.
+const GRAB_SNAP = 40; // px: over the first part of the pull his head glides onto the cursor
+const MIN_LENGTH = 0.5; // his length (feet → head) stays within these, × his height
+const MAX_LENGTH = 3;
+const TREMBLE_FROM = 0.75; // pull tension above which he trembles
+const TREMBLE_PX = 1.5;
+const WOBBLE_HZ = 5; // rubber-band wobble after the release (wobbles per second)...
+const WOBBLE_DAMPING = 0.07; // ...and how fast it dies out (low = wobbly)
+const UPRIGHT_SPEED = 10; // 1/s: how quickly he tips back upright after landing
 const PREVIEW_DOTS = 6; // starbits showing the start of the arc
 const PREVIEW_FOR = 0.4; // seconds of flight they cover (the arc is longer: you judge the rest)
 const PREVIEW_SIZE = 14; // px
 const WALL_BOUNCE = 0.6; // speed kept bouncing off a screen edge
 const FLOOR_BOUNCE = 0.45; // speed kept bouncing off the floor
 const FLOOR_STOP = 260; // px/s: slower than this hitting the floor → he's landed
-const SPIN = 9; // rad/s max spin in flight
+const SPIN = [7, 14]; // rad/s spin in flight: light pull ... full pull (rolls the way he's flying)
 const SETUP_SPEED = 900; // px/s flying to the launch spot
 const RETURN_SPEED = 1100; // px/s flying back after a miss
 const HOOP_WIDTH = 2.2; // hoop width, in Starby sizes
@@ -58,11 +69,12 @@ const OPENING = [0.14, 0.86]; // part of the hoop's width that counts as "throug
 const SCORE_REWARD = 10;
 const SUBSTEPS = 4; // physics steps per frame (fast shots don't skip through the hoop)
 
-// Placeholder hoop art: the halo accessory. HOOP_ART_BOX = where the drawing sits inside the PNG
-// (left, top, right, bottom in PNG px, out of HOOP_ART_SIZE), so the hoop is sized by the visible ring.
-const HOOP_ART = '../../../assets/accessories/halo.png'; // relative to src/renderer/pet/index.html
+// The hoop art. HOOP_ART_BOX = where the RIM sits inside the PNG (left, top, right, bottom in PNG px,
+// out of HOOP_ART_SIZE; measured from the pink rim), so the hoop is sized by its rim and "through"
+// means through the rim's middle line. The net below the rim is drawn too (it overflows the box).
+const HOOP_ART = '../../../assets/events/hoop.png'; // team art; relative to src/renderer/pet/index.html
 const HOOP_ART_SIZE = 2048;
-const HOOP_ART_BOX = [412, 25, 1576, 403];
+const HOOP_ART_BOX = [414, 130, 1560, 400];
 
 const LINES = {
   intro: 'hoop shot! right click or left click and drag me back, let go to shoot!',
@@ -84,6 +96,15 @@ let countdown = null;
 let mouse = { x: 0, y: 0 };
 let vel = { x: 0, y: 0 };
 let spin = 0;
+// His angle during the game, kept HERE: behaviors/drag.js straightens him (rotation = 0) every frame
+// whenever he isn't held or thrown, which would wipe out the spin. Events update after behaviors,
+// so setting pet.rotation = rot each frame keeps it.
+let rot = 0;
+let press = null; // cursor when the pull started (the pull is measured from here)
+let feet = null; // his feet's pinned point during the pull (bottom-middle of him at the launch spot)
+let headRest = null; // the top of his head when the pull started
+let lastStretch = 1; // stretch on the last pulled frame (where the release wobble starts)
+let wobble = null; // { x, v } rubber-band wobble after the release (stretch offset and its speed)
 let scored = false;
 let landed = false; // a missed shot finished (acted on at the tick)
 let played = false;
@@ -100,12 +121,14 @@ function finish(result) {
   end?.(result);
 }
 
-// Pull vector (from his launch center toward the cursor), clamped to PULL_MAX.
-function pullVector(ctx) {
-  const S = ctx.pet.size;
-  const c = { x: launch.x + S / 2, y: launch.y + S / 2 };
-  let dx = mouse.x - c.x;
-  let dy = mouse.y - c.y;
+// Spring offset → drawn stretch (same as the slingshot's: as-is when stretched, eased when squashed).
+const wobbleStretch = (x) => (x >= 0 ? 1 + x : 1 + x / (1 - x));
+
+// Pull vector: how far the cursor has moved since the press (where on him you clicked doesn't
+// matter, like the slingshot), clamped to PULL_MAX.
+function pullVector() {
+  let dx = mouse.x - press.x;
+  let dy = mouse.y - press.y;
   const d = Math.hypot(dx, dy);
   if (d > PULL_MAX) { dx *= PULL_MAX / d; dy *= PULL_MAX / d; }
   return { dx, dy, d: Math.min(d, PULL_MAX) };
@@ -190,26 +213,46 @@ function hookMouse(ctx) {
     e.stopPropagation();
     if (phase !== 'aim' || (e.button !== 0 && e.button !== 2)) return;
     mouse = { x: e.clientX, y: e.clientY };
+    press = { ...mouse };
+    // Pin his feet (bottom-middle) where he stands; his head (top-middle) is what the cursor holds.
+    const S = ctx.pet.size;
+    feet = { x: launch.x + S / 2, y: launch.y + S };
+    headRest = { x: launch.x + S / 2, y: launch.y };
+    wobble = null;
     pullButton = e.button;
     phase = 'pull';
     ctx.setPinned(true); // keep getting mouse events when the cursor leaves him
   }, true);
-  window.addEventListener('mousemove', (e) => { mouse = { x: e.clientX, y: e.clientY }; });
+  window.addEventListener('mousemove', (e) => {
+    mouse = { x: e.clientX, y: e.clientY };
+    // Lost mouseup mid-pull (no button held any more): release the normal way. (Person 3)
+    if (phase === 'pull' && e.buttons === 0) {
+      window.dispatchEvent(new MouseEvent('mouseup', { clientX: e.clientX, clientY: e.clientY, button: pullButton }));
+    }
+  });
   window.addEventListener('mouseup', (e) => {
     if (phase !== 'pull' || e.button !== pullButton) return;
     ctx.setPinned(false);
-    const p = pullVector(ctx);
+    const p = pullVector();
     hideDots();
     if (p.d < PULL_MIN) { // just a click (or a tiny pull): he stays put and tells you how
       ctx.pet.x = launch.x;
       ctx.pet.y = launch.y;
       ctx.pet.squash = 1;
+      rot = 0;
+      ctx.pet.rotation = 0;
+      ctx.pet.warp = null;
       phase = 'aim';
       ctx.say(LINES.howTo, 2200);
       return;
     }
     vel = shotFrom(p);
-    spin = clamp(vel.x / 200, -SPIN, SPIN);
+    // A good spin, rolling the way he's flying, harder the further you pulled.
+    const tension = p.d / PULL_MAX;
+    spin = (vel.x >= 0 ? 1 : -1) * (SPIN[0] + (SPIN[1] - SPIN[0]) * tension);
+    // Rubber-band snap: the wobble starts from exactly how stretched he was.
+    const d = lastStretch - 1;
+    wobble = { x: d >= 0 ? d : d / (1 + d), v: 0 };
     phase = 'flight';
     ctx.log('hoop-shot', { speed: Math.round(Math.hypot(vel.x, vel.y)) });
   });
@@ -224,7 +267,8 @@ function step(ctx, h) {
   vel.y += GRAVITY * h;
   pet.x += vel.x * h;
   pet.y += vel.y * h;
-  pet.rotation = (pet.rotation || 0) + spin * h;
+  rot += spin * h;
+  pet.rotation = rot;
   const after = center(pet);
 
   // Through the hoop: crossing its middle line going DOWN, inside the opening.
@@ -307,6 +351,7 @@ export default {
     vel = { x: 0, y: 0 };
     phase = 'setup';
     pet.mode = 'hoop'; // behaviors stand down
+    rot = 0;
     pet.rotation = 0;
     cancelJump();
     pet.facing = fromLeft ? 1 : -1;
@@ -352,23 +397,67 @@ export default {
     if (pet.mode !== 'hoop' || phase === 'done') return;
     pet.bob = 0;
 
+    // Rubber-band wobble after the release (while flying, and as he lands and flies back).
+    if (wobble && phase !== 'pull') {
+      const w = 2 * Math.PI * WOBBLE_HZ;
+      const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
+      const h = dt / steps;
+      for (let i = 0; i < steps; i++) {
+        wobble.v += (-w * w * wobble.x - 2 * WOBBLE_DAMPING * w * wobble.v) * h;
+        wobble.x += wobble.v * h;
+      }
+      if (Math.abs(wobble.x) < 0.004 && Math.abs(wobble.v) < 0.05) { wobble = null; pet.warp = null; }
+      else pet.warp = { angle: rot - Math.PI / 2, stretch: wobbleStretch(wobble.x) };
+    }
+    // Landed: tip back upright smoothly (to the nearest full turn, no snap).
+    if (phase === 'wait' || phase === 'return') {
+      const upright = Math.round(rot / (2 * Math.PI)) * 2 * Math.PI;
+      rot = upright + (rot - upright) * Math.exp(-UPRIGHT_SPEED * dt);
+      if (Math.abs(rot - upright) < 0.01) rot = 0;
+    }
+    pet.rotation = rot; // (drag.js zeroed it this frame; see `rot`)
+
     if (phase === 'setup' || phase === 'return') {
-      pet.rotation = 0;
+      if (phase === 'setup') { rot = 0; pet.rotation = 0; }
       if (moveToward(pet, launch, phase === 'setup' ? SETUP_SPEED : RETURN_SPEED, dt)) {
         if (phase === 'setup') {
           played = true;
           countdown.show('Hoop Shot', gameLeft);
         }
         phase = 'aim';
+        rot = 0; // fully upright at the launch spot
+        pet.rotation = 0;
         startJump({ height: rand(6, 9), air: 0.2 }); // ready!
       }
     } else if (phase === 'aim') {
       pet.squash += (1 - pet.squash) * Math.min(1, dt * 10);
     } else if (phase === 'pull') {
-      const p = pullVector(ctx);
-      pet.x = launch.x + p.dx * PULL_SHOW;
-      pet.y = launch.y + p.dy * PULL_SHOW;
-      pet.squash = 1 + (p.d / PULL_MAX) * 0.15; // stretched by the pull
+      // Slingshot look: feet pinned, head held by the cursor, body stretched between them.
+      const p = pullVector();
+      const raw = Math.hypot(mouse.x - press.x, mouse.y - press.y);
+      const tension = p.d / PULL_MAX;
+      const k = tension > TREMBLE_FROM ? (tension - TREMBLE_FROM) / (1 - TREMBLE_FROM) : 0;
+      const offset = Math.max(0, 1 - raw / GRAB_SNAP); // his head glides onto the cursor at first
+      // His head sits under the cursor (the pull clamped to PULL_MAX), after gliding there from where
+      // it was during the first GRAB_SNAP px (like the slingshot); trembles near a full pull.
+      const headX = press.x + p.dx + (headRest.x - press.x) * offset + rand(-TREMBLE_PX, TREMBLE_PX) * k;
+      const headY = press.y + p.dy + (headRest.y - press.y) * offset + rand(-TREMBLE_PX, TREMBLE_PX) * k;
+      let vx = headX - feet.x;
+      let vy = headY - feet.y;
+      let len = Math.hypot(vx, vy);
+      if (len < 0.001) { vx = 0; vy = -1; len = 1; }
+      const ux = vx / len;
+      const uy = vy / len;
+      const stretch = Math.max(MIN_LENGTH, Math.min(MAX_LENGTH, len / pet.size));
+      lastStretch = stretch;
+      const bodyLen = stretch * pet.size;
+      // Drawn centered halfway between feet and head, turned along the body (rotation 0 = head up).
+      pet.x = feet.x + (ux * bodyLen) / 2 - pet.size / 2;
+      pet.y = feet.y + (uy * bodyLen) / 2 - pet.size / 2;
+      pet.squash = 1;
+      rot = Math.atan2(ux, -uy);
+      pet.rotation = rot;
+      pet.warp = { angle: Math.atan2(uy, ux), stretch };
       if (Math.abs(p.dx) > 2) pet.facing = p.dx < 0 ? 1 : -1; // faces where he'll fly
       showDots(ctx, p);
     } else if (phase === 'flight') {
@@ -376,8 +465,8 @@ export default {
       const h = dt / SUBSTEPS;
       for (let i = 0; i < SUBSTEPS; i++) {
         const r = step(ctx, h);
-        if (r === 'scored') { scored = true; phase = 'wait'; pet.rotation = 0; break; }
-        if (r === 'landed') { landed = true; phase = 'wait'; pet.rotation = 0; break; }
+        if (r === 'scored') { scored = true; phase = 'wait'; break; }
+        if (r === 'landed') { landed = true; phase = 'wait'; break; } // tips upright (above)
       }
     }
   },
@@ -387,8 +476,11 @@ export default {
     endGame = null;
     phase = 'done';
     cleanUp(ctx);
+    rot = 0;
     pet.rotation = 0;
     pet.squash = 1;
+    pet.warp = null; // no leftover stretch
+    wobble = null;
     if (pet.mode === 'hoop') pet.mode = 'idle';
     if (played) markPlayed(ctx); // shared rest between games
     played = false;

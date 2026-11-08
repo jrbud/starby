@@ -21,6 +21,13 @@
 //
 // Ends when you click him or pick him up (he says hi), or you pick "Okay, I'm done focusing!" in
 // the dialogue. The shop window (priority 20) also ends it.
+//
+// CALLS + FULLSCREEN also put him in focus mode (they used to use ./hush.js):
+//   call starts (src/main/systemReads/calls.js)   "i'll be quiet for now!" then the usual slingshot
+//   fullscreen app/video (activeWindow.js)        a quick, silent flip into focus (no line, no wait)
+//   ...and the moment the call / fullscreen ends he leaves focus and walks back to where he was.
+// Clicking or grabbing him still ends it; he then won't jump back in until that call/fullscreen
+// is over. A focus YOU chose (the dialogue) isn't ended by a call or fullscreen ending.
 // No dialogue until he's landed (pet.noDialogue): right-clicking him mid-slingshot would open the
 // boxes and then he'd fly off and scramble them.
 // You can still right-click him while he focuses: the dialogue flies him out of the corner so its
@@ -44,7 +51,7 @@ const SPIN_TURNS = 1.5; // full turns while flying
 const IMPACT_SPEED = { left: 1700, bottom: 1300 }; // how hard fx.js shows the corner hit
 const QUIET_AFTER_LANDING = 0.6; // seconds after landing before he goes fully silent
 const SKIP_IF_WITHIN = 0.5; // star-sizes: already this close to the corner → no slingshot
-const EDGE = 8; // px in from the left edge
+const EDGE = 90; // px in from the left edge: room for his speech bubbles (they'd get pushed sideways at the very edge)
 const FLOURISH_EVERY = [12, 30]; // seconds between a wink / glistening moment while parked
 const GLISTEN_CHANCE = 0.5; // otherwise a wink
 const GLISTEN_FOR = 2.4; // seconds of sparkly eyes (frames.js 'glistening')
@@ -52,12 +59,23 @@ const WINK_FOR = 0.7; // seconds
 // Things you do to him that end focus (event log types).
 const WAKE_ON = ['click', 'grab'];
 
+const CALL_TALK_FOR = 1.4; // seconds of his "i'll be quiet" line before a call slingshot
+const RETURN_SPEED = 420; // px/s walking back after a call / fullscreen
+
 const LINES = {
+  call: lineBag(["i'll be quiet for now!", "shh, call time! i'll be quiet", "ooh, a call! i'll go sit over here"]),
+  callOver: lineBag(['call over? hi again!', "all done talking? i'm back!"]),
   okay: lineBag(["okay! i'll be right here!", 'you got this! i believe in you!', "okay, i'll be quiet. good luck!", 'go get it! i\'ll wait over here!']),
   back: lineBag(["yay, you're back!", 'all done? hi hi!', 'break time? yay!']),
 };
 
 let endFocus = null;
+let reason = null; // 'dialogue' | 'call' | 'fullscreen' | 'devtools'...
+let inCall = false;
+let fullscreen = false;
+let suppressed = false; // clicked out of a call/fullscreen focus: don't jump back in until it ends
+let returnTo = null; // { x, y } where he was before a call / fullscreen focus
+let talkFor = TALK_FOR;
 let phase = 'talk'; // talk | aim | fly | parked
 let t = 0; // seconds into the current phase
 let parkedFor = 0; // seconds since he landed
@@ -119,19 +137,47 @@ export default {
 
   init(ctx) {
     ctx.events.onEntry((e) => {
-      if (endFocus && WAKE_ON.includes(e.type)) finish('woken');
+      if (e.type === 'system' && e.data.type === 'call') inCall = Boolean(e.data.active);
+      if (e.type === 'system' && e.data.type === 'fullscreen') fullscreen = Boolean(e.data.active);
+      if (!inCall && !fullscreen) suppressed = false;
+      if (endFocus && WAKE_ON.includes(e.type)) {
+        if (reason === 'call' || reason === 'fullscreen') suppressed = true;
+        finish('woken');
+      }
     });
   },
 
-  start(ctx, end) {
+  // Every tick: a call / fullscreen starts focus mode (if it isn't on already).
+  watch(ctx) {
+    if (!(inCall || fullscreen) || suppressed || ctx.activeEvent() === 'focus') return;
+    if (ctx.pet.mode === 'drag' || ctx.pet.mode === 'toss' || ctx.pet.mode === 'goodbye') return;
+    ctx.startEvent('focus', inCall ? 'call' : 'fullscreen');
+  },
+
+  start(ctx, end, why) {
     const { pet } = ctx;
     endFocus = end;
+    reason = why;
+    returnTo = why === 'call' || why === 'fullscreen' ? { x: pet.x, y: pet.y } : null;
     setPhase('talk');
     if (pet.mood !== 'happy') requestMood(ctx, 'happy', 'focus time'); // happy and supportive
-    ctx.say(LINES.okay(), TALK_FOR * 1000 + 300);
+    if (why === 'fullscreen') {
+      talkFor = 0; // fullscreen: flip into focus right away, silently
+    } else if (why === 'call') {
+      talkFor = CALL_TALK_FOR;
+      ctx.say(LINES.call(), CALL_TALK_FOR * 1000 + 300);
+    } else {
+      talkFor = TALK_FOR;
+      ctx.say(LINES.okay(), TALK_FOR * 1000 + 300);
+    }
     if (pet.mode !== 'drag' && pet.mode !== 'toss') pet.mode = 'focus';
     pet.faceOverride = null;
     pet.noDialogue = true; // until he lands (see land())
+  },
+
+  // A call / fullscreen focus ends the moment that call / fullscreen does.
+  onTick() {
+    if ((reason === 'call' || reason === 'fullscreen') && !inCall && !fullscreen) finish('over');
   },
 
   update(ctx, dt) {
@@ -145,7 +191,7 @@ export default {
       pet.rotation = 0;
       pet.bob = 0;
       pet.squash = approach(pet.squash, 1, dt, 10);
-      if (t < TALK_FOR) return;
+      if (t < talkFor) return;
       target = corner(ctx);
       const d = Math.hypot(target.x - pet.x, target.y - pet.y);
       if (d < SKIP_IF_WITHIN * S) { land(ctx, false); return; }
@@ -220,5 +266,12 @@ export default {
     if (result === 'woken' || result === 'done') {
       ctx.after(0.15, () => ctx.say(LINES.back(), 2200), 'focus hello');
     }
+    // A call / fullscreen ended: straight out of focus, and he walks back to where he was.
+    if (result === 'over' && returnTo && pet.mode === 'idle') {
+      if (reason === 'call') ctx.after(0.15, () => ctx.say(LINES.callOver(), 2200), 'focus call over');
+      Object.assign(pet, { targetX: returnTo.x, targetY: returnTo.y, walkSpeed: RETURN_SPEED, walkKind: 'wander', mode: 'walk' });
+    }
+    returnTo = null;
+    reason = null;
   },
 };

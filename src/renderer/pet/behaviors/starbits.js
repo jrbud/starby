@@ -648,7 +648,11 @@ function ensureToast(ctx) {
   // keeps it up (it won't slide away under your cursor) and grows it a touch.
   const el = document.createElement('div');
   el.className = 'starbits-toast hit';
-  Object.assign(el.style, { pointerEvents: 'auto', cursor: 'pointer', transition: 'scale 120ms ease-out' });
+  // (No inline `transition` here: it would replace pet.css's slide-in / slide-out transitions, and
+  // the card would just pop in and out instead of zooming in from the screen edge.)
+  Object.assign(el.style, { pointerEvents: 'auto', cursor: 'pointer' });
+  // Hover grow, animated on its own (the `scale` property, so it doesn't touch the slide transform).
+  const hoverScale = (to) => el.animate([{ scale: getComputedStyle(el).scale === 'none' ? '1' : getComputedStyle(el).scale }, { scale: to }], { duration: 120, easing: 'ease-out', fill: 'forwards' });
   el.title = 'open the shop';
   el.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
@@ -657,12 +661,12 @@ function ensureToast(ctx) {
     ctx.api.openShop?.();
   });
   el.addEventListener('mouseenter', () => {
-    el.style.scale = '1.06';
+    hoverScale('1.06');
     ctx.cancel(toastHideId); // stay up while you're reaching for it
     toastHideId = null;
   });
   el.addEventListener('mouseleave', () => {
-    el.style.scale = '';
+    hoverScale('1');
     if (el.classList.contains('visible')) scheduleToastOut(ctx);
   });
   el.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -694,7 +698,12 @@ function placeToast(ctx) {
 function slideToastIn(ctx) {
   const t = ensureToast(ctx);
   placeToast(ctx);
-  if (!t.el.classList.contains('visible')) t.countEl.textContent = String(shownCount());
+  if (!t.el.classList.contains('visible')) {
+    t.countEl.textContent = String(shownCount());
+    // Make sure the browser has laid it out in its hidden spot (off the screen edge) first, or the
+    // very first time (card just created) it would pop in instead of zooming in.
+    void t.el.offsetWidth;
+  }
   t.el.classList.add('visible');
   ctx.cancel(toastHideId); // stays up while starbits are still on their way
   toastHideId = null;

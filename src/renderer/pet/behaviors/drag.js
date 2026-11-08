@@ -382,6 +382,13 @@ export default {
 
     window.addEventListener('mousemove', (e) => {
       if (!pressing) return;
+      // The mouseup got lost (an event took him mid-press, the window lost the mouse...): no button
+      // is held any more, so end the press the normal way. Otherwise he'd stay glued to the cursor
+      // and the screen un-clickable. (Added by Person 3.)
+      if (e.buttons === 0) {
+        window.dispatchEvent(new MouseEvent('mouseup', { clientX: e.clientX, clientY: e.clientY, button: 0 }));
+        return;
+      }
       mouse = { x: e.clientX, y: e.clientY };
       if (!moved && Math.hypot(e.clientX - start.x, e.clientY - start.y) > CLICK_SLOP) {
         // Mad: no picking him up, he swats your hand away instead (see swat()).

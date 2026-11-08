@@ -13,7 +13,6 @@ const IDLE_LINES = [
   'la la la~',
   'nice desktop you got here',
   'i like it up here',
-  '✦',
   'hmm hm hmm',
   'what are we doing today?',
   'just floating around',
@@ -29,6 +28,7 @@ const IDLE_LINES = [
   'shiny day today',
   'beep boop. jk, i\'m a star',
   'stretch break? no? ok',
+  ':3',
   // Space stuff: he's made of starlight and has seen it all, so he's got stories (and opinions).
   "the martians are throwing another party tonight. i'm not invited. again.",
   "fun fact: the sun is my cousin. we don't really talk.",
@@ -63,14 +63,12 @@ const CLICK_LINES = [
   'again! again!',
   'whee!',
   'yes? :)',
-  'poke detected',
   'hi friend',
   'heehee, stop it',
   'did you need something?',
   'greetings, earthling!',
   'beam me up! ...wait, i live here',
   'one small boop for you...',
-  '*sparkles in morse code*',
   'this is ground control... i mean, hi!',
 ];
 
@@ -115,8 +113,8 @@ const IDLE_BY_MOOD = lineBags({
   playful: ['throw me again!', 'that was fun!', 'hehe', 'wheee~ (remembering)', 'bet you can\'t throw me farther', 'i almost reached the moon that time!'],
   dizzy: ['the room is spinning...', '@_@', 'which way is up?'],
   yawning: ['*yaaawn*', 'so sleepy...', 'nap time soon...'],
-  sad: ['*sigh*', 'i just wanted to play...', '...', 'oh well.', '*kicks a pixel*'],
-  sleepy: ['zzz...', '*snore*', 'zzz... mm... starbits...', '*mumbles in sleep*'],
+  sad: ['*sigh*', 'i just wanted to play...', '...', 'oh well.'],
+  sleepy: ['zzz...', '*snore*', 'zzz... mm... starbits...', '*mumbles*'],
 });
 
 const CHAT_EVERY = [20, 40]; // seconds between idle-chatter attempts

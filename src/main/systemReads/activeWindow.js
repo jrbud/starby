@@ -1,7 +1,9 @@
 // Active/focused window (read-only). Emits
-//   emit('active-window', { app, category })   category: 'browser' | 'editor' | 'game' | 'music'
+//   emit('active-window', { app, category, key })   category: 'browser' | 'editor' | 'game' | 'music'
 //                                              | 'chat' | 'reading' | 'writing' | 'other'
-// when the user settles on a different app (or a browser tab switches kind, e.g. to a PDF).
+//                                              key: a specific app or site ('notepad', 'acrobat',
+//                                              'taskmanager', 'youtube'...; see appKey) or null
+// when the user settles on a different app (or a browser tab switches kind / site).
 //
 // Uses the `get-windows` npm package. On Windows it's a prebuilt Node-API addon, so it loads in
 // Electron without a rebuild. It only *reads* the foreground window and the name/path of the
@@ -11,7 +13,8 @@
 //
 // PRIVACY: the window title never leaves this file (titles hold email subjects, file names,
 // chat names...). It's only used locally for a few hints below (Minecraft, a PDF or a Google
-// Doc open in a browser). We send the app's display name and a coarse category, nothing else.
+// Doc open in a browser, which site a tab is on). We send the app's display name, a coarse category
+// and a short app/site key ('youtube'), nothing else.
 
 const POLL_MS = 2000;
 const STABLE_POLLS = 2; // an app must stay focused this many polls in a row before we report it,
@@ -29,7 +32,7 @@ const CATEGORIES = {
     'nvim-qt', 'neovide',
   ],
   music: [
-    'spotify', 'applemusic', 'itunes', 'musicbee', 'foobar2000', 'winamp', 'tidal', 'deezer',
+    'spotify', 'spotifast', 'applemusic', 'itunes', 'musicbee', 'foobar2000', 'winamp', 'tidal', 'deezer',
     'amazon music', 'aimp',
   ],
   game: [
@@ -44,7 +47,7 @@ const CATEGORIES = {
     'telegram', 'signal', 'messenger', 'element', 'zulip',
   ],
   reading: [ // PDF readers (a PDF open in a browser is caught by the title, below)
-    'acrord32', 'acrobat', 'sumatrapdf', 'foxitpdfreader', 'foxitreader', 'foxitphantompdf',
+    'acrord32', 'acrobat', 'acrocef', 'acrobat_sl', 'sumatrapdf', 'foxitpdfreader', 'foxitreader', 'foxitphantompdf',
     'pdfxedit', 'pdfxcview', 'nitropdf', 'okular', 'drawboardpdf',
   ],
   writing: [ // documents: writing, notes, spreadsheets, slides
@@ -67,6 +70,7 @@ const GAME_FOLDERS = [
 ];
 
 function categorize(exe, exePath, title) {
+  if (/\.pdf\b/i.test(title) && !CATEGORIES.editor.includes(exe)) return 'reading'; // a PDF in ANY app (Adobe...)
   for (const [category, names] of Object.entries(CATEGORIES)) {
     if (!names.includes(exe)) continue;
     if (category === 'browser') {
@@ -79,6 +83,37 @@ function categorize(exe, exePath, title) {
   if (GAME_FOLDERS.some((folder) => p.includes(folder))) return 'game';
   if (exe === 'javaw' && /minecraft/i.test(title)) return 'game'; // Minecraft Java runs as javaw.exe
   return 'other';
+}
+
+// A specific app (by exe) or site (a browser tab's title), for app-specific lines in
+// renderer/pet/behaviors/systemReactions.js. Only this short key is sent, never the title.
+const APP_KEYS = {
+  notepad: 'notepad', 'notepad++': 'notepadpp', acrobat: 'acrobat', acrord32: 'acrobat', acrocef: 'acrobat',
+  winword: 'word', excel: 'excel', powerpnt: 'powerpoint', onenote: 'onenote', outlook: 'outlook', olk: 'outlook',
+  taskmgr: 'taskmanager', calculatorapp: 'calculator', calc: 'calculator', mspaint: 'paint', paint: 'paint',
+  photoshop: 'photoshop', blender: 'blender', figma: 'figma', obs64: 'obs', obs32: 'obs', zoom: 'zoom',
+  systemsettings: 'settings', steam: 'steam', steamwebhelper: 'steam', discord: 'discord', code: 'vscode',
+  spotify: 'spotify', spotifast: 'spotify', minecraft: 'minecraft', minecraftlauncher: 'minecraft',
+  robloxplayerbeta: 'roblox', whatsapp: 'whatsapp', windowsterminal: 'terminal', wt: 'terminal', cmd: 'terminal',
+  powershell: 'terminal', pwsh: 'terminal',
+};
+// Sites, from a browser tab's title (checked here; the title never leaves this file).
+const SITE_KEYS = [
+  { key: 'youtube', test: /youtube/i }, { key: 'netflix', test: /netflix/i }, { key: 'twitch', test: /twitch/i },
+  { key: 'github', test: /github/i }, { key: 'gmail', test: /gmail|inbox \(\d+\)/i }, { key: 'reddit', test: /reddit/i },
+  { key: 'wikipedia', test: /wikipedia/i }, { key: 'amazon', test: /amazon/i }, { key: 'nasa', test: /\bnasa\b/i },
+  { key: 'pdf', test: /\.pdf\b/i },
+];
+
+function appKey(exe, title, category) {
+  if (exe === 'javaw' && /minecraft/i.test(title)) return 'minecraft';
+  if (exe === 'explorer') return title && title !== 'Program Manager' ? 'files' : null; // File Explorer, not the desktop
+  if (CATEGORIES.browser.includes(exe)) {
+    const site = SITE_KEYS.find((k) => k.test.test(title));
+    return site ? site.key : null;
+  }
+  if (category === 'reading' && !(exe in APP_KEYS)) return 'pdf';
+  return APP_KEYS[exe] ?? null;
 }
 
 // Our own shop window can take focus (the pet window can't: it's focusable:false).
@@ -104,8 +139,16 @@ function toDip(b) {
 // FULLSCREEN: the focused window covers its whole display (a fullscreen game or video; a
 // maximized window doesn't count, the taskbar is still showing). Not the desktop itself.
 // Emitted as 'fullscreen' { active } whenever it changes (renderer/pet/events/hush.js).
+// Windows' own full-screen overlays aren't "a fullscreen app": the snipping overlay (Win+Shift+S),
+// Start / search, the lock screen, the touch keyboard... (explorer = the desktop, task view).
+const NOT_FULLSCREEN_APPS = [
+  'explorer', 'shellexperiencehost', 'startmenuexperiencehost', 'searchhost', 'searchapp', 'searchui',
+  'lockapp', 'screenclippinghost', 'snippingtool', 'screensketch', 'textinputhost', 'shellhost',
+];
+const FULLSCREEN_POLLS = 2; // must stay fullscreen this many polls in a row (leaving counts at once)
+
 function isFullscreen(exe, b) {
-  if (!b || exe === 'explorer') return false;
+  if (!b || NOT_FULLSCREEN_APPS.includes(exe)) return false;
   let d;
   try {
     d = require('electron').screen.getDisplayMatching(b).bounds;
@@ -121,6 +164,7 @@ function start(emit) {
   let seen = 0; // how many polls in a row
   let reported = null; // last app we emitted
   let sentFullscreen = null; // last fullscreen state we emitted
+  let fullscreenPolls = 0; // polls in a row the focused window has been fullscreen
 
   const poll = async () => {
     let win;
@@ -135,13 +179,16 @@ function start(emit) {
     const exePath = owner.path || '';
     const exe = (exePath.split('\\').pop() || owner.name || '').replace(/\.exe$/i, '').toLowerCase();
     const category = categorize(exe, exePath, win.title || '');
-    // App + category, so switching browser tabs to a PDF / Google Doc counts as a change too.
-    const key = (exePath.toLowerCase() || exe) && `${exePath.toLowerCase() || exe}|${category}`;
+    const specific = appKey(exe, win.title || '', category);
+    // App + category + site, so switching browser tabs to a PDF / YouTube counts as a change too.
+    const key = (exePath.toLowerCase() || exe) && `${exePath.toLowerCase() || exe}|${category}|${specific}`;
     if (!key) return;
 
     seen = key === candidate ? seen + 1 : 1;
     candidate = key;
-    const fullscreen = isFullscreen(exe, toDip(win.bounds));
+    // Fullscreen only counts once it's held for FULLSCREEN_POLLS polls; leaving counts at once.
+    fullscreenPolls = isFullscreen(exe, toDip(win.bounds)) ? fullscreenPolls + 1 : 0;
+    const fullscreen = fullscreenPolls >= FULLSCREEN_POLLS;
     if (fullscreen !== sentFullscreen) {
       sentFullscreen = fullscreen;
       emit('fullscreen', { active: fullscreen });
@@ -149,7 +196,7 @@ function start(emit) {
     if (seen < STABLE_POLLS || key === reported) return;
 
     reported = key;
-    emit('active-window', { app: owner.name || exe, category });
+    emit('active-window', { app: owner.name || exe, category, key: specific });
   };
 
   import('get-windows')
@@ -164,4 +211,4 @@ function start(emit) {
     });
 }
 
-module.exports = { start, categorize, isFullscreen };
+module.exports = { start, categorize, isFullscreen, appKey };
