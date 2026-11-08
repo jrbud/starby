@@ -137,4 +137,4 @@ function start(emit) {
     });
 }
 
-module.exports = { start, categorize };
+module.exports = { start, categorize, toDip, isOwnProcess }; // toDip / isOwnProcess: also used by openWindows.js

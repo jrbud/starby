@@ -98,8 +98,12 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   `starby.happening('star-shower')`, `starby.nextHappening()` (seconds until the next).
 - [x] **P1-11 (Nice) Hide and seek.** `events/hideSeek.js`: he runs off and hides without a word (no speech,
   no countdown, no starbit drops, debug mood label hidden; `pet.hiding` tells `starbits.js` / `moodLabel.js`).
-  Spots: just inside an edge of your active window (needs the window rectangle: `activeWindow.js` now sends
-  `bounds`, and `active-window-bounds` when it moves), behind the taskbar, or past a screen edge / corner.
+  Spots: just inside an edge of a **real open window** (when he goes to hide he asks for the current window
+  rectangles via `window.sprite.getOpenWindows()` → `main/systemReads/openWindows.js`: rectangles only, front-most
+  first, filtered to real app windows on the primary display; edges where a window in front would cover him are
+  skipped; refetched when he changes spots), else the active window's `bounds` (`activeWindow.js`), else behind
+  the taskbar or past a screen edge / corner. Real windows work on Windows out of the box; on macOS get-windows
+  needs the Screen Recording permission (without it: taskbar / screen edges only, one console warning).
   "Behind" is faked with a CSS clip on the pet element, so a peek shows only the part sticking out. The spot is
   fixed once he hides (moving the window does nothing). Every 4–9s he peeks out ~30px for 1.5s; touch him (or
   grab him) while he peeks → found: "you found me!" + 10 starbits. After a peek he sometimes moves to a new spot.
@@ -107,8 +111,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   takes any number of buttons) and in `HAPPENINGS` (he hides on his own), never in invites (`invite: false`).
   DevTools: `starby.startEvent('hide-seek')`, `starby.setHideWindow({ x, y, width, height })`, `starby.hideTest()`.
 - [x] **P1-12 (Nice) Developer menu.** Right-click → *Play hide & seek*, and a *Developer* submenu (`ipc.js`):
-  Open pet DevTools, Start star shower now, Hide & seek behind a test window (`starby.hideTest()`: forced window
-  spot behind a dashed pretend window), Starby invites you to a game, Skip game rest (`starby.skipRest()`), Stop
+  Open pet DevTools, Start star shower now, Hide & seek behind a real window (`starby.hideReal()`: forces a real
+  window spot; if the list is empty he says why, e.g. macOS Screen Recording), Hide & seek behind a fake test window
+  (`starby.hideTest()`: a dashed pretend window, never real windows), Starby invites you to a game, Skip game rest (`starby.skipRest()`), Stop
   current event. Menu items send `{ type: 'starby', fn, args }` and `pet.js` calls `window.starby[fn](...args)`,
   so any new debug helper can be added to the menu without touching `pet.js`.
 

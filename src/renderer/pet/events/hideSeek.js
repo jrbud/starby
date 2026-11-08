@@ -1,9 +1,12 @@
 // HIDE AND SEEK — Starby runs off and hides, without saying a word.
 //
 // He hides "behind" something, picked at random:
-//   - your active window: just inside one of its edges (needs the window's rectangle from
-//     main/systemReads/activeWindow.js; skipped if it isn't known or there's no room)
+//   - a real open window: just inside one of its edges. When he goes to hide he asks the main
+//     process for the current window rectangles (window.sprite.getOpenWindows → main/systemReads/
+//     openWindows.js; rectangles only, front-most first) and skips edges where a window in front
+//     would cover the spot. Falls back to the active window's rectangle, then to:
 //   - the taskbar, or just past an edge / corner of the screen (edges of ctx.area())
+//   Windows: works out of the box. macOS: needs the Screen Recording permission, else edges only.
 // The pet window is always on top, so "behind" is faked: while he's in a hiding spot, every part
 // of him on the covered side of the edge is clipped away (CSS clip-path on the pet element), so
 // peeking shows exactly the bit sticking out past the edge. The spot is fixed when he hides:
@@ -22,8 +25,10 @@
 // in his "wanna play?" invites: he doesn't announce it. Shares the rest between games.
 // DevTools: starby.setHideWindow({ x, y, width, height }) pretends that's the active window
 // (screen coordinates), e.g. to test window hiding without get-windows.
-// starby.hideTest() (also right-click → Developer): starts a round hiding behind a pretend window
-// in the middle of the screen, drawn as a dashed outline so you can see what he's behind.
+// starby.hideTest() (right-click → Developer → "...behind a fake test window"): a round hiding behind
+// a PRETEND window in the middle of the screen, drawn as a dashed outline. Never uses real windows.
+// starby.hideReal() (Developer → "...behind a real window"): a round that must hide behind a REAL
+// window; if the window list is empty (macOS without Screen Recording) he says so and uses an edge.
 //
 // Owns the star via pet.mode = 'hide'. Decisions (timers, found, relocating) on ticks; motion
 // and clipping every frame.
@@ -42,7 +47,8 @@ const HIDE_FOR = [4, 9]; // seconds fully hidden between peeks
 const PEEK_FOR = 1.5; // seconds peeking
 const PEEK_PX = 30; // px of him that show when he peeks
 const RELOCATE_CHANCE = 0.35; // after a peek, chance he runs to a new spot
-const WINDOW_CHANCE = 0.6; // chance of hiding behind the active window, when that's possible
+const WINDOW_CHANCE = 0.7; // chance of hiding behind a real window, when there's one to hide behind
+const CHOOSE_FOR = 0.6; // s max to wait for the window list before picking a spot anyway
 const MIN_WINDOW = { width: 220, height: 160 }; // smaller windows aren't worth hiding behind
 const CATCH_PAD = 6; // px around his visible part that still counts as touching him
 const FOUND_REWARD = 10;
@@ -54,15 +60,20 @@ const LINES = {
 
 // ---- State ----
 let endGame = null;
-let phase = 'run'; // run | duck | hidden | peekOut | peek | peekIn | leave | out
+let phase = 'run'; // choose | run | duck | hidden | peekOut | peek | peekIn | leave | out
 let spot = null; // { kind, vis: '+x'|'-x'|'+y'|'-y', line, hide: {x,y}, peek: {x,y}, approach: {x,y} }
-let nextSpot = null; // when relocating: where he's heading next
 let phaseLeft = 0; // seconds left in timed phases (hidden / peek)
 let gameLeft = 0;
 let seen = false; // touched while peeking (spotted in update, acted on at the tick)
-let lastWindow = null; // active window rectangle (screen coordinates), from system events
-let forceWindow = false; // hideTest(): the next spot must be behind the (test) window
+let lastWindow = null; // active window rectangle (screen coordinates), from system events (fallback)
+let openWins = []; // latest open-window rectangles (screen coordinates), front-most first
+let listReady = false; // the list for this round has arrived
+let fetchId = 0; // ignores a list that arrives after its round ended
+let chooseLeft = 0;
+let startReason = '';
+let testWindow = null; // hideTest(): this round hides only behind this pretend window
 let testOutline = null; // dashed box showing the pretend window during hideTest()
+let forceReal = false; // hideReal(): this round must hide behind a real window
 
 const areaOf = (ctx) => (ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + ctx.pet.size });
 const PEEKING = ['peekOut', 'peek', 'peekIn'];
@@ -91,16 +102,24 @@ function edgeSpot(ctx) {
   return { kind: 'edge', ...sides[Math.floor(Math.random() * sides.length)]() };
 }
 
-// Behind the active window: just inside one of its edges, peeking out of that edge.
-function windowSpot(ctx) {
-  if (!lastWindow) return null;
-  const a = areaOf(ctx);
-  const S = ctx.pet.size;
-  // Screen coordinates → this (full-screen) window's coordinates.
+// Screen coordinates → this (full-screen) window's coordinates.
+function toLocal(r) {
   const ox = typeof window !== 'undefined' ? window.screenX || 0 : 0;
   const oy = typeof window !== 'undefined' ? window.screenY || 0 : 0;
-  const w = { x: lastWindow.x - ox, y: lastWindow.y - oy, width: lastWindow.width, height: lastWindow.height };
+  return { x: r.x - ox, y: r.y - oy, width: r.width, height: r.height };
+}
+
+const boxesOverlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+// Just inside one edge of window `rect` (screen coordinates), peeking out of that edge.
+// `inFront` = windows in front of it: edges where he'd peek out underneath one of those are skipped.
+function windowSpot(ctx, rect, inFront = []) {
+  if (!rect) return null;
+  const a = areaOf(ctx);
+  const S = ctx.pet.size;
+  const w = toLocal(rect);
   if (w.width < MIN_WINDOW.width || w.height < MIN_WINDOW.height) return null;
+  const front = inFront.map(toLocal);
   const right = w.x + w.width;
   const bottom = w.y + w.height;
   // The part of each edge that's on screen, with room for him.
@@ -125,23 +144,52 @@ function windowSpot(ctx) {
     const x = rand(xLo, xHi);
     options.push({ side: 'top', vis: '-y', line: w.y, hide: { x, y: w.y + 4 }, peek: { x, y: w.y - PEEK_PX }, approach: { x, y: w.y - S - 8 } });
   }
-  if (!options.length) return null;
-  return { kind: 'window', ...options[Math.floor(Math.random() * options.length)] };
+  // Where he peeks out / stands must not be under a window in front of this one.
+  const clear = options.filter((o) => ![o.peek, o.approach].some((p) => front.some((f) => boxesOverlap({ x: p.x, y: p.y, width: S, height: S }, f))));
+  if (!clear.length) return null;
+  return { kind: 'window', ...clear[Math.floor(Math.random() * clear.length)] };
+}
+
+// Behind a real window: try the open windows (front-most more likely), then the active window.
+function realWindowSpot(ctx) {
+  const order = openWins.map((r, i) => ({ r, i, key: Math.random() * (1 + i * 0.5) })) // front ones tend first
+    .sort((a, b) => a.key - b.key);
+  for (const { r, i } of order) {
+    const sp = windowSpot(ctx, r, openWins.slice(0, i));
+    if (sp) return sp;
+  }
+  return windowSpot(ctx, lastWindow);
 }
 
 function pickSpot(ctx) {
-  const win = forceWindow || Math.random() < WINDOW_CHANCE ? windowSpot(ctx) : null;
+  if (testWindow) return windowSpot(ctx, testWindow) || edgeSpot(ctx);
+  const win = forceReal || Math.random() < WINDOW_CHANCE ? realWindowSpot(ctx) : null;
   return win || edgeSpot(ctx);
+}
+
+// Ask the main process for the current window rectangles (read-only). Async: the round waits
+// (phase 'choose', at most CHOOSE_FOR) or, when relocating, uses whatever arrived by then.
+function fetchWindows(ctx) {
+  const id = ++fetchId;
+  const get = ctx.api && ctx.api.getOpenWindows;
+  if (!get) { listReady = true; return; }
+  Promise.resolve(get()).then((list) => {
+    if (id !== fetchId) return; // a newer request (or a new round) took over
+    openWins = Array.isArray(list) ? list : [];
+    listReady = true;
+  }).catch(() => { if (id === fetchId) listReady = true; });
 }
 
 // Dev test: a pretend window in the middle of the usable screen, outlined, and a round behind it.
 function hideTest(ctx) {
+  // End whatever's running first: ending a hide-and-seek round hides the box.
+  if (ctx.activeEvent()) ctx.stopEvent('dev test');
   const a = areaOf(ctx);
   const w = Math.min(640, (a.right - a.left) * 0.5);
   const h = Math.min(420, (a.bottom - a.top) * 0.5);
   const local = { x: (a.left + a.right - w) / 2, y: (a.top + a.bottom - h) / 2, width: w, height: h };
   // windowSpot() expects screen coordinates.
-  lastWindow = { ...local, x: local.x + (window.screenX || 0), y: local.y + (window.screenY || 0) };
+  const rect = { ...local, x: local.x + (window.screenX || 0), y: local.y + (window.screenY || 0) };
   if (!testOutline) {
     testOutline = document.createElement('div');
     Object.assign(testOutline.style, {
@@ -155,12 +203,19 @@ function hideTest(ctx) {
   Object.assign(testOutline.style, {
     left: `${local.x}px`, top: `${local.y}px`, width: `${local.width}px`, height: `${local.height}px`, display: 'block',
   });
-  if (ctx.activeEvent()) ctx.stopEvent('dev test');
-  forceWindow = true;
+  testWindow = rect;
   const started = ctx.startEvent('hide-seek', 'devtools');
-  forceWindow = false;
-  if (!started) testOutline.style.display = 'none';
+  if (!started) { testWindow = null; testOutline.style.display = 'none'; }
   return started;
+}
+
+// Dev test: a round that must hide behind a real open window (no pretend window, no box).
+function hideReal(ctx) {
+  if (ctx.activeEvent()) ctx.stopEvent('dev test');
+  forceReal = true;
+  const started = ctx.startEvent('hide-seek', 'devtools');
+  if (!started) forceReal = false;
+  return started ? 'started: checking the real window list…' : 'could not start';
 }
 
 // How much of him to clip away so only the part on the visible side of the edge shows.
@@ -237,6 +292,7 @@ export default {
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.setHideWindow = (rect) => { lastWindow = rect; return rect; };
       window.starby.hideTest = () => hideTest(ctx);
+      window.starby.hideReal = () => hideReal(ctx);
     }
   },
 
@@ -255,15 +311,18 @@ export default {
   start(ctx, end, reason) {
     const { pet } = ctx;
     endGame = end;
-    spot = pickSpot(ctx);
-    nextSpot = null;
-    phase = 'run';
+    spot = null;
     gameLeft = GAME_FOR;
     seen = false;
+    startReason = reason;
     pet.mode = 'hide'; // behaviors stand down
     pet.hiding = true; // starbits.js / moodLabel.js keep quiet
     pet.bob = 0;
-    ctx.log('hide-start', { reason, spot: `${spot.kind}:${spot.side}` }); // silent: no speech
+    // Get the current window rectangles first (a moment at most), then pick a spot (onTick).
+    phase = 'choose';
+    chooseLeft = CHOOSE_FOR;
+    listReady = false;
+    if (testWindow) listReady = true; else fetchWindows(ctx);
   },
 
   onTick(ctx) {
@@ -274,6 +333,21 @@ export default {
     if (pet.mode !== 'hide') {
       if (pet.mode === 'drag') comeOut(ctx, 'found');
       else { const end = endGame; endGame = null; end?.(`interrupted:${pet.mode}`); }
+      return;
+    }
+
+    if (phase === 'choose') {
+      chooseLeft -= TICK_SECONDS;
+      if (!listReady && chooseLeft > 0) return;
+      spot = pickSpot(ctx);
+      phase = 'run';
+      ctx.log('hide-start', { reason: startReason, spot: `${spot.kind}:${spot.side}`, windows: openWins.length }); // silent
+      if (forceReal && spot.kind !== 'window') {
+        // Dev test only: explain why he didn't pick a window.
+        const why = openWins.length ? 'no window edge with room to hide' : "i can't see any windows (on a Mac: Screen Recording permission)";
+        ctx.say(`no real window to hide behind: ${why}`, 4000);
+        ctx.log('hide-no-window', { windows: openWins.length });
+      }
       return;
     }
 
@@ -288,9 +362,8 @@ export default {
       phaseLeft -= TICK_SECONDS;
       if (phaseLeft <= 0) {
         if (Math.random() < RELOCATE_CHANCE) {
-          nextSpot = pickSpot(ctx);
-          phase = 'leave'; // slip out the way he came, then run to the new spot
-          ctx.log('hide-relocate', { to: `${nextSpot.kind}:${nextSpot.side}` });
+          phase = 'leave'; // slip out the way he came, then run to a new spot (picked on arrival)
+          if (!testWindow) fetchWindows(ctx); // windows may have moved: get a fresh list meanwhile
         } else {
           phase = 'peekIn';
         }
@@ -300,7 +373,7 @@ export default {
 
   update(ctx, dt) {
     const { pet, cursor } = ctx;
-    if (pet.mode !== 'hide' || phase === 'out' || !spot) return;
+    if (pet.mode !== 'hide' || phase === 'out' || phase === 'choose' || !spot) return;
     pet.bob = 0;
     pet.squash = 1;
 
@@ -313,7 +386,11 @@ export default {
     } else if (phase === 'peekIn') {
       if (moveTo(pet, spot.hide, DUCK_SPEED, dt)) { phase = 'hidden'; phaseLeft = rand(...HIDE_FOR); }
     } else if (phase === 'leave') {
-      if (moveTo(pet, spot.approach, DUCK_SPEED * 2, dt)) { spot = nextSpot; nextSpot = null; phase = 'run'; }
+      if (moveTo(pet, spot.approach, DUCK_SPEED * 2, dt)) {
+        spot = pickSpot(ctx); // with the freshest window list
+        phase = 'run';
+        ctx.log('hide-relocate', { to: `${spot.kind}:${spot.side}` });
+      }
     }
 
     const { visible, rect } = applyClip(ctx);
@@ -334,6 +411,9 @@ export default {
     if (pet.mode === 'hide') pet.mode = 'idle'; // pet.js steps him back onto the screen if needed
     if (result === 'found' || result === 'star-won') markPlayed(ctx); // shared rest between games
     if (testOutline) testOutline.style.display = 'none';
+    testWindow = null;
+    forceReal = false;
+    fetchId++; // drop any window list still on its way
     phase = 'out';
     spot = null;
   },

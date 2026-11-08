@@ -51,4 +51,7 @@ contextBridge.exposeInMainWorld('sprite', {
 
   // Read-only system events: { type, ...payload }
   onSystemEvent: (cb) => subscribe('system:event', cb),
+  // Read-only: rectangles of the open windows, front to back: [{ x, y, width, height }]
+  // (screen coordinates, DIPs). No titles or app names. [] if unavailable.
+  getOpenWindows: () => ipcRenderer.invoke('system:open-windows'),
 });
