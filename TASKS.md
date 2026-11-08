@@ -160,9 +160,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   No reward. Tray menu → Developer → "Start copycat now".
 - [x] **P1-18 (Nice) Starby Says.** `events/starbySays.js`, a game (invite "wanna play starby says?", game
   buttons, menu "Play starby says"), like Simon says. After a short intro the clock runs **15s** (countdown top
-  right). He gives commands one after another, in his bubble and under the countdown, 60% of them starting with
+  right). He gives commands one after another, in his bubble, 60% of them starting with
   "Starby says": tap me (`click`), pick me up (`grab`), throw me (`toss`), throw me into the wall (`impact`), spin me
-  (`spin`), tap me N times (`click` ×N, N = 2–5; progress like "(2/4)" in his bubble and under the countdown;
+  (`spin`), tap me N times (`click` ×N, N = 2–5; progress like "(2/4)" in his bubble;
   without "Starby says" even one tap counts as doing it). **With "Starby says"**: do it within 4s or you lose ("too
   slow!"). **Without**: doing it loses ("i didn't say starby says!"); leaving it alone is safe. Only the current
   command's action counts. After a done command he waits until he's landed (+0.6s) before the next. Last the 15s →
