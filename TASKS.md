@@ -190,6 +190,14 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   (`assets/starbits/cluster.png`) until moon art exists; swap `MOON_ART` (square PNG on transparent). The slices
   are a CSS conic-gradient mask over the PNG (code only hides parts of team art; nothing is drawn).
 
+- [x] **P1-21 (Nice) "How To Care for Your New Starby" popup.** `src/renderer/pet/howTo.js` (a helper in
+  `events/index.js`): after the launch intro, a popup centered on screen with the basics (left click + drag to carry
+  him, let go to throw, right click to talk, play games to keep him happy, watch out for limited events, collect
+  starbits for the shop). **"Got it!"** closes it (it shows again next launch); **"Don't show again"** closes it for
+  good (saved in the pet page's localStorage, `starby.howTo.hidden`; no saved-state schema change). Team frame art
+  (`button-hover.png` panel, `button-idle.png` buttons), Sour Gummy, shop yellow; `.hit` so it's clickable.
+  DevTools: `starby.howTo()`, `starby.howToReset()`.
+
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
 > stand down for modes they don't know), then hand it back. One at a time; pet.js runs the active event
