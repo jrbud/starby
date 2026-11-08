@@ -1,192 +1,279 @@
-/* Plain, flat UI. Items are colored swatches / primitive shapes — no illustrated art. */
-:root {
-  --bg: #f6f4fb;
-  --panel: #ffffff;
-  --ink: #2b2b3a;
-  --muted: #77768a;
-  --accent: #6c5ce7;
-  --line: #e2dff0;
-  --accent-soft: #efecfd;
-  --owned: #1f8a5b;
-  --owned-soft: #dff3e9;
+/* Shop window, matching the team's buy.png mockup.
+   Art used: assets/backgrounds/shopBg.png (panel), assets/starbits/cluster.png (starbit icon).
+   Everything else is flat UI chrome (boxes, text, ▲ ▼ _ ✕ glyphs). */
+
+/* FONT: "Sour Gummy" (Google Fonts, OFL). Drop the font file at
+   assets/fonts/SourGummy.ttf and it's picked up; if Sour Gummy is installed on the PC, the
+   local() copy is used. Until then the fallback fonts show. */
+@font-face {
+  font-family: 'Sour Gummy';
+  src: local('Sour Gummy'), url('../../../assets/fonts/SourGummy.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
 }
 
-/* Room at the bottom so the toast never covers the last row of cards. */
-main {
-  padding-bottom: 48px;
+:root {
+  --display-bg: #51515154;
+  --button-bg: #dbdbdb7e;
+  --button-selected-bg: #dbdbdbbf;
+  --yellow: #ffe8a3;
+  --window-bg: #010021;
+  --window-button-outline: #0c218f;
+  --outline: #595959;
+  --ink: #010021;
+
+  --panel-size: 480px; /* the 1:1 square */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
   margin: 0;
-  padding: 16px;
-  background: var(--bg);
+  overflow: hidden;
+  background: var(--window-bg);
+  border: 2px solid var(--outline);
   color: var(--ink);
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif;
+  user-select: none;
 }
 
-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-#preview {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-
-h1 {
-  margin: 0;
-  font-size: 22px;
-}
-
-h2 {
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-  margin: 16px 0 8px;
-}
-
-.balance {
-  margin: 4px 0 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dust-icon {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  background: #e6c84a;
-  transform: rotate(45deg);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 8px;
-}
-
-.item {
-  position: relative;
-  background: var(--panel);
-  border: 2px solid var(--line);
-  border-radius: 10px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  transition: opacity 150ms, border-color 150ms;
-}
-
-/* ---- Card states (see cardState() in shop.js) ---- */
-
-/* Small plain-text label in the card's top-left corner. */
-.tag {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.item.equipped {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-.item.equipped .tag {
-  background: var(--accent);
-  color: #fff;
-}
-
-.item.owned .tag {
-  background: var(--owned-soft);
-  color: var(--owned);
-}
-
-.item.locked {
-  opacity: 0.55;
-  border-style: dashed;
-}
-.item.locked .tag {
-  background: var(--line);
-  color: var(--muted);
-}
-
-/* Short flash on the card you just bought. */
-.item.just-bought {
-  animation: bought 1.2s ease-out;
-}
-@keyframes bought {
-  0% { transform: scale(1.06); border-color: var(--owned); }
-  100% { transform: scale(1); }
-}
-
-.item canvas {
-  display: block;
-}
-
-.item button {
-  width: 100%;
-  border: 0;
-  border-radius: 6px;
-  padding: 4px 0;
+button {
   font: inherit;
   cursor: pointer;
-  background: var(--accent);
-  color: #fff;
 }
 
-.item button.secondary {
-  background: var(--panel);
-  color: var(--accent);
-  box-shadow: inset 0 0 0 1.5px var(--accent);
+/* ---- Title bar (drag handle for the frameless window) ---- */
+.titlebar {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px 0 38px;
+  -webkit-app-region: drag;
 }
 
-.item button:disabled {
-  background: var(--line);
-  color: var(--muted);
+.titlebar h1 {
+  margin: 0;
+  color: var(--yellow);
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.window-buttons {
+  display: flex;
+  gap: 18px;
+  -webkit-app-region: no-drag; /* buttons must not be part of the drag handle */
+}
+
+.window-button {
+  background: none;
+  border: 0;
+  padding: 0 6px;
+  color: var(--yellow);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+}
+.window-button:hover {
+  filter: brightness(1.15);
+}
+
+/* ---- The square panel ---- */
+.panel {
+  width: var(--panel-size);
+  height: var(--panel-size);
+  margin: 0 auto;
+  border: 2px solid var(--outline);
+  background: url('../../../assets/backgrounds/shopBg.png') center / cover no-repeat;
+  display: grid;
+  grid-template-columns: 244px 1fr;
+  overflow: hidden;
+}
+
+/* Left: wallet, display box, Buy/Equip. Fixed: never scrolls (the star stands in the box). */
+.left {
+  padding: 14px 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 92px;
+  height: 30px;
+  padding: 0 14px;
+  border: 1.5px solid var(--outline);
+  border-radius: 999px;
+  background: var(--button-selected-bg);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.starbit-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex: none;
+}
+
+.display-box {
+  width: 220px;
+  height: 162px;
+  margin-top: 12px;
+  border: 1.5px solid var(--outline);
+  background: var(--display-bg);
+}
+
+.action-button {
+  align-self: center;
+  margin: 18px 0 0 -14px; /* centered under the box */
+  width: 120px;
+  height: 32px;
+  border: 2px solid var(--window-button-outline);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 800;
+}
+.action-button:hover {
+  filter: brightness(0.95);
+}
+/* Not enough starbits: grey, but still clickable so Starby can tell you how many you need. */
+.action-button.grey {
+  background: #a3a3a3;
+  border-color: var(--outline);
+  color: #555555;
+  cursor: not-allowed;
+}
+/* Already wearing it. */
+.action-button.done {
+  background: var(--button-bg);
+  border-color: var(--outline);
+  color: var(--ink);
   cursor: default;
 }
 
-.item.equipped button:disabled {
-  background: transparent;
-  color: var(--accent);
-  font-weight: 600;
+/* Right: dropdown sections. This column scrolls; the yellow bar is its scrollbar. */
+.right {
+  overflow-y: scroll;
+  padding: 26px 10px 16px 6px;
 }
 
-/* Confirmation / error toast, bottom-center. */
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 16px;
-  transform: translate(-50%, 12px);
-  max-width: calc(100% - 32px);
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: var(--ink);
-  color: #fff;
-  font-size: 13px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 150ms, transform 150ms;
+.right::-webkit-scrollbar {
+  width: 6px;
 }
-.toast.show {
-  opacity: 1;
-  transform: translate(-50%, 0);
+.right::-webkit-scrollbar-track {
+  background: rgba(255, 232, 163, 0.25);
+  border-radius: 3px;
+  margin: 24px 0;
 }
-.toast.ok {
-  background: var(--owned);
+.right::-webkit-scrollbar-thumb {
+  background: var(--yellow);
+  border-radius: 3px;
 }
-.toast.error {
-  background: #c0392b;
+
+.section + .section {
+  margin-top: 6px;
+}
+
+/* "Colors ▲" / "Accessories ▼": click to open/close the list under it. */
+.section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--yellow);
+  font-size: 26px;
+  font-weight: 800;
+}
+.section-toggle .label {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.section-toggle .arrow {
+  font-size: 14px;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 10px 2px 8px 0;
+}
+.section.closed .items {
+  display: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0 8px 0 10px;
+  border: 1.5px solid var(--outline);
+  background: var(--button-bg);
+  color: var(--ink);
+  font-size: 15px;
+  text-align: left;
+}
+.item:hover {
+  background: var(--button-selected-bg);
+}
+.item.selected {
+  background: var(--button-selected-bg);
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 1.5px var(--yellow); /* thicker yellow outline without shifting layout */
+}
+
+/* Item art (team PNGs). Hidden when the file doesn't exist yet. */
+.item-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: none;
+}
+
+/* Color rows: a ★ glyph tinted with the item's color (set inline from shopCatalog.js).
+   Segoe UI Symbol has the glyph; Sour Gummy may not. */
+.color-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI Symbol', 'Segoe UI', sans-serif;
+  font-size: 20px;
+  line-height: 1;
+  -webkit-text-stroke: 0.5px rgba(1, 0, 33, 0.35); /* keeps pale colors (Moonbeam) visible */
+}
+
+.item-name {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.price {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+.price .starbit-icon {
+  width: 13px;
+  height: 13px;
 }

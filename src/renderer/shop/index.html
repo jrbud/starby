@@ -7,15 +7,29 @@
     <link rel="stylesheet" href="shop.css" />
   </head>
   <body>
-    <header>
-      <canvas id="preview" width="96" height="96"></canvas>
-      <div>
-        <h1>Shop</h1>
-        <p class="balance"><span class="dust-icon"></span> <span id="balance">0</span> starbits</p>
+    <!-- Frameless window: this bar is the drag handle (see shop.css, -webkit-app-region). -->
+    <header class="titlebar">
+      <h1>Shop</h1>
+      <div class="window-buttons">
+        <button id="minimize" class="window-button" title="Minimize" aria-label="Minimize">_</button>
+        <button id="close" class="window-button" title="Close" aria-label="Close">✕</button>
       </div>
     </header>
-    <main id="sections"></main>
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <main class="panel">
+      <section class="left">
+        <div class="wallet" title="Your starbits">
+          <img class="starbit-icon" src="../../../assets/starbits/cluster.png" alt="" />
+          <span id="balance">0</span>
+        </div>
+        <!-- Starby runs in here and stands still while the shop is open (events/shop.js). -->
+        <div id="display" class="display-box"></div>
+        <button id="action" class="action-button">Buy</button>
+      </section>
+
+      <section id="lists" class="right"></section>
+    </main>
+
     <script type="module" src="shop.js"></script>
   </body>
 </html>

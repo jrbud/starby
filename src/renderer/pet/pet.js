@@ -138,6 +138,8 @@ const ctx = {
   startEvent: (name, reason) => eventRunner.start(name, reason), // → true if it started
   stopEvent: (result) => eventRunner.stop(result),
   activeEvent: () => eventRunner.active(), // → name or null
+  // Shop try-on: show this accessory value instead of the equipped one (null = back to normal).
+  previewAccessory: (value) => setPreviewAccessory(value),
 };
 
 const eventRunner = createEventRunner(ctx);
@@ -166,12 +168,27 @@ function logStateChanges(prev, next) {
   }
 }
 
+// Shop try-on (events/shop.js → ctx.previewAccessory): an accessory value shown INSTEAD of the
+// equipped one while you browse the shop, or null for "what he's really wearing". Never saved.
+let previewAccessory = null;
+let lastState = null;
+
+function setPreviewAccessory(value) {
+  previewAccessory = value || null;
+  if (lastState) applyLook(lastState);
+}
+
 function applyState(state) {
   logStateChanges(prevState, state);
   prevState = structuredClone(state);
+  lastState = state;
+  applyLook(state);
+}
+
+function applyLook(state) {
   const byId = (id) => ctx.catalog.find((item) => item.id === id);
   const colorId = state.equipped.color || `color-${DEFAULT_SET}`;
-  const accessory = byId(state.equipped.accessory)?.value ?? pet.look.accessory;
+  const accessory = previewAccessory ?? byId(state.equipped.accessory)?.value ?? pet.look.accessory;
   pet.look = {
     color: byId(colorId)?.value ?? pet.look.color,
     colorSet: colorId.replace(/^color-/, ''), // each shop color is a PNG set: assets/sprite/<set>/

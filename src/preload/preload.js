@@ -21,6 +21,13 @@ contextBridge.exposeInMainWorld('sprite', {
   buy: (itemId) => ipcRenderer.invoke('shop:buy', itemId),
   equip: (itemId) => ipcRenderer.invoke('shop:equip', itemId),
   openShop: () => ipcRenderer.send('shop:open'),
+  // Shop window only: title-bar buttons, where the display box is, and lines for Starby to say.
+  minimizeShop: () => ipcRenderer.send('shop:minimize'),
+  closeShop: () => ipcRenderer.send('shop:close'),
+  setShopDisplayRect: (rect) => ipcRenderer.send('shop:display-rect', rect),
+  shopSay: (text) => ipcRenderer.send('shop:say', text),
+  // Try-on: show this accessory value on Starby while browsing (null = what he really wears).
+  previewAccessory: (value) => ipcRenderer.send('shop:preview', value),
 
   // Settings (sliders): { flingPower: 0–100 }
   getSettings: () => ipcRenderer.invoke('settings:get'),
