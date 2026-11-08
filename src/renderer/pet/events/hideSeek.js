@@ -25,8 +25,10 @@
 // in his "wanna play?" invites: he doesn't announce it. Shares the rest between games.
 // DevTools: starby.setHideWindow({ x, y, width, height }) pretends that's the active window
 // (screen coordinates), e.g. to test window hiding without get-windows.
-// starby.hideTest() (also right-click → Developer): starts a round hiding behind a pretend window
-// in the middle of the screen, drawn as a dashed outline so you can see what he's behind.
+// starby.hideTest() (right-click → Developer → "...behind a fake test window"): a round hiding behind
+// a PRETEND window in the middle of the screen, drawn as a dashed outline. Never uses real windows.
+// starby.hideReal() (Developer → "...behind a real window"): a round that must hide behind a REAL
+// window; if the window list is empty (macOS without Screen Recording) he says so and uses an edge.
 //
 // Owns the star via pet.mode = 'hide'. Decisions (timers, found, relocating) on ticks; motion
 // and clipping every frame.
@@ -71,6 +73,7 @@ let chooseLeft = 0;
 let startReason = '';
 let testWindow = null; // hideTest(): this round hides only behind this pretend window
 let testOutline = null; // dashed box showing the pretend window during hideTest()
+let forceReal = false; // hideReal(): this round must hide behind a real window
 
 const areaOf = (ctx) => (ctx.area ? ctx.area() : { left: 0, top: 0, right: ctx.stageWidth(), bottom: ctx.groundY() + ctx.pet.size });
 const PEEKING = ['peekOut', 'peek', 'peekIn'];
@@ -160,7 +163,7 @@ function realWindowSpot(ctx) {
 
 function pickSpot(ctx) {
   if (testWindow) return windowSpot(ctx, testWindow) || edgeSpot(ctx);
-  const win = Math.random() < WINDOW_CHANCE ? realWindowSpot(ctx) : null;
+  const win = forceReal || Math.random() < WINDOW_CHANCE ? realWindowSpot(ctx) : null;
   return win || edgeSpot(ctx);
 }
 
@@ -179,6 +182,8 @@ function fetchWindows(ctx) {
 
 // Dev test: a pretend window in the middle of the usable screen, outlined, and a round behind it.
 function hideTest(ctx) {
+  // End whatever's running first: ending a hide-and-seek round hides the box.
+  if (ctx.activeEvent()) ctx.stopEvent('dev test');
   const a = areaOf(ctx);
   const w = Math.min(640, (a.right - a.left) * 0.5);
   const h = Math.min(420, (a.bottom - a.top) * 0.5);
@@ -198,11 +203,19 @@ function hideTest(ctx) {
   Object.assign(testOutline.style, {
     left: `${local.x}px`, top: `${local.y}px`, width: `${local.width}px`, height: `${local.height}px`, display: 'block',
   });
-  if (ctx.activeEvent()) ctx.stopEvent('dev test');
   testWindow = rect;
   const started = ctx.startEvent('hide-seek', 'devtools');
   if (!started) { testWindow = null; testOutline.style.display = 'none'; }
   return started;
+}
+
+// Dev test: a round that must hide behind a real open window (no pretend window, no box).
+function hideReal(ctx) {
+  if (ctx.activeEvent()) ctx.stopEvent('dev test');
+  forceReal = true;
+  const started = ctx.startEvent('hide-seek', 'devtools');
+  if (!started) forceReal = false;
+  return started ? 'started: checking the real window list…' : 'could not start';
 }
 
 // How much of him to clip away so only the part on the visible side of the edge shows.
@@ -279,6 +292,7 @@ export default {
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.setHideWindow = (rect) => { lastWindow = rect; return rect; };
       window.starby.hideTest = () => hideTest(ctx);
+      window.starby.hideReal = () => hideReal(ctx);
     }
   },
 
@@ -328,6 +342,12 @@ export default {
       spot = pickSpot(ctx);
       phase = 'run';
       ctx.log('hide-start', { reason: startReason, spot: `${spot.kind}:${spot.side}`, windows: openWins.length }); // silent
+      if (forceReal && spot.kind !== 'window') {
+        // Dev test only: explain why he didn't pick a window.
+        const why = openWins.length ? 'no window edge with room to hide' : "i can't see any windows (on a Mac: Screen Recording permission)";
+        ctx.say(`no real window to hide behind: ${why}`, 4000);
+        ctx.log('hide-no-window', { windows: openWins.length });
+      }
       return;
     }
 
@@ -392,6 +412,7 @@ export default {
     if (result === 'found' || result === 'star-won') markPlayed(ctx); // shared rest between games
     if (testOutline) testOutline.style.display = 'none';
     testWindow = null;
+    forceReal = false;
     fetchId++; // drop any window list still on its way
     phase = 'out';
     spot = null;
