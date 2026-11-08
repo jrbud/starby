@@ -174,14 +174,17 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   throwing work as usual.
 - [x] **P1-19 (Nice) Hoop Shot.** `events/hoopShot.js`, a game (invite "wanna play hoop shot?", game buttons,
   menu "Play hoop shot"). He flies to a launch spot on his side; a hoop appears on the far side (random height).
-  **Right- or left-click and drag** him back like a slingshot (he's pulled toward the cursor, max 170px) and let go: he
-  flies the other way in an **arc** (gravity 1500px/s², this game only), spinning, bouncing off the screen edges.
+  **Right- or left-click and drag** him back like a slingshot, with the same look as the normal slingshot
+  (`behaviors/slingshot.js`): feet pinned, head held by the cursor, body stretched like a rubber band, trembling near
+  full pull (max 170px). Let go: he flies the other way in an **arc** (gravity 1500px/s², this game only) with the
+  rubber-band wobble, **spinning** 7–14 rad/s (harder pull = faster), bouncing off the screen edges, and tips back
+  upright after landing. (Hoop shot keeps its own angle because drag.js straightens him every frame otherwise.)
   While pulling, 6 small starbit PNGs show only the **first 0.4s** of the arc. Passing down through the hoop's
   opening → "SWISH!" + 10 starbits. A miss bounces on the floor and he flies back to try again. **15s** on the clock
   (countdown top right); a shot in the air at 0 still counts. Just a click (either button) → he stays put: "right
   click or left click and drag me!". During the game, presses on him and the right-click menu are caught by window
-  capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
-  (`HOOP_ART` / `HOOP_ART_BOX` in hoopShot.js; swap when a hoop is drawn).
+  capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art: `assets/events/hoop.png`** (the team's rim + net;
+  sized and scored by the pink rim, `HOOP_ART_BOX`, with the net hanging below).
 
 - [x] **P1-20 (Nice) Moon timer.** The game timer (`events/countdown.js`; tag, Starby Says, hoop shot) is a "moon"
   that **ticks** away: full at the start, one slice disappears each second (clockwise from the top, like a pie
