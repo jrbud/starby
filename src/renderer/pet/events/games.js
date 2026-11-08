@@ -40,7 +40,6 @@ export const GAMES = [
   { name: 'catch', label: 'Catch', ask: ["wanna play catch? i'll throw myself!", 'catch? i throw, you catch!', 'hey! play catch with me?'] },
   { name: 'starby-says', label: 'Starby Says', ask: ['wanna play starby says?', "starby says: play with me! hehe", 'hey! play starby says with me?'] },
   { name: 'hoop-shot', label: 'Hoop Shot', ask: ['wanna play hoop shot? shoot me into the hoop!', 'slingshot me into a hoop?', 'hey! hoop shot? i\'ll be the ball!'] },
-  { name: 'copycat', label: 'Copycat', invite: false }, // starts silently: he just starts copying you
   { name: 'constellation', label: 'Star Quiz', ask: ['wanna do a star quiz?', "quiz time? i'll draw you a constellation!", 'hey! guess my constellation?'] },
 ];
 

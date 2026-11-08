@@ -58,7 +58,7 @@ src/
                             happenings.js = 20–50 min sky timer (starShower.js, shootingStar.js);
                             hideSeek.js = hide and seek; catchGame.js = catch; dance.js = dancing to music;
                             constellation.js = constellation quiz (shapes in constellations.js);
-                            copycat.js = he copies your cursor's movement;
+                            copycat.js = its own category: every 3 min he copies your cursor's movement;
                             starbySays.js = Starby Says (do it only if he says "starby says");
                             hoopShot.js = slingshot him into a hoop (right-drag, gravity);
                             games.js = list of games, game buttons, rest, games timer, 3-2-1-GO;
