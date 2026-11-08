@@ -36,6 +36,7 @@ function openSettingsWindow() {
       preload: path.join(__dirname, '..', '..', 'preload', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true, // pages can't reach the file system or Node, even if tricked (Electron's default, made explicit)
       zoomFactor: MENU_SCALE, // page laid out for 584×652, shown smaller (menuSize.js)
     },
   });

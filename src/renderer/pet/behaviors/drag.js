@@ -410,9 +410,11 @@ export default {
         pivotVel = { x: 0, y: 0 };
         lastCenter = null;
         uprighting = false;
+        // Caught out of the air while flying fast (behaviors/charm.js says "nice catch!"). (Person 3)
+        const midAir = pet.mode === 'toss' && Math.hypot(vel.x, vel.y) > 300;
         pet.mode = 'drag';
         petEl.classList.add('dragging');
-        ctx.log('grab', { atX: Math.round(grabLocal.x), atY: Math.round(grabLocal.y) });
+        ctx.log('grab', { atX: Math.round(grabLocal.x), atY: Math.round(grabLocal.y), midAir });
       }
     });
 

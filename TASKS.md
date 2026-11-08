@@ -497,6 +497,29 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
   - **"feeling sleepy?"** (right-click dialogue → Settings → `starby:getSleepy`, in `mood.js`): "yeah...
     *yawn*", then he goes straight into the sleepy walk to his nap spot on the taskbar and falls asleep.
     It isn't on the settings page.
+  - **Hardening:**
+    - `sandbox: true` set explicitly on all four windows (Electron's default, now written down).
+    - Dependencies pinned to the tested versions (electron 45.2.3, get-windows 10.0.0) in package.json and
+      the lock file's root entry.
+    - Tested in the real app: every window's preload bridge, saves, system reads.
+  - **Charm** (`mood.js` petting, `behaviors/charm.js`, `behaviors/fidget.js`):
+    - Petting: a slow back-and-forth rub over him → sparkly eyes, a hop, "hehe, that's nice". It calms a
+      mad star. 20s cooldown.
+    - Daily gift: the first launch each day, after the intro → "you came back! here's a gift" + 5 starbits
+      (localStorage `starby.lastGiftDay`; the save file isn't touched).
+    - Nice catch: a grab while he's flying fast (drag.js logs `grab` `midAir`) → "nice catch!!", 30% chance
+      of a starbit.
+    - Fidgets: alone, idle and happy for 20s+ → rarely a spin, bop, look around or stretch (`pet.mode
+      'fidget'`).
+    - Starbit milestones: every 100 in the total → a star-cloud burst (`fx.js celebrateBurst`) + "100
+      starbits!! we're rich!".
+  - **Intro crash fixed** (`intro.js`, P1's): with a save but no "last seen" record, the welcome-back
+    lookup threw and froze his update loop. It now falls back to the last greeting bucket.
+  - **Mouse stuck after picking a menu answer:**
+    - Dialogue / event-menu answers and click-away now act on the RELEASE, not the press.
+    - `clickThrough.js` never turns click-through back on while a button is held; it re-checks on release.
+    - Why: making the window click-through mid-press can leave Windows routing the mouse to our invisible
+      full-screen window.
   - **Un-clickable screen fixed** (`clickThrough.js`, `drag.js`, `slingshot.js`, `hoopShot.js`):
     - Pins are named ('press' for drags/pulls, 'menu' for the dialogue catcher), so one can't clear another.
     - A mousemove with no button held drops a stale 'press' pin and replays the lost mouseup (drag /

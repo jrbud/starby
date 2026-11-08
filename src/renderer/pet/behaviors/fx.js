@@ -127,6 +127,11 @@ function burst(ctx, count, sizeK, distK) {
 // ---- Goodbye explosion (behaviors/goodbye.js, when the app quits) ----
 // A big star cloud right on top of him plus a ring of them flying outward, all in front of him,
 // frames 1 ↔ 2 swapping fast (the starcloud art). Plays even if he's hushed: he's leaving.
+// A big celebration burst of star clouds around him (behaviors/charm.js: starbit milestones).
+export function celebrateBurst(ctx) {
+  if (fx) burst(ctx, 8, 0.6, 1.0);
+}
+
 export function goodbyeBurst(ctx) {
   if (!fx) return;
   const { pet } = ctx;
