@@ -70,11 +70,20 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
   skips the question. Random: every 60s, 20% chance, 4-min cooldown, only when happy/playful, relaxed and the
   cursor moved in the last 10s. Tuning at the top of `events/tag.js`.
-- [x] **P1-7 (Nice) Ask Starby to play.** Clicking him also pops up a "Play tag?" button next to him for 4s
-  (`events/tag.js` + `events/prompt.js`). Pressing it starts the game right away (no question back). After a
-  game he needs a 60s rest (`GAME_REST`): asking via the button or the menu gets "give me a little, i'm
-  tired", then "still tired... give me Ns", then "i'm tired! ask me in a bit"; the button shows "resting…
-  0:42". Mad / dizzy: he refuses. Asleep: no button. Sad: the click cheers him up, so he says yes.
+- [x] **P1-7 (Nice) Ask Starby to play.** Clicking him also pops up "Play a game? [Tag] [Pong]" next to him for
+  4s (`events/games.js`, shared by all games). Pressing one starts that game right away (no question back).
+  After ANY game he needs a 60s rest (`GAME_REST`): asking via the buttons or the menu gets "give me a little,
+  i'm tired", then "still tired... give me Ns", then "i'm tired! ask me in a bit"; the buttons show "resting…
+  0:42". Mad / dizzy: he refuses. Asleep: no buttons. Sad: the click cheers him up, so he says yes.
+  `games.js` also has `createReady()` (the 3-2-1-GO countdown) used by tag and pong.
+- [x] **P1-8 (Nice) Pong event.** `events/pong.js`: Starby is the ball. He glides to the middle; a paddle
+  appears on each side (plain CSS bars labelled YOU / AI): left = yours, follows the mouse up and down; right =
+  the AI. "3... 2... 1... GO!", served toward you; bounces off the top/bottom of the usable area and off the
+  paddles (hit position sets the angle, max 55°; +9% speed per hit, max 1500px/s), spinning. The AI predicts
+  where he'll arrive but misjudges more as he speeds up (and tops out at 430px/s), so a decent player wins about
+  half the time. **One point wins:** past the AI → you win, 7 starbits burst out; past you → you lose, he takes
+  back the starbits on screen. Grabbing him = foul. Starts from the game buttons, the menu ("Play pong") or
+  `starby.startEvent('pong')`; never asks first. Tuning at the top of `events/pong.js`.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
