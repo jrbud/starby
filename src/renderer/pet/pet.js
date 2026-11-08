@@ -76,7 +76,8 @@ const pet = {
   face: 'happy', // which PNG frames to show; set every frame by behaviors/mood.js
   frameFile: 'idle-1', // which PNG file is on screen right now (accessories follow its pose)
   lookUp: false, // set by events (e.g. a star shower) to make him look up
-  // colorSet = folder in assets/sprite/ for the equipped color ('sunny' for 'color-sunny').
+  // colorSet = folder in assets/sprite/ for the equipped color ('sunny' for 'color-sunny',
+  // or the item's `set`, e.g. 'bubblegum' for color-pink).
   // accessories = what he's wearing, as accessory values (e.g. ['tophat']). A list so several
   // can be worn at once later; for now the save holds one (see shopCatalog.js / stateSchema.js).
   look: { color: '#ffd84a', colorSet: DEFAULT_SET, accessory: 'none', accessories: [] },
@@ -140,6 +141,8 @@ const ctx = {
   activeEvent: () => eventRunner.active(), // → name or null
   // Shop try-on: show this accessory value instead of the equipped one (null = back to normal).
   previewAccessory: (value) => setPreviewAccessory(value),
+  // Shop try-on for colors/skins: show this color item id instead of the equipped one (null = back).
+  previewColor: (id) => setPreviewColor(id),
 };
 
 const eventRunner = createEventRunner(ctx);
@@ -178,6 +181,15 @@ function setPreviewAccessory(value) {
   if (lastState) applyLook(lastState);
 }
 
+// Same for colors/skins: a color item id (e.g. 'color-pink') shown instead of the equipped
+// color while you browse the shop. Never saved; only Equip changes state.equipped.color.
+let previewColorId = null;
+
+function setPreviewColor(id) {
+  previewColorId = id || null;
+  if (lastState) applyLook(lastState);
+}
+
 function applyState(state) {
   logStateChanges(prevState, state);
   prevState = structuredClone(state);
@@ -187,11 +199,14 @@ function applyState(state) {
 
 function applyLook(state) {
   const byId = (id) => ctx.catalog.find((item) => item.id === id);
-  const colorId = state.equipped.color || `color-${DEFAULT_SET}`;
+  const tryColor = previewColorId && byId(previewColorId)?.slot === 'color' ? previewColorId : null;
+  const colorId = tryColor || state.equipped.color || `color-${DEFAULT_SET}`;
   const accessory = previewAccessory ?? byId(state.equipped.accessory)?.value ?? pet.look.accessory;
   pet.look = {
     color: byId(colorId)?.value ?? pet.look.color,
-    colorSet: colorId.replace(/^color-/, ''), // each shop color is a PNG set: assets/sprite/<set>/
+    // Each shop color is a PNG set: assets/sprite/<set>/. An item can name its folder with
+    // `set` (e.g. color-pink → 'bubblegum'); otherwise it's the id minus "color-".
+    colorSet: byId(colorId)?.set ?? colorId.replace(/^color-/, ''),
     accessory,
     // A list, so wearing several later only changes how this list is filled.
     accessories: accessory && accessory !== 'none' ? [accessory] : [],

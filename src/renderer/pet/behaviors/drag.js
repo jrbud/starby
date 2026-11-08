@@ -101,6 +101,10 @@ let turns = 0; // total radians spun since this grab started
 let uprighting = false;
 
 let tuning = flingTuning(DEFAULT_FLING_POWER); // updated live from the settings slider
+// A launch() with its own `power` (e.g. the intro at 100) uses these numbers instead of the
+// slider's for that one flight; cleared when he lands or you grab him.
+let launchTuning = null;
+const tossTuning = () => launchTuning || tuning;
 let freezeLeft = 0; // seconds left in an impact freeze
 let freezeSquash = 1; // squash held during the freeze (side wall = tall, top/bottom = flat)
 
@@ -216,7 +220,8 @@ function tossStep(ctx, dt) {
     return;
   }
 
-  const decay = Math.exp(-tuning.friction * dt);
+  const t = tossTuning();
+  const decay = Math.exp(-t.friction * dt);
   vel.x *= decay;
   vel.y *= decay;
   const v = Math.hypot(vel.x, vel.y);
@@ -235,14 +240,14 @@ function tossStep(ctx, dt) {
     const side = pet.x < minX ? 'left' : 'right';
     pet.x = clamp(pet.x, minX, maxX);
     const into = Math.abs(vel.x);
-    vel.x = -vel.x * tuning.bounce;
+    vel.x = -vel.x * t.bounce;
     hitWall(ctx, side, into);
   }
   if (pet.y < minY || pet.y > maxY) {
     const side = pet.y < minY ? 'top' : 'bottom';
     pet.y = clamp(pet.y, minY, maxY);
     const into = Math.abs(vel.y);
-    vel.y = -vel.y * tuning.bounce;
+    vel.y = -vel.y * t.bounce;
     hitWall(ctx, side, into);
   }
   if (freezeLeft > 0) return; // just hit hard: start the impact frame next frame
@@ -267,11 +272,39 @@ function tossStep(ctx, dt) {
       omega = 0;
       vel = { x: 0, y: 0 };
       pet.squash = 0.85;
+      launchTuning = null; // a launch's own power only lasts until he lands
       pet.mode = 'idle';
       landedPending = true; // onTick decides whether it's dizzy
       ctx.log('land', { x: Math.round(pet.x), y: Math.round(pet.y), turns: Math.round((turns / TAU) * 10) / 10 });
     }
   }
+}
+
+// ---- Launch (for events, e.g. the launch intro in ../events/intro.js) ----
+/**
+ * Throw him from where he is, exactly like letting go of a throw: tossStep glides, bounces off
+ * the edges (impact frames included), wobbles him upright, then sets 'idle' and logs 'land'.
+ * { vx, vy } is the "hand" speed in px/s, scaled like a real throw by the Fling power; `power`
+ * (0–100) uses that Fling power for this flight instead of the Settings slider. `spin` in rad/s.
+ * Added for the launch intro; doesn't change dragging.
+ */
+export function launch(ctx, { vx, vy, spin = 0, power = null }) {
+  const { pet } = ctx;
+  pressing = false;
+  moved = false;
+  launchTuning = power == null ? null : flingTuning(power);
+  const t = tossTuning();
+  vel = { x: vx * t.speedMul, y: vy * t.speedMul };
+  const speed = Math.hypot(vel.x, vel.y);
+  if (speed > t.maxSpeed) {
+    vel.x *= t.maxSpeed / speed;
+    vel.y *= t.maxSpeed / speed;
+  }
+  omega = spin;
+  turns = 0;
+  uprighting = false;
+  freezeLeft = 0;
+  pet.mode = 'toss';
 }
 
 // ---- Swat (mad: can't be picked up) ----
@@ -294,6 +327,7 @@ function swat(ctx, e) {
     ax /= len;
     ay /= len;
   }
+  launchTuning = null;
   vel = { x: ax * SWAT_SPEED, y: ay * SWAT_SPEED };
   omega = (ax >= 0 ? 1 : -1) * SWAT_SPIN;
   turns = 0;
@@ -341,6 +375,7 @@ export default {
           return;
         }
         moved = true;
+        launchTuning = null; // grabbed: your next throw follows the Settings slider again
         // Caught mid-throw: keep its spin. Otherwise start a fresh grab.
         if (pet.mode !== 'toss') {
           // A tiny random nudge, like a real hand: grabbed by the bottom it tips over and

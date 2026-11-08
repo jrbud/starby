@@ -83,6 +83,27 @@ body {
   opacity: 0;
 }
 
+/* Launch intro (events/intro.js): the "Starby" title art, centered; intro.js sets its size and
+   position and animates it. Never clickable (not .hit), so the desktop works during the intro. */
+.intro-title {
+  position: absolute;
+  pointer-events: none;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+}
+
+/* Before the intro flings him in, Starby isn't on screen at all: hide everything on the stage
+   (his body, accessories/floaters, mood label, ...) except the title. */
+#stage.intro-prelaunch > :not(.intro-title) {
+  visibility: hidden !important;
+}
+
+.intro-title canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* Settings → Starbits → Visible off: starbits.js puts this class on the stage. Starbits and
    their trails are hidden (still there and collectable); the count card still shows. */
 .starbits-hidden .starbits {

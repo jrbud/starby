@@ -29,6 +29,8 @@ let displayRect = null; // { x, y, width, height } of the display box, in shop-p
 // The pet takes it off on close/minimize ('shop-release'); after a restore it goes back on,
 // since the shop still has that item selected.
 let preview = null;
+// Same for colors/skins: the color item id selected but not equipped yet (null = none).
+let previewColor = null;
 
 function sendToPet(cmd) {
   const pet = getPetWindow();
@@ -55,6 +57,7 @@ const releasePet = () => sendToPet({ type: 'shop-release' });
 function returnPet() {
   parkPet();
   if (preview) sendToPet({ type: 'shop-preview', accessory: preview });
+  if (previewColor) sendToPet({ type: 'shop-preview-color', color: previewColor });
 }
 
 function openShopWindow() {
@@ -94,7 +97,8 @@ function openShopWindow() {
     shopWindow = null;
     displayRect = null;
     preview = null;
-    releasePet(); // also takes off the try-on
+    previewColor = null;
+    releasePet(); // also takes off the try-on (accessory and color)
   });
   return shopWindow;
 }
@@ -123,7 +127,13 @@ function setPreview(value) {
   sendToPet({ type: 'shop-preview', accessory: preview });
 }
 
+// Color/skin try-on (ipc.js only passes real color item ids, or null).
+function setPreviewColor(id) {
+  previewColor = typeof id === 'string' && id ? id : null;
+  sendToPet({ type: 'shop-preview-color', color: previewColor });
+}
+
 const minimizeShop = () => shopWindow?.minimize();
 const closeShop = () => shopWindow?.close();
 
-module.exports = { openShopWindow, setDisplayRect, petSay, setPreview, minimizeShop, closeShop };
+module.exports = { openShopWindow, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop };

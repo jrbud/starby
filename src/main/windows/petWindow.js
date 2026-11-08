@@ -44,6 +44,21 @@ function createPetWindow() {
   // level puts us above it so the sprite stays visible when walking along the taskbar.
   petWindow.setAlwaysOnTop(true, 'screen-saver');
 
+  // WINDOWS QUIRK: Windows can push an always-on-top window back down under normal windows
+  // and leave it there: when an app goes fullscreen (videos, games), on Win+D / "Show desktop",
+  // when Explorer restarts, after sleep/lock. The window still *says* it's on top but sits
+  // behind everything. So we re-assert it every KEEP_ON_TOP_MS: Starby is always in front of
+  // every window, fullscreen apps included (team decision).
+  // Off-then-on (not moveTop()): setAlwaysOnTop always re-applies the z-order through a Windows
+  // call that never activates the window, so it can't steal keyboard focus from what you're
+  // typing in. Re-applying the same value alone may be skipped as "no change".
+  const KEEP_ON_TOP_MS = 1500;
+  const keepOnTop = setInterval(() => {
+    if (!petWindow || petWindow.isDestroyed()) return;
+    petWindow.setAlwaysOnTop(false);
+    petWindow.setAlwaysOnTop(true, 'screen-saver');
+  }, KEEP_ON_TOP_MS);
+
   // CLICK-THROUGH: start fully click-through. `forward: true` still delivers mousemove
   // events to the renderer, which is how we (a) detect hovering over the sprite and
   // flip click-through off (see renderer/pet/clickThrough.js), (b) do cursor-awareness,
@@ -51,7 +66,10 @@ function createPetWindow() {
   petWindow.setIgnoreMouseEvents(true, { forward: true });
 
   petWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'pet', 'index.html'));
-  petWindow.on('closed', () => { petWindow = null; });
+  petWindow.on('closed', () => {
+    clearInterval(keepOnTop);
+    petWindow = null;
+  });
   return petWindow;
 }
 

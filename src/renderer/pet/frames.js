@@ -120,7 +120,8 @@ export function createFrames(px) {
   }
 
   const ready = (v) => (v && !(v instanceof Promise) ? v : null);
-  const get = (set, file) => ready(cache.get(`${set}/${file}`)) || ready(cache.get(`${DEFAULT_SET}/${file}`));
+  const getExact = (set, file) => ready(cache.get(`${set}/${file}`));
+  const get = (set, file) => getExact(set, file) || getExact(DEFAULT_SET, file);
 
   return {
     /** Load the default face first (so he can appear right away), then everything else. */
@@ -141,6 +142,14 @@ export function createFrames(px) {
         const def = FACES[name];
         if (!def) continue;
         const i = def.every ? Math.floor(elapsed / def.every) % def.files.length : 0;
+        // Prefer this color set's own frames: if it's missing one frame of a face (e.g.
+        // bubblegum has dizzy-1 but no dizzy-2), hold its other frame rather than flashing a
+        // frame from another color. Only then borrow the frame from the default set.
+        const tries = [...new Set([def.files[i], ...def.files])];
+        for (const file of tries) {
+          const img = getExact(set, file);
+          if (img) return { img, file };
+        }
         for (const file of [def.files[i], def.files[0]]) {
           const img = get(set, file);
           if (img) return { img, file };
