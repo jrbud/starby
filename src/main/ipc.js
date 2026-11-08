@@ -3,7 +3,7 @@
 const { ipcMain, BrowserWindow, Menu, app } = require('electron');
 const store = require('./store');
 const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
-const { openShopWindow, setDisplayRect, petSay, setPreview, minimizeShop, closeShop } = require('./windows/shopWindow');
+const { openShopWindow, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const settingsStore = require('./settingsStore');
 const { listOpenWindows } = require('./systemReads/openWindows');
@@ -52,6 +52,8 @@ function registerIpc() {
   ipcMain.on('shop:display-rect', (_e, rect) => setDisplayRect(rect));
   ipcMain.on('shop:say', (_e, text) => petSay(text));
   ipcMain.on('shop:preview', (_e, accessory) => setPreview(accessory)); // try-on, never saved
+  // Color/skin try-on: only real color items from the catalog, never saved.
+  ipcMain.on('shop:preview-color', (_e, id) => setPreviewColor(getItem(id)?.slot === 'color' ? id : null));
 
   // ---- Settings (sliders) ----
   ipcMain.handle('settings:get', () => settingsStore.get());

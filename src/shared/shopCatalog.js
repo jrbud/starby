@@ -3,6 +3,9 @@
 // slot:  which part of the sprite it changes ('color' | 'accessory')
 // value: what the renderer uses (a hex color, or an accessory id from
 //        src/renderer/pet/accessories.js, which knows the art file and where it goes)
+// set:   (colors, optional) the skin folder in assets/sprite/<set>/ with this color's hand-drawn
+//        frames. Defaults to the id minus "color-" (color-sunny → sunny). A color with no folder
+//        yet shows the sunny art; frames missing from a set come from sunny (see frames.js).
 //
 // The star has ONE shape. There is no shape slot. Don't add shape items.
 //
@@ -24,7 +27,9 @@
 const SHOP_ITEMS = [
   // Colors
   { id: 'color-sunny', slot: 'color', name: 'Sunny', price: 0, value: '#ffd84a' },
-  { id: 'color-pink', slot: 'color', name: 'Bubblegum', price: 25, value: '#ff8fc7' },
+  // set: hand-drawn skin in assets/sprite/bubblegum/ (the id stays color-pink so saves that
+  // already own it keep it).
+  { id: 'color-pink', slot: 'color', name: 'Bubblegum', price: 25, value: '#ff8fc7', set: 'bubblegum' },
   { id: 'color-mint', slot: 'color', name: 'Mint', price: 25, value: '#7be0b5' },
   { id: 'color-peach', slot: 'color', name: 'Peach', price: 30, value: '#ffb48a' },
   { id: 'color-sky', slot: 'color', name: 'Sky', price: 35, value: '#7fbfff' },

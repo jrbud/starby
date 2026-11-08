@@ -28,6 +28,7 @@
 //
 // Start one from code with ctx.startEvent('tag'), from DevTools with starby.startEvent('tag'),
 // or from the right-click menu (see src/main/ipc.js). Logged as 'event-start' / 'event-end'.
+import intro from './intro.js';
 import tag from './tag.js';
 import pong from './pong.js';
 import invite from './invite.js';
@@ -41,7 +42,8 @@ import { happenings } from './happenings.js';
 // star-shower = a happening, started by the happenings timer (happenings.js).
 // hide-seek = a game (buttons) and a happening (he hides on his own); never in invites.
 // shop = parks him in the shop window's display box while it's open (shop.js).
-export const EVENTS = [tag, pong, invite, starShower, hideSeek, shop];
+// intro = the launch animation (title slam, Starby flies in, greeting); starts itself at launch.
+export const EVENTS = [intro, tag, pong, invite, starShower, hideSeek, shop];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js);
