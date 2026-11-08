@@ -641,16 +641,20 @@ const shownCount = () => Math.max(0, (total ?? 0) - zipping.reduce((sum, z) => s
 
 function ensureToast(ctx) {
   if (toast) return toast;
-  // Plain box + text (UI chrome, like the speech bubble); NOT a .hit element, so it stays
+  // Shop-style card (pet.css: starCardBg.png art, Sour Gummy); NOT a .hit element, so it stays
   // click-through.
   const el = document.createElement('div');
   el.className = 'starbits-toast';
+  const icon = document.createElement('img');
+  icon.className = 'starbits-toast-icon';
+  icon.src = '../../../assets/starbits/cluster.png'; // same icon as the shop's wallet
+  icon.alt = '';
   const countEl = document.createElement('span');
   countEl.className = 'starbits-toast-count';
   const label = document.createElement('span');
   label.className = 'starbits-toast-label';
   label.textContent = 'starbits';
-  el.append(countEl, label);
+  el.append(icon, countEl, label);
   ctx.stage.appendChild(el);
   toast = { el, countEl };
   return toast;
@@ -687,10 +691,11 @@ function pulseCount(t) {
   // Web Animations API so it restarts cleanly on every arrival, even mid-pulse.
   t.countEl.animate(
     [
-      { transform: 'scale(1)', color: '#ffffff' },
-      { transform: `scale(${PULSE_SCALE})`, color: '#ffe680', offset: 0.35 },
+      // Shop yellow at rest, flashes white at the peak of the pop.
+      { transform: 'scale(1)', color: '#ffe8a3' },
+      { transform: `scale(${PULSE_SCALE})`, color: '#ffffff', offset: 0.35 },
       { transform: 'scale(0.92)', offset: 0.7 },
-      { transform: 'scale(1)', color: '#ffffff' },
+      { transform: 'scale(1)', color: '#ffe8a3' },
     ],
     { duration: PULSE_MS, easing: 'ease-out' },
   );
