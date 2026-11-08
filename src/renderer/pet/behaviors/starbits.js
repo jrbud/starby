@@ -29,6 +29,8 @@
 //                           leave them alone, so you see them fly out before sweeping them up
 //   rainStarbit(ctx, x, speed)  one starbit falls from the top of the screen (star shower happening):
 //                           catch it with the cursor before it reaches the bottom, or it fades away
+//   shootStarbit(ctx, side, y, speed, drift)  one starbit shoots across the screen with a trail
+//                           (shooting star happening): catch it before it reaches the other side
 //   reclaimStarbits(ctx)    every starbit on screen spins and flies back into him and disappears
 //                           (not added to the count)
 import { rulesFor } from './moods.js';
@@ -106,6 +108,12 @@ const FALL_SWAY_FREQ = [1.2, 2.4]; // rad/s
 const FALL_SPIN = 160; // deg/s max
 const FALL_CATCH_BONUS = 8; // px added to the pickup reach for a falling starbit (no magnet while falling)
 const FALL_MISS_FADE = 0.35; // s fade when one reaches the bottom uncaught
+// Shooting starbits (shootStarbit, used by the shooting star happening in ../events/shootingStar.js)
+const SHOOT_SWAY = [3, 9]; // px wobble across its path
+const SHOOT_SWAY_FREQ = [3, 6]; // rad/s
+const SHOOT_SPIN = 520; // deg/s max
+const SHOOT_CATCH_BONUS = 14; // px added to the pickup reach (they're fast)
+const SHOOT_TRAIL_EVERY = 2; // leave a trail copy every N frames
 const RECLAIM_SPIN = 720; // deg/s while flying back
 
 const REFUSE_LINES = lineBag(['no starbits for you!', 'hmph. no sparkles.', 'not dropping anything for a poker']);
@@ -217,16 +225,12 @@ export function reclaimStarbits(ctx) {
   return n;
 }
 
-/**
- * Rain: drop one starbit from the top of the usable screen at x, falling at `speed` px/s.
- * It sways and spins on the way down. No magnet while falling: catch it with the cursor (slightly
- * bigger catch zone than a normal pickup) and it's collected like any starbit. If it reaches the
- * bottom uncaught it fades away. Doesn't count against tuning.maxOnScreen.
- */
-export function rainStarbit(ctx, x, speed = 240) {
+// ---- Flying starbits: rain (falls from the top) and shooting stars (fly across) ----
+// They move in a straight line with a little sideways sway and spin, aren't pulled by the magnet,
+// get a bigger catch zone, don't count against tuning.maxOnScreen, and fade away where they leave
+// the usable screen uncaught. Stored with d.falling = { ...path } so update()/pickup treat them alike.
+function launchFlying(ctx, x, y, vx, vy, { sway, freq, spin, catchBonus, trail = false }) {
   if (!switches.spawning) return; // Settings → Starbits → Spawning is off (no drops of any kind)
-  const a = area(ctx);
-  const y = a.top + EDGE_MARGIN;
   const el = document.createElement('img');
   el.className = 'starbits';
   el.src = randomStarbitImage();
@@ -235,37 +239,76 @@ export function rainStarbit(ctx, x, speed = 240) {
   sizeElement(el, x, y); // Settings → Starbits → Size
   ctx.stage.appendChild(el);
   drops.push({
-    el, spawnX: x, spawnY: y, px: x, py: y, x, y, vx: 0, vy: speed,
-    falling: { baseX: x, sway: rand(...FALL_SWAY), freq: rand(...FALL_SWAY_FREQ), phase: rand(0, 6.28), t: 0 },
+    el, spawnX: x, spawnY: y, px: x, py: y, x, y, vx, vy,
+    falling: { bx: x, by: y, sway, freq, phase: rand(0, 6.28), t: 0, catchBonus, trail, frames: 0 },
     thrown: false, attracted: false, age: 0, fading: false, reclaiming: false,
     pickableAt: ctx.clock.seconds, anchorX: x, anchorY: y,
-    angle: rand(0, 360), spin: rand(-FALL_SPIN, FALL_SPIN), spinTarget: 0, retargetIn: 99,
+    angle: rand(0, 360), spin: rand(-spin, spin), spinTarget: 0, retargetIn: 99,
     bob: { t: 0, amp: 0, fx1: 1, fx2: 1, px1: 0, px2: 0, fy1: 1, fy2: 1, py1: 0, py2: 0 },
   });
 }
 
-// One frame of falling (see rainStarbit). Missed at the bottom → fade out and remove.
+/**
+ * Rain: drop one starbit from the top of the usable screen at x, falling at `speed` px/s. It sways
+ * and spins on the way down; catch it with the cursor or it fades away at the bottom.
+ */
+export function rainStarbit(ctx, x, speed = 240) {
+  const a = area(ctx);
+  launchFlying(ctx, x, a.top + EDGE_MARGIN, 0, speed, {
+    sway: rand(...FALL_SWAY), freq: rand(...FALL_SWAY_FREQ), spin: FALL_SPIN, catchBonus: FALL_CATCH_BONUS,
+  });
+}
+
+/**
+ * Shooting star: one starbit shoots across the usable screen from `fromSide` ('left' | 'right')
+ * at height y, `speed` px/s, drifting `drift` px/s up/down, leaving a trail. Catch it with the
+ * cursor before it reaches the other side, or it's gone.
+ */
+export function shootStarbit(ctx, fromSide, y, speed = 900, drift = 0) {
+  const a = area(ctx);
+  const dir = fromSide === 'left' ? 1 : -1;
+  const x = dir > 0 ? a.left + EDGE_MARGIN : a.right - EDGE_MARGIN;
+  launchFlying(ctx, x, y, dir * speed, drift, {
+    sway: rand(...SHOOT_SWAY), freq: rand(...SHOOT_SWAY_FREQ), spin: SHOOT_SPIN, catchBonus: SHOOT_CATCH_BONUS, trail: true,
+  });
+}
+
+// One frame of flying (see launchFlying). Leaving the usable screen uncaught → fade out and remove.
 function fallStep(ctx, d, dt) {
+  if (d.fading) return; // missed: stays where it left the screen while it fades
   const f = d.falling;
   f.t += dt;
-  d.py += d.vy * dt;
-  d.px = f.baseX + Math.sin(f.t * f.freq + f.phase) * f.sway;
+  f.bx += d.vx * dt;
+  f.by += d.vy * dt;
+  // Sway across the direction of travel.
+  const speed = Math.hypot(d.vx, d.vy) || 1;
+  const off = Math.sin(f.t * f.freq + f.phase) * f.sway;
+  d.px = f.bx + (-d.vy / speed) * off;
+  d.py = f.by + (d.vx / speed) * off;
   d.angle = (d.angle + d.spin * dt) % 360;
   d.x = d.px;
   d.y = d.py;
   d.el.style.transform = `translate(${d.x - d.spawnX}px, ${d.y - d.spawnY}px) rotate(${d.angle}deg)`;
-  const bottom = area(ctx).bottom - EDGE_MARGIN;
-  if (!d.fading && d.py >= bottom) {
+  if (f.trail && !d.fading && ++f.frames % SHOOT_TRAIL_EVERY === 0) leaveGhost(ctx, d);
+  const a = area(ctx);
+  const out = d.py >= a.bottom - EDGE_MARGIN || d.py < a.top + EDGE_MARGIN - 1
+    || d.px < a.left + EDGE_MARGIN - 1 || d.px > a.right - EDGE_MARGIN + 1;
+  if (!d.fading && out && f.t > 0.05) {
     d.fading = true; // too late to catch
-    d.vy = 0; // stop right there (don't slide down over the taskbar while fading)
-    d.py = bottom;
+    d.vx = 0; // stop right there (don't slide over the taskbar / off screen while fading)
+    d.vy = 0;
+    d.px = Math.max(a.left + EDGE_MARGIN, Math.min(a.right - EDGE_MARGIN, d.px));
+    d.py = Math.max(a.top + EDGE_MARGIN, Math.min(a.bottom - EDGE_MARGIN, d.py));
+    d.x = d.px;
+    d.y = d.py;
+    d.el.style.transform = `translate(${d.x - d.spawnX}px, ${d.y - d.spawnY}px) rotate(${d.angle}deg)`; // drawn at the edge
     d.el.style.transition = `opacity ${FALL_MISS_FADE}s ease-in`;
     d.el.style.opacity = '0';
     ctx.after(FALL_MISS_FADE, () => {
       const i = drops.indexOf(d);
       if (i !== -1) drops.splice(i, 1);
       d.el.remove();
-    }, 'falling starbit missed');
+    }, 'flying starbit missed');
     ctx.log('starbit-missed', {});
   }
 }
@@ -744,7 +787,7 @@ export default {
       const d = drops[i];
       if (d.fading) continue; // too late, it's fading away
       if (d.reclaiming || now < (d.pickableAt ?? 0)) continue; // flying home / just thrown as a reward
-      const reach = pickupRadius() + (d.falling ? FALL_CATCH_BONUS : 0);
+      const reach = pickupRadius() + (d.falling ? d.falling.catchBonus : 0);
       if (Math.hypot(ctx.cursor.x - d.x, ctx.cursor.y - d.y) < reach) {
         collect(ctx, i);
       }
