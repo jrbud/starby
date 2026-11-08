@@ -204,6 +204,9 @@ function onEntry(ctx, e) {
     case 'dizzy': // drag.js: spun 3+ turns; it already said its own dizzy line
       getDizzy(ctx, 'spun', false);
       break;
+    case 'dance': // events/dance.js: dancing to a song keeps him busy (no yawning mid-playlist)
+      lastInteraction = ctx.clock.seconds;
+      break;
     case 'flinch':
       interacted(ctx, 'flinch');
       break;
@@ -308,7 +311,8 @@ function trackShake(ctx, dt) {
 // ---- Face ----
 // pet.face picks the PNG frames (../frames.js). First match wins:
 //   sleepy (even while held: he dangles asleep) > dragged (held) > dizzy > yawning > mad >
-//   sad (shown with the mad frames: grumpy, not truly mad) > playful (mood, mid-throw, or tag) >
+//   sad (shown with the mad frames: grumpy, not truly mad) > dancing (events/dance.js) >
+//   playful (mood, mid-throw, or tag) >
 //   up (an event wants him to look up, e.g. a star shower) > talking >
 //   up / down (cursor right above / below him) > left / right (walking that way) >
 //   glistening / wink (a random moment now and then) > happy.
@@ -351,6 +355,7 @@ function faceFor(ctx) {
   if (pet.mood === 'sleepy') return 'sleepy';
   if (pet.mode === 'drag') return 'dragged';
   if (pet.mood === 'dizzy' || pet.mood === 'yawning' || pet.mood === 'mad' || pet.mood === 'sad') return pet.mood;
+  if (pet.mode === 'dance') return 'dancing'; // events/dance.js (only runs while happy/playful)
   if (pet.mood === 'playful' || pet.mode === 'toss' || pet.mode === 'tag') return 'playful';
   if (pet.lookUp) return 'up';
   if (ctx.isSpeaking()) return 'talking';
