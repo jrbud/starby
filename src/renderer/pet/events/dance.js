@@ -1,0 +1,178 @@
+// DANCE — Starby dances while a song is playing in Spotify.
+//
+// src/main/systemReads/music.js sends { type: 'music', playing } (true/false only, never the
+// song). While music plays and he's happy or playful, he dances in bursts: DANCE_FOR seconds of
+// dancing, then REST_FOR seconds of hanging out normally while the song keeps going, then again,
+// so it never gets repetitive. A new song (music stops, then starts) gets a dance right away.
+//
+// The moves are all MOTION on his existing frames (bounce, sway, side steps, hops, a spin) on a
+// steady beat. We can't hear the music, so the beat is a fixed pop tempo (BEAT). His face is the
+// 'dancing' face (frames.js: the excited happy-1/2 frames, swapping on the beat).
+//
+// Lowest priority of all events (2): a star shower, an invite, a game or the shop window always
+// wins, and the dance just picks up again later. It ends when the song stops, when he gets
+// grabbed (drag.js takes pet.mode), or when his mood changes (mad, dizzy, sleepy...).
+// Owns the star via pet.mode = 'dance' (behaviors stand down for modes they don't know).
+// In DevTools: starby.startEvent('dance') dances one burst even without music.
+import { rand, approach, clampToScreen, startJump, updateJump, cancelJump } from '../behaviors/motion.js';
+import { chat, lineBag } from '../behaviors/chatter.js';
+
+// ---- Tuning ----
+const BEAT = 0.5; // seconds per beat (~120 bpm)
+const BEATS_PER_MOVE = 8; // each move lasts two bars
+const DANCE_FOR = [14, 24]; // seconds per dance burst...
+const REST_FOR = [12, 25]; // ...then this long hanging out normally while the song goes on
+const MOODS_THAT_DANCE = ['happy', 'playful'];
+const MOVES = ['bounce', 'sway', 'step', 'hop', 'spin'];
+const STEP = 0.22; // side-step distance, in star-sizes
+const MID_LINE_CHANCE = 0.25; // per move change
+
+const LINES = {
+  start: lineBag(['ooh, i love this song!', '♪ dance time ♪', "this one's a bop!", '*starts bopping*', 'music!! ♫']),
+  mid: lineBag(['♪ ♫ ♪', 'woo!', 'look at my moves!', '*shimmy*', 'ba-dum tss ♪']),
+  stop: lineBag(['aww, the song stopped', 'that was fun ♪', 'encore?']),
+};
+
+let musicPlaying = false;
+let restUntil = 0; // session seconds: no new burst before this
+let endDance = null;
+let t = 0; // seconds into this burst
+let danceFor = 0;
+let move = 'bounce';
+let moveIndex = -1;
+let lastBeat = -1;
+let homeX = 0; // where he dances (side steps go either side of this)
+let devtoolsRun = false; // started from DevTools: dance one burst even with no music
+
+const relaxed = (pet) => pet.mode === 'idle' || pet.mode === 'walk';
+
+function finish(result) {
+  const end = endDance;
+  endDance = null;
+  end?.(result);
+}
+
+function nextMove() {
+  const options = MOVES.filter((m) => m !== move);
+  move = options[Math.floor(Math.random() * options.length)];
+}
+
+export default {
+  name: 'dance',
+  priority: 2, // below everything: star shower 3, invites 5, games 10, shop 20
+
+  init(ctx) {
+    ctx.events.onEntry((e) => {
+      if (e.type !== 'system' || e.data.type !== 'music') return;
+      musicPlaying = Boolean(e.data.playing);
+      if (!musicPlaying) restUntil = 0; // the next song starts a dance straight away
+    });
+  },
+
+  canStart(ctx, reason) {
+    const { pet } = ctx;
+    if (!MOODS_THAT_DANCE.includes(pet.mood) || !relaxed(pet)) return false;
+    return musicPlaying || reason === 'devtools';
+  },
+
+  // Every tick, even when not dancing: start a burst when the song is on and he's free.
+  watch(ctx) {
+    if (!musicPlaying || ctx.activeEvent() || ctx.clock.seconds < restUntil) return;
+    ctx.startEvent('dance', 'music');
+  },
+
+  start(ctx, end, reason) {
+    const { pet } = ctx;
+    endDance = end;
+    devtoolsRun = reason === 'devtools';
+    t = 0;
+    danceFor = rand(...DANCE_FOR);
+    moveIndex = -1;
+    lastBeat = -1;
+    homeX = pet.x;
+    pet.mode = 'dance';
+    nextMove();
+    chat(ctx, LINES.start(), 2200, { wait: 3 });
+  },
+
+  onTick(ctx) {
+    const { pet } = ctx;
+    if (pet.mode !== 'dance') return finish('interrupted'); // grabbed, thrown, etc.
+    if (!MOODS_THAT_DANCE.includes(pet.mood)) return finish('mood');
+    if (!musicPlaying && t > 1 && !devtoolsRun) { // (devtools dances run without music)
+      chat(ctx, LINES.stop(), 2200, { wait: 3 });
+      return finish('song over');
+    }
+    if (t >= danceFor) {
+      restUntil = ctx.clock.seconds + rand(...REST_FOR);
+      return finish('rest');
+    }
+  },
+
+  update(ctx, dt) {
+    const { pet } = ctx;
+    if (pet.mode !== 'dance') return;
+    const S = pet.size;
+    t += dt;
+    const beat = t / BEAT;
+    const whole = Math.floor(beat);
+    const newBeat = whole !== lastBeat;
+    lastBeat = whole;
+
+    // A new move every BEATS_PER_MOVE beats.
+    const index = Math.floor(beat / BEATS_PER_MOVE);
+    if (index !== moveIndex) {
+      if (moveIndex >= 0) {
+        nextMove();
+        if (Math.random() < MID_LINE_CHANCE) chat(ctx, LINES.mid(), 1600, { gap: 8 });
+      }
+      moveIndex = index;
+      ctx.log('dance', { move }); // mood.js counts dancing as being busy (no yawning mid-song)
+    }
+
+    const jumping = updateJump(pet, dt); // a hop in progress owns bob/squash
+    let targetX = homeX;
+    let rotation = 0;
+    let bob = 0;
+    let squash = 1 + 0.06 * Math.cos(2 * Math.PI * beat); // stretch up, squash down, on the beat
+    const bounce = Math.abs(Math.sin(Math.PI * beat)); // 0 on the beat, 1 between beats
+
+    if (move === 'bounce') {
+      bob = -bounce * 0.12 * S;
+    } else if (move === 'sway') {
+      rotation = Math.sin(Math.PI * beat) * 0.25; // lean left, lean right
+      bob = -bounce * 0.05 * S;
+    } else if (move === 'step') {
+      const side = whole % 2 ? 1 : -1;
+      targetX = homeX + side * STEP * S;
+      rotation = side * 0.1; // lean into the step
+      bob = -bounce * 0.06 * S;
+    } else if (move === 'hop') {
+      if (newBeat && !jumping) startJump({ height: 0.16 * S, air: BEAT * 0.6 });
+    } else if (move === 'spin') {
+      const local = beat % 4; // spin for 2 beats, then 2 beats of bouncing
+      if (local < 2) {
+        const p = local / 2;
+        rotation = (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2) * Math.PI * 2; // ease in-out
+      }
+      bob = -bounce * 0.08 * S;
+    }
+
+    pet.x = approach(pet.x, clampToScreen(ctx, targetX, pet.y).x, dt, 12);
+    pet.rotation = rotation; // set after drag.js (events update after behaviors)
+    if (!jumping) {
+      pet.bob = bob;
+      pet.squash = approach(pet.squash, squash, dt, 18);
+    }
+  },
+
+  stop(ctx) {
+    const { pet } = ctx;
+    endDance = null;
+    cancelJump();
+    pet.rotation = 0;
+    pet.bob = 0;
+    pet.squash = 1;
+    if (pet.mode === 'dance') pet.mode = 'idle';
+  },
+};

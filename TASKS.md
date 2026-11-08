@@ -303,6 +303,21 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
       `motion.js`);
     - a happy star turns playful when the cursor rests on him for 0.8s;
     - wall bounces during a throw give him some spin (`drag.js`, `BOUNCE_SPIN_*`).
+- [x] **P3-8 Dancing to music.**
+  - **`src/main/systemReads/music.js` (new):**
+    - reads the window titles of any program whose name contains "spotif" (Spotify, Spotifast) every
+      2s and emits `{ type: 'music', playing }`;
+    - "Artist - Song" in the title means a song is playing; "Spotify" / "Spotify Premium" means paused;
+    - the title never leaves the main process, only true/false;
+    - limits: it can't see Spotify closed to the tray, or the web player.
+  - **`events/dance.js` (new):**
+    - the lowest-priority event (2), so star showers, invites, games and the shop always win;
+    - while a song plays and he's happy or playful, he dances in bursts (14–24s on, 12–25s off);
+    - moves, on a steady ~120 bpm beat: bounce, sway, side steps, hops, a spin;
+    - he uses the new `dancing` face (`happy-1/2` swapping on the beat);
+    - it ends when the song stops, when he's grabbed, or when his mood changes (mad, dizzy, sleepy...);
+    - dancing counts as busy in `mood.js`, so no yawning mid-playlist;
+    - DevTools: `starby.startEvent('dance')` dances one burst without music.
 
 ---
 
