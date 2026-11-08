@@ -9,10 +9,9 @@
 // The first show() of a game (while hidden) sets the full moon = that many seconds; calling show()
 // again mid-game (tag does, on every tag) keeps ticking from where it is.
 //
-// ART: there's no moon art yet, so the "moon" is a PLACEHOLDER: the team's starbit cluster PNG
-// (assets/starbits/cluster.png, the starbit counter's icon). When a moon is drawn, change MOON_ART
-// (square PNG on a transparent background). Nothing is drawn by code: the phases are a CSS mask that
-// hides part of the PNG, i.e. code only shows/hides the team's art. A phase = the lit LEFT half of
+// ART: the moon is the team's hand-drawn moon (assets/events/moon.png). Nothing is drawn by code:
+// the phases are a CSS mask that hides part of the PNG, i.e. code only shows/hides the team's art.
+// A phase = the lit LEFT half of
 // the moon plus (gibbous) or minus (crescent) an ellipse down the middle, the "terminator": two
 // mask layers combined with mask-composite add / subtract. Lit share f: the ellipse is
 // |2f − 1| of the moon's radius wide, so f = 3/4, 1/2, 1/4 give the right lit areas.
@@ -22,7 +21,7 @@
 // Not a `.hit` element: it stays click-through and never blocks the desktop.
 
 const URGENT_AT = 5; // seconds: pulse for the last few
-const MOON_ART = '../../../assets/starbits/cluster.png'; // PLACEHOLDER moon; relative to src/renderer/pet/index.html
+const MOON_ART = '../../../assets/events/moon.png'; // team art; relative to src/renderer/pet/index.html
 const CARD_ART = '../../../assets/menuIcons/button-hover.png'; // team button art behind the moon
 const CARD_EDGE = 16; // px: the art's hand-drawn edge (CSS border-image keeps it this thick)
 const CARD_SLICE = 120; // art px of that edge in the PNG (same as the dialogue's buttons)
