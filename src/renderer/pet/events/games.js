@@ -55,7 +55,7 @@ let lastPlayedEndAt = -Infinity; // session seconds when the last actual game en
 let noRestUntil = -Infinity; // session seconds: no rest between games before this (starby.noRest)
 
 // Games timer
-const GAMES_TIMER = { every: 60, chance: 0.2, cooldown: 240 }; // seconds, chance per roll, seconds
+const GAMES_TIMER = { every: 30, chance: 0.3, cooldown: 120 }; // seconds, chance per roll, seconds (≈ a game every 3–4 min)
 const USER_AROUND = 10; // seconds since the cursor last moved, to count as "you're there"
 let nextRollAt = null;
 let lastTimerStartAt = -Infinity;

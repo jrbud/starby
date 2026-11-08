@@ -79,7 +79,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   half the time. **One point wins:** past the AI → you win, 7 starbits burst out; past you → you lose, he takes
   back the starbits on screen. Grabbing him = foul. Starts from an invite (P1-9), the game buttons, the menu
   ("Play pong") or `starby.startEvent('pong')`. Tuning at the top of `events/pong.js`.
-- [x] **P1-9 (Nice) Starby invites you to play (any game).** `events/invite.js`: every 60s, 20% chance (4-min
+- [x] **P1-9 (Nice) Starby invites you to play (any game).** `events/invite.js`: every 30s, 30% chance (2-min
   cooldown) he picks a game at random from `GAMES` in `events/games.js` (not the same one twice in a row),
   stops and asks ("wanna play pong? i can be the ball!") with a "Play Pong with Starby? [Yes] [No]" popup
   (`events/prompt.js`). **Yes** → that game starts. **No** → `sad` mood (`moods.js` / `mood.js`: half walk speed,
@@ -129,7 +129,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
     timer in `events/happenings.js`. A due sky event **interrupts a dance**; if a game, invite, the shop or the
     intro is running, it waits and retries every 60s.
   - **Games** (`category: 'games'`, priority 10; invite 5): Tag, Pong, Hide & Seek, Catch. They start from the
-    buttons, the menu, or the **games timer** in `events/games.js` (every 60s, 20%, 4-min cooldown, only when
+    buttons, the menu, or the **games timer** in `events/games.js` (every 30s, 30%, 2-min cooldown, only when
     nothing else is running and you're around). The timer picks a random game: announced games go through an
     invite (`events/invite.js` no longer has its own `auto` roll); Hide & Seek starts silently
     (`canStart(ctx, 'random')`).
