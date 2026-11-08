@@ -14,6 +14,10 @@ for (const section of document.querySelectorAll('details.group[data-key]')) {
 }
 
 const api = window.sprite;
+
+// Frameless window: our own close button (team art, see ../shared/menuFrame.css).
+document.getElementById('close').addEventListener('click', () => window.close());
+
 const slider = document.getElementById('fling-power');
 const valueOut = document.getElementById('fling-power-value');
 const detail = document.getElementById('fling-power-detail');

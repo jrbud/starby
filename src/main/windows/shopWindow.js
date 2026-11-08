@@ -1,4 +1,6 @@
-// The shop window: frameless, fixed size, with its own title bar (Shop  _  ✕) drawn in the page.
+// The shop window: frameless, transparent, fixed size. The page draws everything: the team's
+// background art (with "SHOP" on it) and an image close button. No minimize button (the
+// taskbar can still minimize it, which releases Starby as before).
 // Only one at a time.
 //
 // PARKING THE STAR: while the shop is open, Starby runs into the shop's display box (the square
@@ -10,7 +12,7 @@
 // WINDOWS QUIRKS:
 //   - The pet window is always-on-top ('screen-saver' level), so the star draws ON TOP of this
 //     window; the shop itself stays a normal window.
-//   - Frameless windows are moved by the page's `-webkit-app-region: drag` title bar. 'move'
+//   - Frameless windows are moved by the page's `-webkit-app-region: drag` title band. 'move'
 //     fires continuously while dragging on Windows, so the star follows the box live.
 //   - Coordinates: BrowserWindow bounds and the pet page's CSS px are both DIPs, so at 125% /
 //     150% scaling no extra conversion is needed.
@@ -18,10 +20,8 @@ const { BrowserWindow } = require('electron');
 const path = require('path');
 const { getPetWindow } = require('./petWindow');
 const { bringToFront } = require('./bringToFront');
-
-// Content size (the page draws its own title bar + border inside this).
-const WIDTH = 524;
-const HEIGHT = 570;
+// Window size + page zoom, shared with the settings window (see menuSize.js).
+const { MENU_SCALE, MENU_WIDTH, MENU_HEIGHT } = require('./menuSize');
 
 let shopWindow = null;
 let displayRect = null; // { x, y, width, height } of the display box, in shop-page CSS px
@@ -44,10 +44,12 @@ function parkPet() {
   if (!pet || pet.isDestroyed()) return;
   const content = shopWindow.getContentBounds();
   const petBounds = pet.getBounds();
+  // displayRect is in the shop page's CSS px; the page is zoomed (menuSize.js), so × zoom = DIPs.
+  const zoom = shopWindow.webContents.getZoomFactor() || MENU_SCALE;
   sendToPet({
     type: 'shop-park',
-    x: content.x - petBounds.x + displayRect.x + displayRect.width / 2,
-    y: content.y - petBounds.y + displayRect.y + displayRect.height / 2,
+    x: content.x - petBounds.x + (displayRect.x + displayRect.width / 2) * zoom,
+    y: content.y - petBounds.y + (displayRect.y + displayRect.height / 2) * zoom,
   });
 }
 
@@ -68,21 +70,25 @@ function openShopWindow() {
   }
 
   shopWindow = new BrowserWindow({
-    width: WIDTH,
-    height: HEIGHT,
+    width: MENU_WIDTH,
+    height: MENU_HEIGHT,
     useContentSize: true,
     title: 'sprite.exe — shop',
     frame: false,
+    // Transparent: the art's corners (outside its hand-drawn border) are see-through.
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
     resizable: false,
     maximizable: false,
     fullscreenable: false,
-    backgroundColor: '#010021',
     // Shown once the page has painted (no blank window), and in front (see bringToFront.js).
     show: false,
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      zoomFactor: MENU_SCALE, // page laid out for 584×652, shown smaller (menuSize.js)
     },
   });
 

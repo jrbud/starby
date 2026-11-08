@@ -1,7 +1,12 @@
-// The settings window: a small normal (framed, opaque) window. Only one at a time.
+// The settings window: frameless, transparent, fixed size, same as the shop window. The page
+// draws everything: the team's background art (with "SETTINGS" on it) and an image close
+// button. No minimize / maximize / fullscreen buttons. Content scrolls inside the art's panel.
+// Only one at a time.
 const { BrowserWindow } = require('electron');
 const path = require('path');
 const { bringToFront } = require('./bringToFront');
+// Window size + page zoom, shared with the shop window (see menuSize.js).
+const { MENU_SCALE, MENU_WIDTH, MENU_HEIGHT } = require('./menuSize');
 
 let settingsWindow = null;
 
@@ -12,18 +17,26 @@ function openSettingsWindow() {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 400,
-    height: 780, // Fling power + Starbits; scrolls on short screens (Starbits can be collapsed)
-    minHeight: 320,
+    // Same size as the shop: the background art's aspect ratio (2324×2596). The page scrolls.
+    width: MENU_WIDTH,
+    height: MENU_HEIGHT,
+    useContentSize: true,
     title: 'sprite.exe — settings',
-    autoHideMenuBar: true,
-    resizable: true, // tall now; let people shrink it (the page scrolls)
+    frame: false,
+    // Transparent: the art's corners (outside its hand-drawn border) are see-through.
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
     // Shown once the page has painted (no blank window), and in front (see bringToFront.js).
     show: false,
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      zoomFactor: MENU_SCALE, // page laid out for 584×652, shown smaller (menuSize.js)
     },
   });
 

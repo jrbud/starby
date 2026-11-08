@@ -277,11 +277,9 @@ async function onAction() {
     say(LINES.cantAfford(missing(item)));
     return;
   }
-  // An accessory you just bought (while trying it on) stays on: equip it too.
-  if (item.slot === 'accessory') {
-    await api.equip(item.id);
-    updateTryOn();
-  }
+  // Whatever you just bought (color or accessory, while trying it on) stays on: equip it too.
+  await api.equip(item.id);
+  updateTryOn(); // now really worn: drop the try-on
   say(LINES.bought(item));
   // UI refresh happens via onStateChanged.
 }
@@ -294,7 +292,6 @@ function reportDisplayBox() {
 }
 
 async function boot() {
-  $('minimize').onclick = () => api.minimizeShop?.();
   $('close').onclick = () => api.closeShop?.();
   $('action').onclick = onAction;
 
