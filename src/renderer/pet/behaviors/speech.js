@@ -29,6 +29,27 @@ const IDLE_LINES = [
   'shiny day today',
   'beep boop. jk, i\'m a star',
   'stretch break? no? ok',
+  // Space stuff: he's made of starlight and has seen it all, so he's got stories (and opinions).
+  "the martians are throwing another party tonight. i'm not invited. again.",
+  "fun fact: the sun is my cousin. we don't really talk.",
+  "saturn won't stop bragging about its rings",
+  'i raced a comet once. i let it win.',
+  'pluto is still a planet in my heart',
+  'the milky way tastes nothing like milk. trust me.',
+  'black holes are just space vacuums. very rude ones.',
+  'the moon still owes me five starbits',
+  'jupiter? two stars. way too windy.',
+  'venus smells like rotten eggs. skip it.',
+  "mars is red because it's embarrassed. long story.",
+  'astronauts wave at me sometimes. i wave back.',
+  'the big dipper is just a really big spoon',
+  'a meteor told me a joke once. it was a little rocky.',
+  'the aliens say hi. the nice ones, anyway.',
+  "i've seen a supernova. 10/10, very sparkly",
+  'orion keeps losing his belt',
+  'comets are just space snowballs with main character energy',
+  'space is so quiet... perfect for naps',
+  "if you hear a tiny 'zoom', that was me. light speed.",
 ];
 
 const CLICK_LINES = [
@@ -46,6 +67,11 @@ const CLICK_LINES = [
   'hi friend',
   'heehee, stop it',
   'did you need something?',
+  'greetings, earthling!',
+  'beam me up! ...wait, i live here',
+  'one small boop for you...',
+  '*sparkles in morse code*',
+  'this is ground control... i mean, hi!',
 ];
 
 // Poke warnings: quick pokes in a row (happy/playful) get escalating warnings, so you can tell
@@ -74,8 +100,8 @@ function clickLine(ctx) {
 // sees the click in the event log first), so that click already gets a mad line.
 const CLICK_BY_MOOD = lineBags({
   happy: CLICK_LINES,
-  mad: ['hey! stop that!', 'hmph!', 'quit poking me!', 'grrr', "i'm not talking to you", '>:('],
-  playful: ['again! again!', 'hehe, catch me!', 'wheee, more!', 'tag, you\'re it!', ':P'],
+  mad: ['hey! stop that!', 'hmph!', 'quit poking me!', 'grrr', "i'm not talking to you", '>:(', "i've met friendlier black holes"],
+  playful: ['again! again!', 'hehe, catch me!', 'wheee, more!', 'tag, you\'re it!', ':P', 'launch me into orbit!', 'wheee, zero gravity!'],
   dizzy: ['@_@', 'not now... still spinning', 'whoa, two of you?', 'ugh... wobbly'],
   yawning: ['*yawn* hm?', "i'm awake, i'm awake", 'sleepy...'],
   sad: ['...', 'oh. hi.', '*sniff*'], // (a click cheers him up first, so these rarely show)
@@ -85,8 +111,8 @@ const CLICK_BY_MOOD = lineBags({
 
 const IDLE_BY_MOOD = lineBags({
   happy: IDLE_LINES,
-  mad: ['hmph.', "i'm still mad, you know", '*grumbles*', 'no starbits for pokers'],
-  playful: ['throw me again!', 'that was fun!', 'hehe', 'wheee~ (remembering)', 'bet you can\'t throw me farther'],
+  mad: ['hmph.', "i'm still mad, you know", '*grumbles*', 'no starbits for pokers', "i'm going back to space. ...in five minutes."],
+  playful: ['throw me again!', 'that was fun!', 'hehe', 'wheee~ (remembering)', 'bet you can\'t throw me farther', 'i almost reached the moon that time!'],
   dizzy: ['the room is spinning...', '@_@', 'which way is up?'],
   yawning: ['*yaaawn*', 'so sleepy...', 'nap time soon...'],
   sad: ['*sigh*', 'i just wanted to play...', '...', 'oh well.', '*kicks a pixel*'],

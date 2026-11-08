@@ -1,3 +1,7 @@
+// THINK BUBBLES: the same, in the team's thought-cloud art (assets/talkbox/think-bubble-frame-1/2.png),
+// for his dreams: createTalkbox({ style: 'think' }). One size; its little trailing dots are the
+// 'tail' (bottom-right of the art), so the cloud floats up and to the LEFT of him.
+//
 // TALKBOXES: every line Starby says is shown in the team's hand-drawn speech bubble art
 // (assets/talkbox/speech-box-<small|medium|large>-frame-1/2.png). Used by ./bubble.js (ctx.say:
 // all his speech) and ./dialogue/dialogue.js (his line in the right-click dialogue).
@@ -36,12 +40,20 @@ const TALKBOX = {
   medium: { crop: [556, 986, 2910, 2042], inner: [709, 1164, 3269, 2436], tailX: 1944 },
   small: { crop: [888, 996, 2308, 2038], inner: [1029, 1165, 2992, 2454], tailX: 1962 },
 };
+// The thought cloud (4096×4096 canvas): `inner` = the largest rectangle inside the cloud's white
+// in both frames, `tailX` = the smallest trailing dot (the bottom edge of the crop).
+const THINK = {
+  think: { crop: [174, 114, 3728, 3702], inner: [1108, 650, 2852, 2298], tailX: 3336 },
+};
+const STYLES = { speech: TALKBOX, think: THINK };
+const FILES = { large: 'speech-box-large', medium: 'speech-box-medium', small: 'speech-box-small', think: 'think-bubble' };
+const SQUISH = { speech: MIN_SQUISH, think: 0.85 }; // the cloud is round: barely squish it
 
 const art = {}; // size → [frame1, frame2]
 let loading = null;
 let boilTimer = null;
 
-export const talkboxReady = () => Object.keys(art).length > 0;
+export const talkboxReady = (style = 'speech') => Object.keys(STYLES[style]).some((size) => art[size]);
 
 // ---- One talkbox at a time ----
 // Talkboxes never overlap. While the dialogue (or an event menu) is open it TAKES his speech:
@@ -65,6 +77,12 @@ export const speechTakenBy = () => speechTaker;
 export function registerSpeechBubble(hide) {
   hideSpeechBubble = hide;
 }
+// A gate on his speech: while it returns true, ctx.say lines don't show at all (behaviors/mood.js
+// sets it: no talking while he's asleep). Dreams (bubble.showContent) aren't speech, so they still show.
+let speechGate = null;
+export function setSpeechGate(fn) { speechGate = fn; }
+export const speechMuted = () => Boolean(speechGate && speechGate());
+
 // The other direction: when the speech bubble pops up, a dialogue talkbox still animating away
 // (it just closed) is removed at once, so the two never overlap even for a moment.
 let speechShownHooks = [];
@@ -88,17 +106,21 @@ function injectStyles() {
       position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none;
     }
     .talkbox.flipped > canvas { transform: scaleY(-1); }
-    .talkbox > .f2, .talk-alt .talkbox > .f1 { visibility: hidden; }
-    .talk-alt .talkbox > .f2 { visibility: visible; }
+    /* Boil frame swap with OPACITY, not visibility: 'visibility: visible' on a child overrides a hidden
+       parent, which made empty bubbles flicker on screen while Starby was hidden before the intro. */
+    .talkbox > .f2, .talk-alt .talkbox > .f1 { opacity: 0; }
+    .talk-alt .talkbox > .f2 { opacity: 1; }
     .talkbox-text {
       position: absolute; display: flex; align-items: center; justify-content: center;
       text-align: center; color: #372118; /* the bubble's outline brown */
       font-weight: 700; line-height: 1.2; white-space: normal;
+      text-transform: lowercase; /* he never speaks in uppercase */
     }
     .talkbox-measure {
       position: fixed; left: -9999px; top: 0; visibility: hidden; width: max-content;
       font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif;
       font-weight: 700; line-height: 1.2; text-align: center; pointer-events: none;
+      text-transform: lowercase; /* (measured exactly as shown) */
     }
   `;
   document.head.appendChild(style);
@@ -110,11 +132,11 @@ export function loadTalkbox() {
   injectStyles();
   loading = (async () => {
     await new Promise((r) => setTimeout(r, LOAD_DELAY));
-    for (const [size, def] of Object.entries(TALKBOX)) {
+    for (const [size, def] of Object.entries({ ...TALKBOX, ...THINK })) { // (speech first: needed sooner)
       const frames = [];
       for (const f of [1, 2]) {
         const img = new Image();
-        img.src = `${ASSETS}/talkbox/speech-box-${size}-frame-${f}.png`;
+        img.src = `${ASSETS}/talkbox/${FILES[size]}-frame-${f}.png`;
         try {
           await img.decode();
           const [x, y, w, h] = def.crop;
@@ -144,7 +166,7 @@ export function loadTalkbox() {
  * @param {number} [o.padY]     px of room inside the white area, top/bottom
  * @param {string} [o.className] extra classes for .el
  */
-export function createTalkbox({ fontSize, maxText, padX = 10, padY = 4, className = '' }) {
+export function createTalkbox({ fontSize, maxText, padX = 10, padY = 4, className = '', style = 'speech' }) {
   injectStyles();
   const el = document.createElement('div');
   el.className = `talkbox ${className}`.trim();
@@ -161,7 +183,7 @@ export function createTalkbox({ fontSize, maxText, padX = 10, padY = 4, classNam
   Object.assign(measureEl.style, { fontSize: `${fontSize}px`, maxWidth: `${maxText}px` });
   document.body.appendChild(measureEl);
 
-  const box = { el, w: 0, h: 0, tailFrac: 0.5, inner: null, flipped: false };
+  const box = { el, style, w: 0, h: 0, tailFrac: 0.5, inner: null, flipped: false };
 
   function placeText() {
     if (!box.inner) return;
@@ -174,14 +196,14 @@ export function createTalkbox({ fontSize, maxText, padX = 10, padY = 4, classNam
   // Size the bubble so a tw × th box (content + padding) fits inside its white area.
   function fit(tw, th) {
     let best = null;
-    for (const [size, def] of Object.entries(TALKBOX)) {
+    for (const [size, def] of Object.entries(STYLES[style])) {
       if (!art[size]) continue;
       const [cx, cy, cw, ch] = def.crop;
       const [il, it, ir, ib] = [def.inner[0] + INSET.x, def.inner[1] + INSET.y, def.inner[2] - INSET.x, def.inner[3] - INSET.y];
       // css px per art px, across. Never below what the content's HEIGHT needs at the natural
       // (unsquished) shape either, or tall content (a dreamed balloon) wouldn't fit inside.
       const sx = Math.max(tw / (ir - il), MIN_W / cw, th / (ib - it));
-      const sy = Math.min(sx, Math.max(th / (ib - it), sx * MIN_SQUISH)); // ...down: squished
+      const sy = Math.min(sx, Math.max(th / (ib - it), sx * SQUISH[style])); // ...down: squished
       const area = cw * sx * ch * sy;
       if (!best || area < best.area) best = { size, def, sx, sy, area, cx, cy, cw, ch, il, it, ir, ib };
     }
@@ -207,7 +229,7 @@ export function createTalkbox({ fontSize, maxText, padX = 10, padY = 4, classNam
 
   /** Show `text`; sizes the bubble. Returns false if the art isn't loaded (use a fallback). */
   box.setText = (text) => {
-    if (!talkboxReady()) return false;
+    if (!talkboxReady(style)) return false;
     measureEl.textContent = text;
     if (!fit(measureEl.offsetWidth + padX * 2, measureEl.offsetHeight + padY * 2)) return false;
     textEl.textContent = text;
@@ -216,7 +238,7 @@ export function createTalkbox({ fontSize, maxText, padX = 10, padY = 4, classNam
 
   /** Show an element (e.g. a dreamed object) of w × h px instead of text. */
   box.setContent = (node, w, h) => {
-    if (!talkboxReady()) return false;
+    if (!talkboxReady(style)) return false;
     if (!fit(w + padX * 2, h + padY * 2)) return false;
     textEl.replaceChildren(node);
     return true;

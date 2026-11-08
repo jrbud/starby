@@ -7,9 +7,10 @@
 //
 // Ends:
 //   bored  after COPY_FOR seconds: "ok i'm bored now" → 'bored'
-//   wall   you try to make him walk into the edge of the usable screen (a copied move would push
-//          him more than WALL_PUSH px past it): he stops short, "hey! i'm not walking into a wall!"
-//          → 'wall'
+//   wall   you make him walk into the edge of the usable screen (a copied move would push him more
+//          than WALL_PUSH px past it): he SMACKS into it (wall-hit effects via a 'slam' log, which
+//          fx.js plays without the thrown-wall starbit drop; a squish, a little bounce back, a dazed
+//          face), then "oof! you tricked me!" → 'wall'
 //   grabbed / thrown → interrupted
 //
 // ITS OWN CATEGORY ('copycat'), like dance: not a game (not on the game buttons, not in the games
@@ -25,12 +26,15 @@
 import { rand, clamp, petBounds, startJump, cancelJump, isJumping, updateJump } from '../behaviors/motion.js';
 import { lineBag } from '../behaviors/chatter.js';
 import { TICK_SECONDS } from '../core/clock.js';
+import { strikePose } from '../behaviors/mood.js';
 
 // ---- Tuning ----
 const COPY_FOR = 30; // seconds before he gets bored
 const MAX_SPEED = 1400; // px/s: fastest he copies (a faster flick just takes him a moment longer)
 const JUMP_IGNORE = 250; // px: a cursor jump bigger than this in one frame isn't "movement"
 const WALL_PUSH = 4; // px past the edge a copied move has to push before it counts as "into the wall"
+const SMACK_SPEED = 1700; // how hard fx.js shows the smack (px/s scale of the wall-hit effects)
+const SMACK_BOUNCE = 0.12; // star-sizes he bounces back off the wall
 const STEP_PX = 26; // px travelled per little step-bob
 const STEP_BOB = 3; // px high
 const COPYCAT_EVERY = 180; // seconds between copycats (from the end of the last one)
@@ -40,7 +44,7 @@ const USER_AROUND = 3; // seconds since the cursor last moved, to count as "you'
 const LINES = {
   start: lineBag(["hehe, i'm copying you!", 'copycat!', 'whatever you do, i do!', "i'm you now!"]),
   bored: lineBag(["ok i'm bored now", 'copying is boring now...', 'ok, you win. i stop.', 'yawn. done copying!']),
-  wall: lineBag(["hey! i'm not walking into a wall!", 'nice try! no walls for me', 'nope, not falling for that!', "you can't trick me into the wall!"]),
+  wall: lineBag(['oof! you tricked me!', 'ow!! who put that wall there?', 'ouch... okay, you got me', "bonk! i didn't see that coming"]),
 };
 
 // ---- State ----
@@ -161,9 +165,22 @@ export default {
     else if (nx > b.maxX + WALL_PUSH && stepX > 0) hitWall = 'right';
     else if (ny < b.minY - WALL_PUSH && stepY < 0) hitWall = 'top';
     else if (ny > b.maxY + WALL_PUSH && stepY > 0) hitWall = 'bottom';
-    pet.x = clamp(nx, b.minX, b.maxX); // he stops short of the edge
+    pet.x = clamp(nx, b.minX, b.maxX); // right up against the edge
     pet.y = clamp(ny, b.minY, b.maxY);
-    if (hitWall) { pending = { x: 0, y: 0 }; return; }
+    if (hitWall) {
+      pending = { x: 0, y: 0 };
+      // SMACK: wall-hit effects, a squish, a little bounce back off the wall, a dazed look.
+      ctx.log('slam', { side: hitWall, speed: SMACK_SPEED });
+      cancelJump();
+      pet.squash = 0.68;
+      const back = SMACK_BOUNCE * pet.size;
+      if (hitWall === 'left') pet.x += back;
+      else if (hitWall === 'right') pet.x -= back;
+      else if (hitWall === 'top') pet.y += back;
+      else pet.y -= back;
+      strikePose(ctx, 'dizzy', 1.5);
+      return;
+    }
 
     if (Math.abs(stepX) > 0.3) pet.facing = stepX > 0 ? 1 : -1;
     // A little step-bob while he's moving, so it reads as him walking along with you.

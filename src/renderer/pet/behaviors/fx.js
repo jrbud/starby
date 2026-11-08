@@ -14,6 +14,7 @@
 // The art is drawn for one direction, so it's turned to fit:
 //   impact     crash lines drawn for a wall on his RIGHT
 //   dust/stars drawn sitting on the floor
+//   goodbye      behaviors/goodbye.js (quitting): a big star-cloud explosion on top of him
 // DevTools: starby.impactFx('left', 2000), starby.fx('burst') / ('wake') / ('swat').
 import { createEffects } from '../effects.js';
 
@@ -121,6 +122,30 @@ function burst(ctx, count, sizeK, distK) {
       front: i % 2 === 1, // some in front, some behind: a burst all around him
     });
   }
+}
+
+// ---- Goodbye explosion (behaviors/goodbye.js, when the app quits) ----
+// A big star cloud right on top of him plus a ring of them flying outward, all in front of him,
+// frames 1 ↔ 2 swapping fast (the starcloud art). Plays even if he's hushed: he's leaving.
+export function goodbyeBurst(ctx) {
+  if (!fx) return;
+  const { pet } = ctx;
+  const S = pet.size;
+  const c = centerOf(pet);
+  fx.play('starcloud', { x: c.x, y: c.y, size: S * 1.5, rotate: rand(-20, 20), life: 0.6, every: 0.07, grow: 0.5, front: true });
+  const N = 12;
+  const turn = Math.random() * Math.PI * 2;
+  for (let i = 0; i < N; i++) {
+    const a = turn + (i / N) * Math.PI * 2 + rand(-0.2, 0.2);
+    const ux = Math.cos(a);
+    const uy = Math.sin(a);
+    const dist = S * rand(1.0, 1.8);
+    fx.play('starcloud', {
+      x: c.x + ux * S * 0.2, y: c.y + uy * S * 0.2, size: S * rand(0.45, 0.8), rotate: rand(-40, 40),
+      life: rand(0.55, 0.9), every: 0.07, drift: { x: ux * dist, y: uy * dist }, grow: -0.25, front: true,
+    });
+  }
+  ctx.log('goodbye-fx', {});
 }
 
 export default {

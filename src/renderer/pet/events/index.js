@@ -32,10 +32,11 @@
 //
 // CATEGORIES — each has its own way of starting, so they don't share a timer:
 //   category  events                              starts from                         priority
-//   sky       star-shower, shooting-star          sky timer, 20–50 min (happenings.js)  14
+//   sky       star-shower, shooting-star          sky timer, 10–15 min (happenings.js)  14
 //   games     tag, pong, hide-seek, catch,        dialogue / tray menu / games timer   10 (invite 5)
 //             constellation, starby-says, hoop-shot, invite
-//             (games.js: every 60s, 20%, 4 min cooldown; hide-seek starts silently)
+//             (games.js: every 30s, 30%, 2 min cooldown; hide-seek starts silently;
+//             4 min with no game → he asks no matter what)
 //   copycat   copycat                             its own timer, every 3 min (copycat.js)    3
 //   dance     dance                               music playing, 1 min cooldown (dance.js)  2
 //   system    intro (100), shop (20), focus (16), launch / the shop window / the dialogue's
@@ -60,6 +61,7 @@ import focus from './focus.js';
 import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
 import { dialogue } from '../dialogue/dialogue.js';
+import { howTo } from '../howTo.js';
 
 // invite = Starby asking you to play one of the games (the games timer in games.js starts it).
 // star-shower, shooting-star = sky events, started by the sky timer (happenings.js).
@@ -78,8 +80,9 @@ export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideS
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the rest between games, requestGame and the games timer (games.js);
-// dialogue = the right-click dialogue box (../dialogue/dialogue.js); happenings = the 20–50 minute sky timer that starts a sky event (happenings.js).
-const HELPERS = [gamesMenu, happenings, dialogue];
+// dialogue = the right-click dialogue box (../dialogue/dialogue.js); happenings = the 10–15 minute sky timer that starts a sky event (happenings.js).
+// howTo = the "How To Care for Your New Starby" popup after the launch intro (../howTo.js).
+const HELPERS = [gamesMenu, happenings, dialogue, howTo];
 const WITH_HOOKS = [...EVENTS, ...HELPERS];
 
 export function createEventRunner(ctx) {

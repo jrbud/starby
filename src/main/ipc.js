@@ -85,7 +85,7 @@ function registerIpc() {
     buildPetMenu().popup({ window: win });
   });
 
-  // From the dialogue box: Settings → Quit sprite.exe / Developer stuff → Open pet DevTools.
+  // From the dialogue box: Settings → bye starby! (quit) / Developer stuff → Open pet DevTools.
   ipcMain.on('app:quit', () => app.quit());
   ipcMain.on('pet:devtools', (e) => e.sender.openDevTools({ mode: 'detach' }));
 }

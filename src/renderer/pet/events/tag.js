@@ -38,10 +38,10 @@ import { readyToPlay, markPlayed, createReady } from './games.js';
 // ---- Tuning ----
 const GAME_SECONDS = 15; // the game clock, from "GO!"
 const WIN_REWARD = 7; // starbits he shoots out when you win
-const CHASE_SPEED = [700, 900]; // px/s while he's it: close ... far (his fastest normal walk is ~160)
+const CHASE_SPEED = [800, 1040]; // px/s while he's it: close ... far (~15% faster than before; his fastest normal walk is ~160)
 const CHASE_LEAD = 0.12; // seconds: aims where the cursor is heading, not where it is
 const POUNCE_RADIUS = 160; // cursor this close while he's it → pounce
-const POUNCE_SPEED = 1350; // px/s lunge
+const POUNCE_SPEED = 1550; // px/s lunge (~15% faster, to match the chase)
 const POUNCE_FOR = 0.25; // seconds
 const POUNCE_LEAD = 0.25; // seconds: lunges at where the cursor will be
 const POUNCE_COOLDOWN = 0.8; // seconds between pounces
@@ -53,6 +53,11 @@ const JUKE_FOR = 0.3; // seconds
 const JUKE_COOLDOWN = 0.9; // seconds between jukes
 const TAG_TOUCH = 30; // px, star center to cursor: he tagged you
 const CATCH_RADIUS = 30; // px, star center to cursor: you caught him
+// Running art: moving sideways faster than this shows his 'left' / 'right' walk art (frames.js) via
+// pet.faceOverride (mood.js honours it, like catch's walk back). Below RUN_FACE_OFF he goes back to
+// the playful tag face; the gap between the two stops it flickering at the threshold.
+const RUN_FACE_ON = 140; // px/s sideways
+const RUN_FACE_OFF = 90; // px/s sideways
 const HEAD_START = 1.2; // seconds after he tags you when touching him doesn't count yet (no tag-backs)
 const DODGE_RADIUS = 240; // cursor closer than this → sprint directly away
 const KEEP_AWAY = [260, 460]; // px from the cursor he likes to hang around at while it's far
@@ -389,6 +394,10 @@ export default {
       }
       if (Math.abs(dx) > 1) pet.facing = dx > 0 ? 1 : -1;
     }
+    // Running left or right → his walk art for that side; otherwise the playful tag face.
+    const sideways = d > 0.5 ? Math.abs(dx / d) * speedNow : 0;
+    if (sideways < RUN_FACE_OFF) pet.faceOverride = null;
+    else if (sideways >= RUN_FACE_ON || pet.faceOverride) pet.faceOverride = dx < 0 ? 'left' : 'right'; // always the way he's going
     const kept = clampToScreen(ctx, pet.x, pet.y);
     pet.x = kept.x;
     pet.y = kept.y;
@@ -413,6 +422,7 @@ export default {
     const { pet } = ctx;
     endGame = null;
     countdown?.hide();
+    pet.faceOverride = null; // back to his normal faces
     if (pet.mode === 'tag') pet.mode = 'idle'; // hand him back (grabbed → stays 'drag')
     // After an actual game he stays playful for a bit (not if grabbed mid-countdown), and
     // needs a rest before the next one.

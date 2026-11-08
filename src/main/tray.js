@@ -57,7 +57,7 @@ function buildPetMenu() {
       ],
     },
     { type: 'separator' },
-    { label: 'Quit sprite.exe', click: () => app.quit() },
+    { label: 'bye starby!', click: () => app.quit() }, // quits (he says goodbye first: goodbye.js)
   ]);
 }
 

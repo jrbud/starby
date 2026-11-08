@@ -55,7 +55,7 @@ src/
       events/               scripted sequences that take over the star (index.js = runner; tag.js;
                             pong.js; invite.js = he asks you to play a random game;
                             categories: sky / games / dance (table at the top of index.js);
-                            happenings.js = 20–50 min sky timer (starShower.js, shootingStar.js);
+                            happenings.js = 10–15 min sky timer (starShower.js, shootingStar.js);
                             hideSeek.js = hide and seek; catchGame.js = catch; dance.js = dancing to music;
                             constellation.js = constellation quiz (shapes in constellations.js);
                             copycat.js = its own category: every 3 min he copies your cursor's movement;
@@ -64,6 +64,7 @@ src/
                             games.js = list of games, game buttons, rest, games timer, 3-2-1-GO;
                             prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements
+      howTo.js              the "How To Care for Your New Starby" popup at launch (don't show again)
       bubble.js             speech bubble UI (behaviors call ctx.say)
       behaviors/            one file per behavior, registered in behaviors/index.js
         idle.js walk.js drag.js cursorReact.js speech.js starbits.js systemReactions.js
