@@ -136,6 +136,18 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   - **Dance** (`category: 'dance'`, priority 2): music-triggered (P3-8), with a **1-minute cooldown** between
     dances (counted from the end of every dance).
   - Intro and shop are `category: 'system'`. The runner still supports `auto`, but nothing uses it now.
+- [x] **P1-16 (Nice) Constellation quiz.** `events/constellation.js`, a game (invite "wanna do a star quiz?",
+  game buttons as "Star Quiz", games timer, menu "Play constellation quiz"): he throws one starbit per star to
+  its spot beside him, then the constellation's lines draw in one by one (thin lines in Starby's outline brown,
+  `#3a2219`: the team's "supplementary lines" exception; the stars are the starbit PNGs). "Which constellation
+  is this?" + 4 answer buttons (the right one + 3 random others), 20s to answer. **Right** → the starbits are
+  released and float like normal drops for you to collect. **Wrong / no answer** → he takes them all back (they
+  fly into him; nothing is taken from your count). Grabbed mid-quiz → he takes them back. Shapes live in
+  `events/constellations.js` (Big Dipper, Little Dipper, Orion, Cassiopeia, Cygnus, Lyra, Leo, Scorpius,
+  Southern Cross); add one there and it's automatically a question and a wrong answer for the others.
+  Needs **held starbits** in `behaviors/starbits.js` (P2's file): `placeStarbit(ctx, x, y)` (fly to a spot and
+  stay: no drift/magnet/pickup/fade, not counted in the on-screen cap), `releaseStarbits(ctx, list)`, and
+  `reclaimStarbits(ctx, list)` (optional list; no list = all, as before). No random drops while `pet.mode === 'quiz'`.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
