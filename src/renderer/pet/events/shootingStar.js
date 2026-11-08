@@ -8,7 +8,7 @@
 // side are gone. Afterwards he says how many you caught.
 //
 // Like the star shower he isn't taken over (no pet.mode of his own). A SKY EVENT (./happenings.js):
-// high priority, interrupts a dance, shares the 20–50 minute sky timer (which waits for a running
+// high priority, interrupts a dance, shares the 10–15 minute sky timer (which waits for a running
 // game to finish). Decisions run on ticks.
 // DevTools: starby.happening('shooting-star'), or right-click → Developer → "Start shooting star now".
 import { rand, startJump, isJumping } from '../behaviors/motion.js';

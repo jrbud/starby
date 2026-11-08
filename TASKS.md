@@ -57,7 +57,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
 - [x] **P1-6 (Nice) Tag event.** First *event* (`src/renderer/pet/events/`, see below). Starts from an invite
   (P1-9), the game buttons (P1-7), the menu ("Play tag") or `starby.startEvent('tag')`. He counts down in his
   bubble ("3...", "2...", "1...", "GO!", one per second, standing still) so you can get ready. Then real tag on a **15s clock** (top-right box, shows who's it): Starby starts as it and
-  chases the cursor (700–900px/s, pounces at 1350px/s within 160px); touching you = you're it, and he runs
+  chases the cursor (800–1040px/s, pounces at 1550px/s within 160px; uses his left/right walk art while running sideways); touching you = you're it, and he runs
   (450–780px/s, jukes at 1150px/s within 120px). Touch him = he's it again: he stands still 1s, then chases. No
   tag-backs for 1.2s after he tags you. **Whoever is it when time runs out loses.** You win → he shoots out 7
   starbits in a ring (`burstStarbits` in `starbits.js`); you lose → no reward, and he pulls back any starbits on
@@ -79,7 +79,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   half the time. **One point wins:** past the AI → you win, 7 starbits burst out; past you → you lose, he takes
   back the starbits on screen. Grabbing him = foul. Starts from an invite (P1-9), the game buttons, the menu
   ("Play pong") or `starby.startEvent('pong')`. Tuning at the top of `events/pong.js`.
-- [x] **P1-9 (Nice) Starby invites you to play (any game).** `events/invite.js`: every 60s, 20% chance (4-min
+- [x] **P1-9 (Nice) Starby invites you to play (any game).** `events/invite.js`: every 30s, 30% chance (2-min
   cooldown) he picks a game at random from `GAMES` in `events/games.js` (not the same one twice in a row),
   stops and asks ("wanna play pong? i can be the ball!") with a "Play Pong with Starby? [Yes] [No]" popup
   (`events/prompt.js`). **Yes** → that game starts. **No** → `sad` mood (`moods.js` / `mood.js`: half walk speed,
@@ -88,7 +88,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   moved in the last 10s. **New games join automatically:** add them to `GAMES` with their ask lines.
   DevTools: `starby.invite()` / `starby.invite('pong')`. The menu items start games directly (no invite).
 - [x] **P1-10 (Nice) Happenings timer + Star Shower.** `events/happenings.js`: one shared timer on the session
-  clock; every 20–50 min (random gap) it starts a random *happening* from `HAPPENINGS` (weighted). Not a good
+  clock; every 10–15 min (random gap; was 20–50) it starts a random *happening* from `HAPPENINGS` (weighted). Not a good
   moment (a game/invite running, or the cursor hasn't moved for 2 min)? It retries every 60s instead of
   skipping. **Add a happening:** write its event, register it in `events/index.js`, add it to `HAPPENINGS`.
   First one, `events/starShower.js`: he shouts "THE SKY IS FALLING!" and hops; for 12s, 30 starbits fall from
@@ -113,7 +113,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   over. During the game the box is a `.hit` element, so a click with a still cursor still reaches us (the pet
   window is otherwise click-through until the cursor moves over him). Clicks are judged at the next tick.
 - [x] **P1-13 (Nice) Shooting Star + slower random tosses.** `events/shootingStar.js`: a sky event (shares the
-  20–50 min timer with Star Shower, P1-15): he yells "WATCH OUT! STARS INCOMING!", then 1.5s later
+  10–15 min timer with Star Shower, P1-15): he yells "WATCH OUT! STARS INCOMING!", then 1.5s later
   10–16 starbits shoot across the screen from the left or right as one tight clump with trails (`shootStarbit` in
   `starbits.js`; all launched within 0.2s, ±25px of one height, 910–970px/s, shared slant: ~180×50px mid-flight). Catch them as they fly past; uncaught ones fade at the far side.
   Rain and shooting stars share one "flying starbit" path in `starbits.js`. Developer menu: "Start shooting star
@@ -125,14 +125,17 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   so any new debug helper can be added to the menu without touching `pet.js`.
 - [x] **P1-15 (Nice) Event categories: sky, games, dance.** Each event has a `category`, and each category
   starts its own way (table in `events/index.js`):
-  - **Sky events** (`category: 'sky'`, priority 14; hush is 15): Star Shower, Shooting Star. Only these are on the 20–50 min
+  - **Sky events** (`category: 'sky'`, priority 14; hush is 15): Star Shower, Shooting Star. Only these are on the 10–15 min
     timer in `events/happenings.js`. A due sky event **interrupts a dance**; if a game, invite, the shop or the
     intro is running, it waits and retries every 60s.
   - **Games** (`category: 'games'`, priority 10; invite 5): Tag, Pong, Hide & Seek, Catch. They start from the
-    buttons, the menu, or the **games timer** in `events/games.js` (every 60s, 20%, 4-min cooldown, only when
+    buttons, the menu, or the **games timer** in `events/games.js` (every 30s, 30%, 2-min cooldown, only when
     nothing else is running and you're around). The timer picks a random game: announced games go through an
     invite (`events/invite.js` no longer has its own `auto` roll); Hide & Seek starts silently
     (`canStart(ctx, 'random')`).
+    **No matter what:** if 4 minutes pass without any game or invite starting, he asks you to play anyway
+    (always an invite, reason `'due'`), skipping the chance roll, mood, you-being-around, rest and the
+    10-min-after-"no" checks; it only waits while another event is running or you're holding him.
   - **Dance** (`category: 'dance'`, priority 2): music-triggered (P3-8), with a **1-minute cooldown** between
     dances (counted from the end of every dance).
   - Intro and shop are `category: 'system'`. The runner still supports `auto`, but nothing uses it now.
@@ -179,6 +182,13 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   click or left click and drag me!". During the game, presses on him and the right-click menu are caught by window
   capture listeners, so a left press never grabs him or ends the game (drag.js untouched). **Hoop art is a placeholder: the halo accessory PNG**
   (`HOOP_ART` / `HOOP_ART_BOX` in hoopShot.js; swap when a hoop is drawn).
+
+- [x] **P1-20 (Nice) Moon timer.** The game timer (`events/countdown.js`; tag, Starby Says, hoop shot) is a "moon"
+  that **ticks** away: full at the start, one slice disappears each second (clockwise from the top, like a pie
+  chart), gone at 0; it pulses for the last 5s. No numbers or text, just the moon (78px) in the starbit counter's card
+  art (110px), in the top-left corner of the usable screen. **The moon is a PLACEHOLDER: the starbit cluster PNG**
+  (`assets/starbits/cluster.png`) until moon art exists; swap `MOON_ART` (square PNG on transparent). The slices
+  are a CSS conic-gradient mask over the PNG (code only hides parts of team art; nothing is drawn).
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors

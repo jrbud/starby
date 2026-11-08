@@ -55,7 +55,7 @@ src/
       events/               scripted sequences that take over the star (index.js = runner; tag.js;
                             pong.js; invite.js = he asks you to play a random game;
                             categories: sky / games / dance (table at the top of index.js);
-                            happenings.js = 20–50 min sky timer (starShower.js, shootingStar.js);
+                            happenings.js = 10–15 min sky timer (starShower.js, shootingStar.js);
                             hideSeek.js = hide and seek; catchGame.js = catch; dance.js = dancing to music;
                             constellation.js = constellation quiz (shapes in constellations.js);
                             copycat.js = its own category: every 3 min he copies your cursor's movement;
