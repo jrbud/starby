@@ -34,6 +34,7 @@ import invite from './invite.js';
 import starShower from './starShower.js';
 import shootingStar from './shootingStar.js';
 import hideSeek from './hideSeek.js';
+import catchGame from './catchGame.js';
 import shop from './shop.js';
 import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
@@ -42,7 +43,7 @@ import { happenings } from './happenings.js';
 // star-shower, shooting-star = happenings, started by the happenings timer (happenings.js).
 // hide-seek = a game (buttons) and a happening (he hides on his own); never in invites.
 // shop = parks him in the shop window's display box while it's open (shop.js).
-export const EVENTS = [tag, pong, invite, starShower, shootingStar, hideSeek, shop];
+export const EVENTS = [tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js);

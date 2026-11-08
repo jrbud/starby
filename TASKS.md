@@ -110,6 +110,13 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   Not found in 150s → he comes out and wins. On the game buttons ([Tag] [Pong] [Hide & Seek]; `prompt.js` now
   takes any number of buttons) and in `HAPPENINGS` (he hides on his own), never in invites (`invite: false`).
   DevTools: `starby.startEvent('hide-seek')`, `starby.setHideWindow({ x, y, width, height })`, `starby.hideTest()`.
+- [x] **P1-14 (Nice) Catch.** `events/catchGame.js`, a game (buttons, invites, menu "Play catch"): "i'm gonna
+  throw myself! catch me in the box!" A dashed catch box (5 × 5 Starbys) appears on the right; he goes to the far
+  left, stretches out, says "ready?" and flings himself at the box (950px/s, ~0.35s inside it). Click/grab him
+  **inside the box** → "NICE!" + 10 starbits. Missed → "STRIKE n!", he bonks the edge, flies back, tries again;
+  3 strikes → out. Clicking him before or after the box (or while winding up / flying back) → "CHEATER!", game
+  over. During the game the box is a `.hit` element, so a click with a still cursor still reaches us (the pet
+  window is otherwise click-through until the cursor moves over him). Clicks are judged at the next tick.
 - [x] **P1-13 (Nice) Shooting Star + slower random tosses.** `events/shootingStar.js`: a happening (shares the
   20–50 min timer with Star Shower and Hide & Seek): he yells "WATCH OUT! STARS INCOMING!", then 1.5s later
   10–16 starbits shoot across the screen from the left or right as one tight clump with trails (`shootStarbit` in
