@@ -1,4 +1,4 @@
-// Persisted state (stardust, owned items, equipped items) as a small JSON file.
+// Persisted state (starbits, owned items, equipped items) as a small JSON file.
 // Schema lives in src/shared/stateSchema.js.
 //
 // Location: Electron's per-app data folder (app.getPath('userData'),

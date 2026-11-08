@@ -4,18 +4,37 @@
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
     <title>sprite.exe — shop</title>
+    <link rel="stylesheet" href="../shared/menuFrame.css" />
     <link rel="stylesheet" href="shop.css" />
+    <!-- Button art used on hover / in other states, loaded up front so swapping never flickers. -->
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-tan-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-green-idle.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-green-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-white-dark.png" />
   </head>
-  <body>
-    <header>
-      <canvas id="preview" width="96" height="96"></canvas>
-      <div>
-        <h1>Shop</h1>
-        <p class="balance"><span class="dust-icon"></span> <span id="balance">0</span> stardust</p>
-      </div>
-    </header>
-    <main id="sections"></main>
-    <p id="message" class="message"></p>
+  <body class="menu-window">
+    <!-- The background art (assets/backgrounds/shop.png) has "SHOP" written on it. -->
+    <h1 class="sr-only">Shop</h1>
+    <div class="menu-drag"></div>
+    <button id="close" class="close-button" title="Close" aria-label="Close shop">
+      <img class="idle" src="../../../assets/menuIcons/x-idle.png" alt="" draggable="false" />
+      <img class="hover" src="../../../assets/menuIcons/x-hover.png" alt="" draggable="false" />
+    </button>
+
+    <main class="panel menu-panel">
+      <section class="left">
+        <div class="wallet" title="Your starbits">
+          <img class="starbit-icon" src="../../../assets/starbits/cluster.png" alt="" />
+          <span id="balance">0</span>
+        </div>
+        <!-- Starby runs in here and stands still while the shop is open (events/shop.js). -->
+        <div id="display" class="display-box"></div>
+        <button id="action" class="action-button">Buy</button>
+      </section>
+
+      <section id="lists" class="right"></section>
+    </main>
+
     <script type="module" src="shop.js"></script>
   </body>
 </html>

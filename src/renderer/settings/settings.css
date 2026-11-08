@@ -1,0 +1,366 @@
+/* Settings window. Background art: assets/backgrounds/settings.png (frame, "SETTINGS" title,
+   grey panel). Window frame, Sour Gummy font, close button and panel placement:
+   ../shared/menuFrame.css. The cards inside are plain, flat UI. */
+:root {
+  --panel: #ffffff;
+  --ink: #2b2b3a;
+  --muted: #77768a;
+  --accent: #6c5ce7;
+  --line: #e2dff0;
+}
+
+body {
+  background-image: url('../../../assets/backgrounds/settings.png');
+  color: var(--ink);
+}
+
+/* Scrolls vertically inside the art's grey panel. */
+/* The scrollbar sits 10px in from the panel's right edge (right inset + 10px over
+   menuFrame.css), and the content's left padding matches the space on the right
+   (10px gap + 8px scrollbar + 12px padding = 30px), so it's evenly spaced on both sides. */
+.settings-scroll {
+  right: calc(8.7% + 10px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.settings-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.settings-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+.settings-scroll::-webkit-scrollbar-thumb {
+  background: #5f5587; /* the frame's purple */
+  border-radius: 4px;
+}
+
+.settings-content {
+  padding: 14px 12px 18px 30px; /* left = right side's 10px gap + 8px scrollbar + 12px */
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.setting {
+  /*background: var(--panel);*/
+  /*border: 1px solid var(--line);*/
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+  font-size: 20px;
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+label,
+.label {
+  font-weight: 600;
+}
+
+/* Collapsible section, e.g. "Starbits" (<details>; the heading is its <summary>).
+   Same look as the Admin Settings window. */
+.group > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 2px 0 4px;
+  /*border-bottom: 1px solid var(--line);*/
+  cursor: pointer;
+  list-style: none; /* hide the default triangle; we draw our own chevron below */
+  user-select: none;
+}
+
+.group > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Chevron: points right when collapsed, down when open. */
+.group > summary::before {
+  content: "";
+  align-self: center;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
+  transition: transform 150ms;
+  margin-right: 2px;
+}
+
+.group[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.group-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.group > summary:hover .group-title {
+  text-decoration: underline;
+}
+
+.group > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.group-body {
+  display: grid;
+  gap: 14px;
+  padding-top: 10px;
+}
+
+/* Starbits → Color: a grid of checkbox chips, each with a preview of that color's starbit. */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* Each color is a square tile drawn with the team's art (no visible checkbox; the real one is
+   hidden inside, see settings.js):
+     not selected → assets/menuIcons/yellow-square-idle.png  (yellow-square-hover.png on hover)
+     selected     → assets/menuIcons/unchecked-box-idle.png  (unchecked-box-hover.png on hover)
+   Hover files are preloaded in index.html. */
+.color-option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 622 / 610; /* the art's shape */
+  background: url('../../../assets/menuIcons/yellow-square-idle.png') center / 100% 100% no-repeat;
+  cursor: pointer;
+  user-select: none;
+}
+.color-option:hover,
+.color-option:has(input:focus-visible) {
+  background-image: url('../../../assets/menuIcons/yellow-square-hover.png');
+}
+.color-option:has(input:checked) {
+  background-image: url('../../../assets/menuIcons/unchecked-box-idle.png');
+}
+.color-option:has(input:checked):hover,
+.color-option:has(input:checked:focus-visible) {
+  background-image: url('../../../assets/menuIcons/unchecked-box-hover.png');
+}
+.color-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.color-option:has(input:disabled) {
+  cursor: not-allowed; /* the last color on can't be turned off */
+}
+
+/* Starbits → on/off switches: one card, a row per switch (name + help left, switch right). */
+.switches {
+  gap: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.switch-row + .switch-row {
+  /*border-top: 1px solid var(--line);*/
+}
+
+.switch-name {
+  font-weight: 600;
+}
+
+/* Checkboxes (Mute all, sound categories, Spawning / Visible / Shooting animation): real
+   checkboxes (keyboard + screen readers work as usual), drawn with the team's art:
+     unchecked → assets/menuIcons/white-square-{idle,hover}.png
+     checked   → assets/menuIcons/checked-box-{idle,hover}.png
+   Hovering anywhere on the row shows the hover art. (Hover files are preloaded in index.html.) */
+input[type="checkbox"].art-check {
+  appearance: none;
+  flex: none;
+  width: 26px;
+  height: 26px; /* art is (about) square */
+  margin: 0;
+  border: 0;
+  background: url('../../../assets/menuIcons/white-square-idle.png') center / contain no-repeat;
+  cursor: pointer;
+}
+.switch-row:hover input.art-check,
+input.art-check:focus-visible {
+  background-image: url('../../../assets/menuIcons/white-square-hover.png');
+}
+input.art-check:checked {
+  background-image: url('../../../assets/menuIcons/checked-box-idle.png');
+}
+.switch-row:hover input.art-check:checked,
+input.art-check:checked:focus-visible {
+  background-image: url('../../../assets/menuIcons/checked-box-hover.png');
+}
+
+/* Starbits → Size: slider with a live preview box on the right (fits the largest size). */
+.size-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.size-row input[type="range"] {
+  flex: 1;
+}
+
+.size-preview {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  /*border: 1px dashed var(--line);*/
+  border-radius: 8px;
+}
+
+.size-preview img {
+  object-fit: contain;
+}
+
+.color-option img {
+  width: 55%;
+  height: 55%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+output {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.detail {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+button {
+  justify-self: start;
+  /*border: 1px solid var(--line);*/
+  /*background: var(--panel);*/
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Reset to default: team art, button-white-light.png → button-white-dark.png on hover. */
+#reset {
+  width: 170px;
+  height: 56px; /* art ratio ~2.4:1 (stretched a little for the label) */
+  padding: 0 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: url('../../../assets/menuIcons/button-white-light.png') center / 100% 100% no-repeat;
+  font-weight: 700;
+}
+#reset:hover,
+#reset:focus-visible {
+  background-image: url('../../../assets/menuIcons/button-white-dark.png');
+}
+
+/* Restore default + Reset progress, side by side. */
+.reset-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Reset progress: red art (button-red-idle → button-red-hover), stretched to the same size as the
+   Restore default button. The label changes with each confirm click (settings.js). */
+#reset-progress {
+  width: 170px;
+  height: 56px;
+  padding: 0 10px 2px;
+  border: 0;
+  border-radius: 0;
+  background: url('../../../assets/menuIcons/button-red-idle.png') center / 100% 100% no-repeat;
+  font-weight: 700;
+  line-height: 1.1;
+}
+#reset-progress:hover,
+#reset-progress:focus-visible {
+  background-image: url('../../../assets/menuIcons/button-red-hover.png');
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Sound effects slider while muted: dimmed (the value is kept for when you unmute). */
+#sfx-volume.is-muted { opacity: 0.45; }
+
+/* Sounds → one row per category (built by settings.js): slider with its on/off box beside it. */
+.sound-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sound-row input[type="range"] {
+  flex: 1;
+}
+.sound-row .sound-toggle {
+  padding: 0; /* just the box; the row's label above names it */
+}
+/* What's in the category, e.g. "throws, slingshots, crashes". */
+.sound-hint {
+  display: block;
+  font-size: 14px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+.sound-row input.is-muted {
+  opacity: 0.45;
+}
+
+/* On/off box in a section header (Sounds: all sounds; Starbits: spawning). Sits at the right end
+   of the header; clicking it only flips the box, not the section's open/closed state (the box is
+   the innermost clickable element, so the <summary> doesn't toggle). */
+.group > summary {
+  align-items: center;
+}
+.group > summary .header-toggle {
+  margin-left: auto;
+  margin-right: 14px; /* line up with the boxes below (.setting's side padding) */
+}
+input.art-check.header-toggle:hover {
+  background-image: url('../../../assets/menuIcons/white-square-hover.png');
+}
+input.art-check.header-toggle:checked:hover {
+  background-image: url('../../../assets/menuIcons/checked-box-hover.png');
+}

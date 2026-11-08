@@ -1,0 +1,112 @@
+/* Shared frame for the hand-drawn menu windows (shop, settings).
+   Each window is frameless + transparent, the same size as its background art's aspect ratio
+   (2324×2596), and the art (assets/backgrounds/<menu>.png, set in the page's own CSS) fills the
+   whole window. The art already has the title written on it, so the visible title text is gone;
+   an invisible <h1 class="sr-only"> keeps the page named for screen readers.
+
+   Measured from the art (both backgrounds share the same frame):
+     title band     top ~3–16% (drag handle + close button live here)
+     inner panel    x 9.04%–91.30%, y 17.64%–90.76%  (content goes in .menu-panel) */
+
+/* FONT: "Sour Gummy" (Google Fonts, OFL), file in assets/fonts/. */
+@font-face {
+  font-family: 'Sour Gummy';
+  src: local('Sour Gummy'), url('../../../assets/fonts/SourGummy.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body.menu-window {
+  margin: 0;
+  overflow: hidden;
+  /* Longhands only, so the page's own `background-image` isn't reset by a shorthand here. */
+  background-color: transparent;
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* Drag handle for the frameless window: the art's title band. */
+.menu-drag {
+  position: fixed;
+  left: 3%;
+  right: 3%;
+  top: 0;
+  height: 16.5%;
+  -webkit-app-region: drag;
+}
+
+/* Close button: team art (assets/menuIcons/x-idle.png → x-hover.png on hover), grows a bit.
+   Both images are in the button and swapped by opacity, so hover never flickers while the
+   second file loads. Sits in the title band, right side. */
+.close-button {
+  position: fixed;
+  top: 6.6%;
+  right: 7.5%;
+  width: 40px;
+  height: 36px; /* art is 288×261 */
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transition: transform 120ms ease-out;
+  -webkit-app-region: no-drag; /* must not be part of the drag handle */
+}
+.close-button img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.close-button .hover {
+  opacity: 0;
+}
+.close-button:hover,
+.close-button:focus-visible {
+  transform: scale(1.15);
+}
+.close-button:hover .idle,
+.close-button:focus-visible .idle {
+  opacity: 0;
+}
+.close-button:hover .hover,
+.close-button:focus-visible .hover {
+  opacity: 1;
+}
+.close-button:focus-visible {
+  outline: 2px solid #ffe8a3;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* The art's inner panel. */
+.menu-panel {
+  position: fixed;
+  left: 9.04%;
+  right: 8.7%;
+  top: 17.64%;
+  bottom: 9.24%;
+  box-sizing: border-box;
+}
+
+/* Visually hidden, still read by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

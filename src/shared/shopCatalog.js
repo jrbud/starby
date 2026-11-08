@@ -1,33 +1,70 @@
 // Shop items. Purely cosmetic: no item changes behavior (drop rate, speed, etc.).
-// PLACEHOLDER ASSETS ONLY: every item is a flat color or a primitive shape id that
-// renderer/shared/sprite.js knows how to draw. No art files.
 //
-// slot:  which part of the sprite it changes ('color' | 'shape' | 'accessory')
-// value: what the renderer uses (a hex color, or a shape/accessory id)
+// slot:  which part of the sprite it changes ('color' | 'accessory')
+// value: what the renderer uses (a hex color, or an accessory id from
+//        src/renderer/pet/accessories.js, which knows the art file and where it goes)
+// set:   (colors, optional) the skin folder in assets/sprite/<set>/ with this color's hand-drawn
+//        frames. Defaults to the id minus "color-" (color-sunny → sunny). A color with no folder
+//        yet shows the sunny art; frames missing from a set come from sunny (see frames.js).
+//
+// The star has ONE shape. There is no shape slot. Don't add shape items.
+//
+// ART RULE (claude.md): colors are just a fill value, so new colors can be added here freely.
+// Accessories are hand-drawn PNGs in assets/accessories/; a new one needs its art plus an
+// entry in accessories.js (anchor/position), never a code-drawn stand-in.
+//
+// ACCESSORIES & WEARING SEVERAL (not yet): `place` says where on him an accessory goes. Today
+// he wears ONE accessory at a time (state.equipped.accessory). To allow several later, store a
+// list (e.g. state.equipped.accessories) and allow at most ONE item per place: that's the rule
+// that keeps e.g. boots and sneakers from being worn together (both 'feet'), or two hats.
+// accessoriesConflict() below already implements it; the renderer already takes a list.
+//
+// BALANCE: starbits.js drops one every 8–15s (~11.5s average), so a player who collects most
+// drops earns ~5 per minute. Cheapest items cost 25 (~5 min of play, the first purchase).
+// Accessories are bought with starbits like colors (only "None" is free):
+//   40–50   small things: lollipop, bow, tie                       (~8–10 min of play)
+//   60–70   hats and shoes: propeller hat, sneakers, boots, top hat (~12–14 min)
+//   80–90   floating extras: balloon, star trail                   (~16–18 min)
+//   100–120 the showpieces: halo, UFO                        (~20–24 min)
+// Everything (colors 60 + accessories 780) costs 840 starbits, about 2.8 hours of play.
+// For demos use the shop's demo shortcut (P4-3).
 
 const SHOP_ITEMS = [
   // Colors
   { id: 'color-sunny', slot: 'color', name: 'Sunny', price: 0, value: '#ffd84a' },
-  { id: 'color-pink', slot: 'color', name: 'Bubblegum', price: 5, value: '#ff8fc7' },
-  { id: 'color-mint', slot: 'color', name: 'Mint', price: 5, value: '#7be0b5' },
-  { id: 'color-sky', slot: 'color', name: 'Sky', price: 8, value: '#7fbfff' },
-  { id: 'color-lilac', slot: 'color', name: 'Lilac', price: 10, value: '#c6a2ff' },
+  // set: hand-drawn skin in assets/sprite/bubblegum/ (the id stays color-pink so saves that
+  // already own it keep it).
+  { id: 'color-pink', slot: 'color', name: 'Bubblegum', price: 25, value: '#ff8fc7', set: 'bubblegum' },
+  { id: 'color-sky', slot: 'color', name: 'Sky', price: 35, value: '#7fbfff' }, // assets/sprite/sky/
+  // Only colors with a hand-drawn skin are sold. (Mint, Peach, Aqua, Coral, Lilac and Moonbeam
+  // were removed; stateSchema.js migrate() drops them from old saves and puts anyone wearing
+  // one back in Sunny.)
 
-  // Shapes
-  { id: 'shape-star4', slot: 'shape', name: 'Twinkle', price: 0, value: 'star4' },
-  { id: 'shape-star5', slot: 'shape', name: 'Star', price: 10, value: 'star5' },
-  { id: 'shape-diamond', slot: 'shape', name: 'Diamond', price: 12, value: 'diamond' },
-  { id: 'shape-plus', slot: 'shape', name: 'Plus', price: 12, value: 'plus' },
-
-  // Accessories
+  // Accessories (place: head | feet | neck | leftHand | rightHand | companion | trail;
+  // left/right = HIS left/right: he faces you, so his left hand is on the screen's right)
   { id: 'accessory-none', slot: 'accessory', name: 'None', price: 0, value: 'none' },
-  { id: 'accessory-tophat', slot: 'accessory', name: 'Top hat', price: 15, value: 'tophat' },
-  { id: 'accessory-bow', slot: 'accessory', name: 'Bow', price: 15, value: 'bow' },
-  { id: 'accessory-halo', slot: 'accessory', name: 'Halo', price: 20, value: 'halo' },
+  { id: 'accessory-tophat', slot: 'accessory', name: 'Top hat', price: 70, value: 'tophat', place: 'head' },
+  { id: 'accessory-propeller', slot: 'accessory', name: 'Toy hat', price: 60, value: 'propeller', place: 'head' },
+  { id: 'accessory-bow', slot: 'accessory', name: 'Bow', price: 50, value: 'bow', place: 'head' },
+  { id: 'accessory-halo', slot: 'accessory', name: 'Halo', price: 100, value: 'halo', place: 'head' },
+  { id: 'accessory-tie', slot: 'accessory', name: 'Tie', price: 50, value: 'tie', place: 'neck' },
+  { id: 'accessory-sneakers', slot: 'accessory', name: 'Shoes', price: 60, value: 'sneakers', place: 'feet' },
+  { id: 'accessory-boots', slot: 'accessory', name: 'Boots', price: 60, value: 'boots', place: 'feet' },
+  { id: 'accessory-lollipop', slot: 'accessory', name: 'Lollipop', price: 40, value: 'lollipop', place: 'leftHand' },
+  { id: 'accessory-balloon', slot: 'accessory', name: 'Balloon', price: 80, value: 'balloon', place: 'rightHand' },
+  { id: 'accessory-ufo', slot: 'accessory', name: 'UFO', price: 120, value: 'ufo', place: 'companion' },
+  { id: 'accessory-startail', slot: 'accessory', name: 'Star trail', price: 90, value: 'startail', place: 'trail' },
 ];
 
 function getItem(id) {
   return SHOP_ITEMS.find((item) => item.id === id) || null;
 }
 
-module.exports = { SHOP_ITEMS, getItem };
+/** For wearing several later: two accessories can't be worn together if they share a place. */
+function accessoriesConflict(idA, idB) {
+  const a = getItem(idA);
+  const b = getItem(idB);
+  return Boolean(a && b && a.place && a.place === b.place && a.id !== b.id);
+}
+
+module.exports = { SHOP_ITEMS, getItem, accessoriesConflict };

@@ -5,9 +5,15 @@
   "description": "sprite.exe — a tiny star desktop companion (hackathon build, Windows only)",
   "main": "src/main/main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "node scripts/start.js"
   },
   "devDependencies": {
-    "electron": "^45.2.3"
+    "electron": "45.2.3"
+  },
+  "dependencies": {
+    "get-windows": "10.0.0"
+  },
+  "allowScripts": {
+    "get-windows@10.0.0": true
   }
 }

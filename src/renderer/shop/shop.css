@@ -1,107 +1,246 @@
-/* Plain, flat UI. Items are colored swatches / primitive shapes — no illustrated art. */
+/* Shop window, matching the team's buy.png mockup.
+   Art used: assets/backgrounds/shop.png (the whole window: frame, "SHOP" title, starry panel),
+   assets/menuIcons/x-*.png (close), assets/starbits/cluster.png (starbit icon).
+   Window frame, font, close button and panel placement: ../shared/menuFrame.css.
+   Everything else is flat UI chrome (boxes, text, ▲ ▼ glyphs). */
+
 :root {
-  --bg: #f6f4fb;
-  --panel: #ffffff;
-  --ink: #2b2b3a;
-  --muted: #77768a;
-  --accent: #6c5ce7;
-  --line: #e2dff0;
+  --display-bg: #51515154;
+  --button-bg: #dbdbdb7e;
+  --button-selected-bg: #dbdbdbbf;
+  --yellow: #ffe8a3;
+  --window-bg: #010021;
+  --window-button-outline: #0c218f;
+  --outline: #595959;
+  --ink: #010021;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  padding: 16px;
-  background: var(--bg);
+  background-image: url('../../../assets/backgrounds/shop.png');
   color: var(--ink);
-  font-family: "Segoe UI", system-ui, sans-serif;
+  user-select: none;
 }
 
-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-#preview {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-
-h1 {
-  margin: 0;
-  font-size: 22px;
-}
-
-h2 {
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-  margin: 16px 0 8px;
-}
-
-.balance {
-  margin: 4px 0 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dust-icon {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  background: #e6c84a;
-  transform: rotate(45deg);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 8px;
-}
-
-.item {
-  background: var(--panel);
-  border: 2px solid var(--line);
-  border-radius: 10px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-}
-
-.item.equipped {
-  border-color: var(--accent);
-}
-
-.item canvas {
-  display: block;
-}
-
-.item button {
-  width: 100%;
-  border: 0;
-  border-radius: 6px;
-  padding: 4px 0;
+button {
   font: inherit;
   cursor: pointer;
-  background: var(--accent);
-  color: #fff;
 }
 
-.item button:disabled {
-  background: var(--line);
-  color: var(--muted);
+/* ---- The panel: the art's starry inner box (~480×477, placed by .menu-panel) ---- */
+.panel {
+  display: grid;
+  grid-template-columns: 256px 1fr; /* 26px padding + 220px display box + 10px gap */
+  overflow: hidden;
+}
+
+/* Left: wallet, display box, Buy/Equip. Fixed: never scrolls (the star stands in the box).
+   26px from the panel's left edge = the right side's 10px gap + 6px scrollbar + 10px padding,
+   so the content is evenly spaced from both edges. */
+.left {
+  padding: 14px 0 0 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* All buttons below are drawn with the team's art (assets/menuIcons/button-*.png), stretched to
+   the button's box. Hover files are preloaded in index.html so swapping never flickers. */
+.wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 118px;
+  height: 42px; /* art ratio ~2.7:1 */
+  padding: 0 18px;
+  background: url('../../../assets/menuIcons/button-idle.png') center / 100% 100% no-repeat;
+  color: var(--yellow); /* light text on the dark purple art */
+  font-size: 24px;
+  font-weight: 700;
+}
+.wallet .starbit-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.starbit-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex: none;
+}
+
+.display-box {
+  width: 220px;
+  height: 162px;
+  margin-top: 12px;
+  /*border: 1.5px solid var(--outline);*/
+  /*background: var(--display-bg);*/
+}
+
+/* Buy / Equip. States set by renderAction() in shop.js:
+     .buy    enough starbits  → green art (green-hover on hover)
+     .grey   not enough       → white art (white-dark on hover); still clickable, Starby explains
+     .equip  owned, not worn  → white art (white-dark on hover)
+     .done   already wearing  → white art, faded, no hover */
+.action-button {
+  align-self: flex-start;
+  margin: 16px 0 0 45px; /* centered under the 220px box: (220 - 130) / 2 */
+  width: 130px;
+  height: 46px; /* art ratio ~2.4:1 */
+  padding: 0 0 2px;
+  border: 0;
+  background: url('../../../assets/menuIcons/button-white-light.png') center / 100% 100% no-repeat;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 800;
+}
+.action-button.buy {
+  background-image: url('../../../assets/menuIcons/button-green-idle.png');
+}
+.action-button.buy:hover,
+.action-button.buy:focus-visible {
+  background-image: url('../../../assets/menuIcons/button-green-hover.png');
+}
+.action-button.grey:hover,
+.action-button.grey:focus-visible,
+.action-button.equip:hover,
+.action-button.equip:focus-visible {
+  background-image: url('../../../assets/menuIcons/button-white-dark.png');
+}
+.action-button.grey {
+  color: #555555;
+  cursor: not-allowed;
+}
+.action-button.done {
+  opacity: 0.75;
   cursor: default;
 }
 
-.message {
-  min-height: 1.2em;
-  color: var(--muted);
-  font-size: 13px;
+/* Right: dropdown sections. This column scrolls; the yellow bar is its scrollbar. */
+/* Scrollbar 10px in from the panel's right edge (margin-right). */
+.right {
+  overflow-y: scroll;
+  margin-right: 10px;
+  padding: 26px 8px 16px 6px; /* + .items' 2px right padding = 10px, matching the left side */
+}
+
+.right::-webkit-scrollbar {
+  width: 6px;
+}
+.right::-webkit-scrollbar-track {
+  background: rgba(255, 232, 163, 0.25);
+  border-radius: 3px;
+  margin: 24px 0;
+}
+.right::-webkit-scrollbar-thumb {
+  background: var(--yellow);
+  border-radius: 3px;
+}
+
+.section + .section {
+  margin-top: 6px;
+}
+
+/* "Colors ▲" / "Accessories ▼": click to open/close the list under it. */
+.section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--yellow);
+  font-size: 28px;
+  font-weight: 800;
+  /* Dark outline (the art's border color) around the text, its underline and the ▲/▼ arrow:
+     a 1.5px shadow in 8 directions. */
+  --outline-dark: #2b2236;
+  text-shadow:
+    -1.5px -1.5px 0 var(--outline-dark), 0 -1.5px 0 var(--outline-dark), 1.5px -1.5px 0 var(--outline-dark),
+    -1.5px 0 0 var(--outline-dark), 1.5px 0 0 var(--outline-dark),
+    -1.5px 1.5px 0 var(--outline-dark), 0 1.5px 0 var(--outline-dark), 1.5px 1.5px 0 var(--outline-dark);
+}
+.section-toggle .label {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.section-toggle .arrow {
+  font-size: 14px;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 10px 2px 8px 0;
+}
+.section.closed .items {
+  display: none;
+}
+
+/* Item rows: tan button art (button-tan-idle → button-tan-hover on hover). The selected row uses
+   the hover art plus a soft yellow glow that follows the art's hand-drawn edge. */
+.item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: 42px;
+  padding: 0 12px; /* clear of the art's drawn border */
+  border: 0;
+  background: url('../../../assets/menuIcons/button-tan-idle.png') center / 100% 100% no-repeat;
+  color: var(--ink);
+  font-size: 18px; /* rows got narrower with the scroll spacing: longest names still fit */
+  text-align: left;
+}
+.item:hover,
+.item:focus-visible,
+.item.selected {
+  background-image: url('../../../assets/menuIcons/button-tan-hover.png');
+}
+.item.selected {
+  filter: drop-shadow(0 0 3px var(--yellow)) drop-shadow(0 0 1px var(--yellow));
+}
+
+/* Item art (team PNGs). Hidden when the file doesn't exist yet. */
+.item-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: none;
+}
+
+/* Color rows: a ★ glyph tinted with the item's color (set inline from shopCatalog.js).
+   Segoe UI Symbol has the glyph; Sour Gummy may not. */
+.color-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI Symbol', 'Segoe UI', sans-serif;
+  font-size: 20px;
+  line-height: 1;
+  -webkit-text-stroke: 0.5px rgba(1, 0, 33, 0.35); /* keeps pale colors (Moonbeam) visible */
+}
+
+.item-name {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.price {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 17px;
+}
+.price .starbit-icon {
+  width: 16px;
+  height: 16px;
 }

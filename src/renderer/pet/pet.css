@@ -1,4 +1,4 @@
-/* The whole window is transparent; only the sprite, bubble and stardust are drawn. */
+/* The whole window is transparent; only the sprite, bubble and starbits are drawn. */
 html,
 body {
   margin: 0;
@@ -58,18 +58,126 @@ body {
   opacity: 0;
 }
 
-/* Stardust: a tiny flat diamond. Collected by hovering, so it is NOT a .hit element. */
-.stardust {
+/* Starbits: team-drawn PNGs from assets/starbits/ (an <img> each; starbits.js picks one at
+   random). Collected by hovering, so it is NOT a .hit element.
+   Position/rotation are set every frame by behaviors/starbits.js (inline transform), so
+   transform is NOT transitioned here — that would make the floating lag and smear.
+   Size: starbits.js sets width/height inline from Settings → Starbits → Size; the 20px
+   here is only the fallback before settings load. */
+.starbits {
   position: absolute;
-  width: 8px;
-  height: 8px;
-  background: #ffe680;
-  transform: rotate(45deg);
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
   pointer-events: none;
-  transition: opacity 200ms, transform 200ms;
+  user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform;
+  transition: opacity 200ms;
 }
 
-.stardust.collected {
+/* The pickup rise/shrink is applied inline from starbits.js; this just fades it.
+   (Only used when COLLECT_STYLE = 'fade' in starbits.js.) */
+.starbits.collected {
   opacity: 0;
-  transform: rotate(45deg) translateY(-12px) scale(0.5);
+}
+
+/* Launch intro (events/intro.js): the "Starby" title art, centered; intro.js sets its size and
+   position and animates it. Never clickable (not .hit), so the desktop works during the intro. */
+.intro-title {
+  position: absolute;
+  pointer-events: none;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+}
+
+/* Before the intro flings him in, Starby isn't on screen at all: hide everything on the stage
+   (his body, accessories/floaters, mood label, ...) except the title. */
+#stage.intro-prelaunch > :not(.intro-title) {
+  visibility: hidden !important;
+}
+
+.intro-title canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Settings → Starbits → Visible off: starbits.js puts this class on the stage. Starbits and
+   their trails are hidden (still there and collectable); the count card still shows. */
+.starbits-hidden .starbits {
+  visibility: hidden;
+}
+
+/* Trail left behind a starbit zipping to the corner: copies of the starbit that fade out.
+   starbits.js sets the opacity/transform transition inline. */
+.starbits-ghost {
+  opacity: 0.55;
+}
+
+/* Sour Gummy, the shop's font (same file and fallbacks as src/renderer/shop/shop.css). */
+@font-face {
+  font-family: 'Sour Gummy';
+  src: local('Sour Gummy'), url('../../../assets/fonts/SourGummy.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* Starbits notification card (top right of the usable screen). Slides in from the right edge
+   when a starbit is picked up and back out a couple of seconds after the last one lands.
+   Styled like the shop: team-drawn card art (assets/backgrounds/starCardBg.png, stretched to
+   the card), the starbit cluster icon, Sour Gummy in the shop's yellow. NOT a .hit element,
+   so it stays click-through. starbits.js sets right/top. */
+.starbits-toast {
+  --toast-yellow: #ffe8a3; /* shop.css --yellow */
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 58px;
+  min-width: 150px;
+  /* The art's thick hand-drawn border is ~6% of its width / ~15% of its height. */
+  padding: 0 22px 2px;
+  background: url('../../../assets/backgrounds/starCardBg.png') center / 100% 100% no-repeat;
+  color: var(--toast-yellow);
+  font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3)); /* follows the art's wobbly edge */
+  white-space: nowrap;
+  pointer-events: none;
+  /* Hidden: parked just off the right edge. Slide out = ease-in (speeds up as it leaves). */
+  opacity: 0;
+  transform: translateX(calc(100% + 24px));
+  transition: transform 320ms cubic-bezier(0.55, 0, 0.75, 0.2), opacity 320ms ease-in;
+}
+
+.starbits-toast.visible {
+  opacity: 1;
+  transform: translateX(0);
+  /* Slide in = springy ease-out with a slight overshoot, so it lands softly. */
+  transition: transform 380ms cubic-bezier(0.2, 1.4, 0.4, 1), opacity 160ms ease-out;
+}
+
+.starbits-toast-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: none;
+}
+
+.starbits-toast-count {
+  display: inline-block; /* so the pulse can scale it */
+  min-width: 1ch;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums; /* digits don't jiggle as the number changes */
+  transform-origin: 50% 60%;
+}
+
+.starbits-toast-label {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.85;
 }

@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>sprite.exe — settings</title>
+    <link rel="stylesheet" href="../shared/menuFrame.css" />
+    <link rel="stylesheet" href="settings.css" />
+    <!-- Checkbox art, loaded up front so the first hover/click doesn't flicker. -->
+    <link rel="preload" as="image" href="../../../assets/menuIcons/unchecked-box-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/checked-box-idle.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/checked-box-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/unchecked-box-idle.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/yellow-square-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-idle.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-white-dark.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-red-hover.png" />
+  </head>
+  <body class="menu-window">
+    <!-- The background art (assets/backgrounds/settings.png) has "SETTINGS" written on it. -->
+    <h1 class="sr-only">Settings</h1>
+    <div class="menu-drag"></div>
+    <button id="close" class="close-button" type="button" title="Close" aria-label="Close settings">
+      <img class="idle" src="../../../assets/menuIcons/x-idle.png" alt="" draggable="false" />
+      <img class="hover" src="../../../assets/menuIcons/x-hover.png" alt="" draggable="false" />
+    </button>
+
+    <!-- The art's grey panel; everything below scrolls inside it. -->
+    <main class="menu-panel settings-scroll">
+      <div class="settings-content">
+        <!-- Starby's size on screen (settingsStore.starbySize; pet.js resizes him live). -->
+    <section class="setting">
+        <div class="label-row">
+            <label for="starby-size">Starby size</label>
+          <output id="starby-size-value" for="starby-size">100 px</output>
+        </div>
+      <input id="starby-size" type="range" min="50" max="150" step="5" value="100" />
+    </section>
+
+
+    <section class="setting">
+      <div class="label-row">
+        <label for="fling-power">Fling power</label>
+        <output id="fling-power-value" for="fling-power">50</output>
+      </div>
+      <input id="fling-power" type="range" min="0" max="100" step="1" value="50" />
+    </section>
+
+    <!-- Sounds (played by shared/sfx.js). The box in the header turns ALL sounds on/off (checked =
+         on; saved as settingsStore.sfxMuted, reversed). "All sounds" = master volume (sfxVolume);
+         below it, one slider + on/off box per category, built by settings.js from SOUND_CATEGORIES
+         in shared/sfx.js. Letting go of a slider plays a sample. -->
+    <details class="group" data-key="sounds" open>
+      <summary>
+        <span class="group-title">Sounds</span>
+        <input id="sfx-on" type="checkbox" class="art-check header-toggle" aria-label="Sounds on" title="All sounds on/off" />
+      </summary>
+      <div class="group-body">
+
+    <section class="setting">
+      <div class="label-row">
+        <label for="sfx-volume">All sounds</label>
+        <output id="sfx-volume-value" for="sfx-volume">70%</output>
+      </div>
+      <input id="sfx-volume" type="range" min="0" max="150" step="1" value="70" />
+    </section>
+
+    <!-- One per category: name, %, slider and on/off box (settings.js). -->
+    <div id="sound-categories"></div>
+
+      </div>
+    </details>
+
+
+
+    <!-- Collapsible: click the heading (or Enter/Space). Open/closed is remembered (settings.js).
+         The box in the header turns starbit spawning on/off (settingsStore.starbitSpawning). -->
+    <details class="group" data-key="starbits" open>
+      <summary>
+        <span class="group-title">Starbits</span>
+        <input id="starbit-spawning" type="checkbox" class="art-check header-toggle" aria-label="Starbits spawning" title="Starbits spawning on/off" />
+      </summary>
+      <div class="group-body">
+
+    <section class="setting switches">
+      <label class="switch-row">
+        <span class="switch-name">Visible</span>
+        <input id="starbit-visible" type="checkbox" class="art-check" />
+      </label>
+      <label class="switch-row">
+        <span class="switch-name">Shooting animation</span>
+        <input id="starbit-shoot" type="checkbox" class="art-check" />
+      </label>
+    </section>
+
+    <section class="setting">
+      <div class="label-row">
+        <span class="label" id="starbit-colors-label">Color</span>
+<!--        <output id="starbit-colors-count"></output>-->
+      </div>
+      <!-- One checkbox per color in renderer/shared/starbitArt.js (built by settings.js). -->
+      <div id="starbit-colors" class="color-grid" role="group" aria-labelledby="starbit-colors-label"></div>
+    </section>
+
+    <section class="setting">
+      <div class="label-row">
+        <label for="starbit-size">Size</label>
+        <output id="starbit-size-value" for="starbit-size">20 px</output>
+      </div>
+      <div class="size-row">
+        <input id="starbit-size" type="range" min="10" max="48" step="1" value="20" />
+        <!-- Live preview at the chosen size (team art). -->
+        <div class="size-preview"><img id="starbit-size-preview" alt="" draggable="false" /></div>
+      </div>
+    </section>
+
+      </div>
+    </details>
+
+    <div class="reset-row">
+      <button id="reset" type="button">Restore default</button>
+      <!-- Wipes starbits + shop progress after a few confirm clicks (settings.js). -->
+      <button id="reset-progress" type="button" aria-live="polite">Reset progress</button>
+    </div>
+
+      </div>
+    </main>
+
+    <script type="module" src="settings.js"></script>
+  </body>
+</html>
