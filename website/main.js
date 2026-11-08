@@ -133,66 +133,95 @@ document.querySelectorAll('img.pose[data-frames]').forEach((img) => {
   }, 7000);
 })();
 
-// ---- Starbit field: hover over a starbit to collect it (same rule as the app) ----
+// ---- Sky starbits: float over the galaxy on both sides; hover one to collect it (like the app) ----
+// Desktop only: skipped on touch screens (no hover) and when the sides are too narrow to show
+// any galaxy. Each starbit drifts slowly inside its side strip, bouncing off the strip's edges;
+// collected ones pop and a new one appears somewhere else a moment later. No counter.
 (() => {
-  const field = document.getElementById('field');
-  const countEl = document.getElementById('count');
-  if (!field) return;
+  const layer = document.getElementById('sky-bits');
+  if (!layer || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
-  const colors = ['yellow', 'pink', 'blue', 'green', 'teal', 'red', 'white'];
-  const KEY = 'starby-site-starbits';
-  let count = 0;
-  try { count = Number(localStorage.getItem(KEY)) || 0; } catch (e) { /* storage blocked: start at 0 */ }
-  countEl.textContent = count;
+  const COLORS = ['yellow', 'pink', 'blue', 'green', 'teal', 'red', 'white'];
+  const PER_SIDE = 6; // starbits on each side
+  const SIZE = 46; // px
+  const COLUMN = 960; // keep in sync with .column max-width in style.css
+  const GAP = 28; // px kept clear next to the column's hand-drawn edge and the screen edge
+  const MIN_SIDE = SIZE + GAP * 2; // narrower sides than this: no starbits on that side
+  const SPEED = [8, 22]; // px per second
+  const RESPAWN_MS = [900, 2200];
+  const rand = (a, b) => a + Math.random() * (b - a);
 
-  function spawn() {
-    if (field.querySelectorAll('.bit:not(.got)').length >= 9) return;
-    const bit = document.createElement('div');
-    bit.className = 'bit';
-    const c = colors[Math.floor(Math.random() * colors.length)];
-    const v = 1 + Math.floor(Math.random() * 4);
-    bit.innerHTML = `<img src="${ASSETS}/starbits/${c}${v}.png" alt="">`;
-    bit.style.left = `${8 + Math.random() * 84}%`;
-    bit.style.top = `${18 + Math.random() * 70}%`;
-    bit.style.animationDelay = `${-Math.random() * 2}s`;
-    const collect = () => {
-      if (bit.classList.contains('got')) return;
-      bit.classList.add('got');
-      count++;
-      countEl.textContent = count;
-      try { localStorage.setItem(KEY, String(count)); } catch (e) { /* fine, it just won't remember */ }
-      const counter = countEl.parentElement;
-      counter.classList.remove('pop');
-      void counter.offsetWidth;
-      counter.classList.add('pop');
-      setTimeout(() => bit.remove(), 400);
+  // Each side's free strip: { x0, x1 } in px (top to bottom is the whole window).
+  const strips = () => {
+    const side = Math.max(0, (window.innerWidth - COLUMN) / 2);
+    if (side < MIN_SIDE) return null;
+    return {
+      left: { x0: GAP, x1: side - GAP - SIZE },
+      right: { x0: window.innerWidth - side + GAP, x1: window.innerWidth - GAP - SIZE },
     };
-    bit.addEventListener('pointerenter', collect);
-    bit.addEventListener('touchstart', collect, { passive: true });
-    field.appendChild(bit);
+  };
+
+  const bits = []; // { el, side, x, y, vx, vy, got }
+
+  function place(b, s) {
+    b.x = rand(s.x0, s.x1);
+    b.y = rand(GAP, window.innerHeight - GAP - SIZE);
+    const a = rand(0, Math.PI * 2);
+    const v = rand(...SPEED);
+    b.vx = Math.cos(a) * v;
+    b.vy = Math.sin(a) * v;
   }
 
-  for (let i = 0; i < 6; i++) spawn();
-  setInterval(spawn, 1400);
+  function spawn(side) {
+    const s = strips();
+    if (!s) return;
+    const el = document.createElement('div');
+    el.className = 'sky-bit';
+    const c = COLORS[Math.floor(Math.random() * COLORS.length)];
+    el.innerHTML = `<img src="${ASSETS}/starbits/${c}${1 + Math.floor(Math.random() * 4)}.png" alt="">`;
+    el.firstChild.style.animationDelay = `${-rand(0, 3)}s`;
+    const b = { el, side, got: false };
+    place(b, s[side]);
+    el.addEventListener('pointerenter', () => {
+      if (b.got) return;
+      b.got = true;
+      el.classList.add('got'); // pop (CSS), then a new one elsewhere
+      setTimeout(() => {
+        el.remove();
+        bits.splice(bits.indexOf(b), 1);
+        spawn(side);
+      }, rand(...RESPAWN_MS));
+    });
+    layer.appendChild(el);
+    bits.push(b);
+  }
+
+  for (const side of ['left', 'right']) for (let i = 0; i < PER_SIDE; i++) spawn(side);
+
+  // Drift, bouncing inside the strip. Resizing the window keeps them inside their (new) strip.
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const s = strips();
+    layer.style.display = s ? '' : 'none';
+    if (s) {
+      const yMax = window.innerHeight - GAP - SIZE;
+      for (const b of bits) {
+        const { x0, x1 } = s[b.side];
+        if (!b.got && !reduceMotion) {
+          b.x += b.vx * dt;
+          b.y += b.vy * dt;
+        }
+        if (b.x < x0) { b.x = x0; b.vx = Math.abs(b.vx); }
+        if (b.x > x1) { b.x = x1; b.vx = -Math.abs(b.vx); }
+        if (b.y < GAP) { b.y = GAP; b.vy = Math.abs(b.vy); }
+        if (b.y > yMax) { b.y = yMax; b.vy = -Math.abs(b.vy); }
+        b.el.style.transform = `translate(${b.x}px, ${b.y}px)`;
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 })();
 
-// ---- Copy button on the commands ----
-document.querySelectorAll('.copy').forEach((b) => {
-  b.addEventListener('click', async () => {
-    const txt = document.getElementById(b.dataset.copy).textContent;
-    try {
-      await navigator.clipboard.writeText(txt);
-      b.textContent = 'Copied!';
-    } catch (e) {
-      b.textContent = 'Select & copy';
-    }
-    setTimeout(() => { b.textContent = 'Copy commands'; }, 1500);
-  });
-});
-
-// ---- Setup checklist: the settings-menu checkbox art ----
-document.querySelectorAll('.check').forEach((c) => {
-  c.addEventListener('click', () => {
-    c.setAttribute('aria-pressed', c.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
-  });
-});

@@ -30,12 +30,39 @@ body {
 /* The shop's night sky, pinned behind the page and visible at the sides (one copy: the art doesn't
    tile seamlessly). Sized to just cover the screen height, so it's shown at about half its
    native 4069×2048 and never blown up past that on normal screens. */
-body::before {
+/* Each side of the column gets its own copy of the sky, turned upright (the art is wide, the sides
+   are tall), so it's never stretched across the whole screen. The right side is the left one
+   mirrored left-to-right AND flipped upside down (i.e. turned 180°).
+   How: each strip is laid out sideways (as wide as the screen is tall, as tall as the side is wide)
+   with the art covering it, then rotated around its top-left corner into place.
+     left:  rotate(90deg)                 → covers x from 0 to --side
+     right: rotate(-90deg), from bottom   → covers x from 100vw − --side to 100vw */
+:root {
+  /* Width of each side, plus a little that hides under the column so no gap shows at its edge. */
+  --side: max(0px, calc(50vw - 480px + 24px));
+}
+body::before,
+body::after {
   content: '';
   position: fixed;
-  inset: 0;
+  top: 0;
   z-index: -1;
-  background: url('../assets/backgrounds/shopBg.png') center / auto max(1024px, 100vh) no-repeat;
+  width: 100vh;
+  height: var(--side);
+  transform-origin: top left;
+  background: url('../assets/backgrounds/shopBg.png') center / cover no-repeat;
+  pointer-events: none;
+}
+body::before {
+  left: var(--side);
+  transform: rotate(90deg);
+}
+body::after {
+  /* Mirrored AND flipped upside down = the left side turned 180°: rotate the other way (−90°)
+     around its top-left corner, anchored at the bottom of the screen. */
+  top: 100vh;
+  left: calc(100vw - var(--side));
+  transform: rotate(-90deg);
 }
 
 /* Solid column down the middle so all the text sits on one calm color (darkest purple of the sky). */
@@ -82,11 +109,6 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 0.85em; }
   border-image: url('../assets/events/tan-translucent-box.png') 110 fill / 20px stretch;
   color: var(--ink);
 }
-.starcard {
-  border: 26px solid transparent;
-  border-image: url('../assets/backgrounds/starCardBg.png') 125 fill / 26px stretch;
-}
-
 /* ---------- Hero ---------- */
 .hero {
   min-height: min(100vh, 900px);
@@ -182,7 +204,8 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 0.85em; }
 .btn-tan:hover { background-image: url('../assets/menuIcons/button-tan-hover.png'); }
 .btn-purple { color: var(--cream); background-image: url('../assets/menuIcons/button-idle.png'); }
 .btn-purple:hover { background-image: url('../assets/menuIcons/button-hover.png'); }
-.btn.small { min-width: 180px; height: 60px; font-size: 18px; margin: 6px 0; }
+.btn-green { color: var(--ink); background-image: url('../assets/menuIcons/button-green-idle.png'); }
+.btn-green:hover { background-image: url('../assets/menuIcons/button-green-hover.png'); }
 
 /* ---------- Sections ---------- */
 .section { max-width: 1080px; margin: 0 auto; padding: 72px 16px; text-align: center; }
@@ -208,33 +231,36 @@ h3 { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
 .card .pose { width: 130px; margin: 0 auto 6px; }
 .card p { margin: 0; color: var(--ink-soft); }
 
-/* ---------- Starbits field ---------- */
-.field { position: relative; height: 360px; cursor: crosshair; }
-.counter {
-  position: absolute;
-  top: 4px;
-  right: 10px;
+/* ---------- Sky starbits: floating over the galaxy on the sides (main.js moves them) ---------- */
+/* A fixed layer over the whole window that ignores the mouse; only the starbits themselves catch
+   it (hovering one collects it). Above the galaxy sides, below nothing important: they stay in
+   the side strips, never over the column. */
+.sky-bits {
+  position: fixed;
+  inset: 0;
   z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 28px;
-  color: var(--cream);
+  pointer-events: none;
+  overflow: hidden;
 }
-.counter img { width: 44px; }
-.counter.pop { animation: pop 0.3s; }
-@keyframes pop { 50% { transform: scale(1.18); } }
-.bit {
+.sky-bit {
   position: absolute;
-  width: 54px;
-  height: 54px;
-  margin: -27px 0 0 -27px;
-  animation: twinkle 1.8s ease-in-out infinite;
+  left: 0;
+  top: 0;
+  width: 46px; /* keep in sync with SIZE in main.js */
+  height: 46px;
+  pointer-events: auto;
+  cursor: crosshair;
+}
+.sky-bit img {
+  width: 100%;
+  pointer-events: none;
+  animation: twinkle 2.4s ease-in-out infinite;
   transition: opacity 0.35s, transform 0.35s;
 }
-.bit img { width: 100%; pointer-events: none; }
-.bit.got { opacity: 0; transform: translateY(-40px) scale(1.5); animation: none; }
-@keyframes twinkle { 50% { transform: translateY(-5px) rotate(8deg); } }
+.sky-bit.got img { opacity: 0; transform: translateY(-36px) scale(1.6); animation: none; }
+@keyframes twinkle {
+  50% { transform: translateY(-5px) rotate(10deg) scale(1.08); }
+}
 
 /* ---------- Dress him up: Starby wearing a hat ---------- */
 .dressed { display: flex; justify-content: center; gap: 48px; flex-wrap: wrap; }
@@ -264,62 +290,14 @@ h3 { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
   50% { transform: translateY(-14px) rotate(1.5deg); }
 }
 
-/* ---------- Setup ---------- */
-.steps {
-  list-style: none;
-  padding: 0;
-  margin: 0 auto;
-  max-width: 720px;
-  text-align: left;
-  display: grid;
-  gap: 14px;
+/* ---------- Download ---------- */
+.download .lead { margin-bottom: 24px; }
+/* The download button: big, in the green button art's shape (1500×623). */
+.btn.big { min-width: 400px; height: 140px; font-size: 36px; padding: 0 56px; }
+@media (max-width: 640px) {
+  .btn.big { min-width: 0; width: 100%; height: 110px; font-size: 28px; padding: 0 24px; }
 }
-.step { display: flex; gap: 14px; align-items: flex-start; padding: 6px 10px; }
-.step p { margin: 4px 0; }
-.step a:not(.btn) { color: var(--ink); font-weight: 600; }
-.alt { font-size: 15px; color: var(--ink-soft); overflow-wrap: anywhere; }
-
-/* Checkbox art from the settings menu: tick a step when it's done. */
-.check {
-  flex: none;
-  width: 48px;
-  height: 48px;
-  margin-top: 2px;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  background: transparent url('../assets/menuIcons/unchecked-box-idle.png') center / contain no-repeat;
-}
-.check:hover { background-image: url('../assets/menuIcons/unchecked-box-hover.png'); }
-.check[aria-pressed='true'] { background-image: url('../assets/menuIcons/checked-box-idle.png'); }
-.check[aria-pressed='true']:hover { background-image: url('../assets/menuIcons/checked-box-hover.png'); }
-
-/* The command box sits on the plain purple button art. */
-.code {
-  margin: 10px 0 2px;
-  border: 22px solid transparent;
-  border-image: url('../assets/menuIcons/button-idle.png') 125 fill / 22px stretch;
-}
-.code pre {
-  margin: -6px 0;
-  color: var(--cream);
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 17px;
-  overflow-x: auto;
-}
-
-.tips {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px;
-  margin: 24px auto 0;
-  max-width: 720px;
-  text-align: left;
-}
-.tip { padding: 4px 6px; }
-.tip h3 { color: var(--gold-2); }
-.tip ul { margin: 6px 0 0; padding-left: 20px; }
-.tip li { margin: 4px 0; }
+.download .fine { margin-top: 16px; font-size: 16px; }
 
 /* ---------- Safety + footer ---------- */
 .safe {
