@@ -12,25 +12,50 @@ import { createEventLog } from './core/eventLog.js';
 import { createEventRunner } from './events/index.js';
 import { clampToScreen } from './behaviors/motion.js';
 import { createFrames, DEFAULT_SET } from './frames.js';
+import { createAccessoryArt, drawWorn, anchorAt, OVERHANG } from './accessories.js';
+import { createFloaters } from './floaters.js';
 
 const api = window.sprite;
 const petEl = document.getElementById('pet');
 const canvas = document.getElementById('sprite');
 const stage = document.getElementById('stage');
-const bubble = createBubble(document.getElementById('bubble'));
+const bubbleEl = document.getElementById('bubble');
+const bubble = createBubble(bubbleEl);
 
-const SIZE = 64;
+// How big Starby is on screen, in css px. Everything else (hit box, ground, drag physics,
+// starbits, prompts, labels) is sized from pet.size, so changing this one number is enough.
+const SIZE = 96;
+const ART = 2048; // the art's canvas size (frames and accessories)
+const CSS_PER_ART = SIZE / ART;
 
-// The canvas is SIZE css px on screen but drawn at a higher internal resolution, so the PNG
-// art stays crisp at 125%/150%/200% display scaling.
-const RES = Math.round(SIZE * Math.max(2, window.devicePixelRatio || 1));
-canvas.width = RES;
-canvas.height = RES;
-canvas.style.width = `${SIZE}px`;
-canvas.style.height = `${SIZE}px`;
+// The canvas holds his frame (SIZE×SIZE, exactly over the #pet box) plus room around it for
+// worn accessories that stick out (a raised lollipop, a hat). It's drawn at a higher internal
+// resolution (PX canvas px per css px) so the art stays crisp at 125%/150%/200% scaling.
+// pointer-events: none, so the extra room never blocks clicks: only the #pet box is clickable.
+const PX = Math.max(2, window.devicePixelRatio || 1);
+const PAD = { top: OVERHANG.top * CSS_PER_ART, side: OVERHANG.side * CSS_PER_ART, bottom: OVERHANG.bottom * CSS_PER_ART };
+const RES = Math.round(SIZE * PX); // his frame, in canvas px
+canvas.width = Math.round((SIZE + 2 * PAD.side) * PX);
+canvas.height = Math.round((SIZE + PAD.top + PAD.bottom) * PX);
+Object.assign(canvas.style, {
+  position: 'absolute',
+  left: `${-PAD.side}px`,
+  top: `${-PAD.top}px`,
+  width: `${SIZE + 2 * PAD.side}px`,
+  height: `${SIZE + PAD.top + PAD.bottom}px`,
+  pointerEvents: 'none',
+  zIndex: '1',
+  // Squash/stretch pivots at his feet: bottom-center of the #pet box (overrides pet.css).
+  transformOrigin: `${PAD.side + SIZE / 2}px ${PAD.top + SIZE}px`,
+});
+bubbleEl.style.zIndex = '2'; // speech bubble stays in front of hats
+// The clickable box (#pet, the `.hit` element) follows SIZE too, overriding the 64px in pet.css.
+petEl.style.width = `${SIZE}px`;
+petEl.style.height = `${SIZE}px`;
 
-// Starby's hand-drawn PNG frames (see ./frames.js for file names and speeds).
+// Starby's hand-drawn PNG frames (see ./frames.js) and accessories (./accessories.js).
 const frames = createFrames(RES);
+const accessoryArt = createAccessoryArt(RES);
 
 /**
  * Shared pet state. Behaviors read and write this; pet.js renders it every frame.
@@ -49,9 +74,12 @@ const pet = {
   lookX: 0, // -1..1 eye direction (only the old drawn star used it; the PNGs have painted eyes)
   blink: false, // (old drawn star only; blinks/closed eyes are in the PNG frames now)
   face: 'happy', // which PNG frames to show; set every frame by behaviors/mood.js
+  frameFile: 'idle-1', // which PNG file is on screen right now (accessories follow its pose)
   lookUp: false, // set by events (e.g. a star shower) to make him look up
   // colorSet = folder in assets/sprite/ for the equipped color ('sunny' for 'color-sunny').
-  look: { color: '#ffd84a', colorSet: DEFAULT_SET, accessory: 'none' },
+  // accessories = what he's wearing, as accessory values (e.g. ['tophat']). A list so several
+  // can be worn at once later; for now the save holds one (see shopCatalog.js / stateSchema.js).
+  look: { color: '#ffd84a', colorSet: DEFAULT_SET, accessory: 'none', accessories: [] },
 };
 
 // Usable screen area: the whole display minus the taskbar, wherever the taskbar is (bottom,
@@ -143,27 +171,58 @@ function applyState(state) {
   prevState = structuredClone(state);
   const byId = (id) => ctx.catalog.find((item) => item.id === id);
   const colorId = state.equipped.color || `color-${DEFAULT_SET}`;
+  const accessory = byId(state.equipped.accessory)?.value ?? pet.look.accessory;
   pet.look = {
     color: byId(colorId)?.value ?? pet.look.color,
     colorSet: colorId.replace(/^color-/, ''), // each shop color is a PNG set: assets/sprite/<set>/
-    accessory: byId(state.equipped.accessory)?.value ?? pet.look.accessory,
+    accessory,
+    // A list, so wearing several later only changes how this list is filled.
+    accessories: accessory && accessory !== 'none' ? [accessory] : [],
   };
   // Load that color's frames in the background (missing files fall back to sunny meanwhile).
   frames.loadAll(pet.look.colorSet);
+  floaters.setActive(pet.look.accessories);
 }
 
+// ---- Where things are on screen ----
+const center = () => ({ x: pet.x + SIZE / 2, y: pet.y + pet.bob + SIZE / 2 });
+
+// A body point (accessories.js anchor, e.g. 'lhand') on screen, for the frame shown right now,
+// through the same transform the canvas gets in render() (squash about his feet, then the spin
+// about his middle), so e.g. the balloon string stays tied to his hand while he swings.
+function anchorOnScreen(name) {
+  const a = anchorAt(pet.frameFile || 'idle-1', name);
+  if (!a) return null;
+  const px = a.x * CSS_PER_ART; // in the #pet box, css px
+  const py = a.y * CSS_PER_ART;
+  const qx = (px - SIZE / 2) / Math.sqrt(pet.squash); // scale(1/√squash, squash) about the feet
+  const qy = (py - SIZE) * pet.squash + SIZE / 2; // ...then translateY(+half)
+  const c = Math.cos(pet.rotation);
+  const s = Math.sin(pet.rotation);
+  return {
+    x: pet.x + SIZE / 2 + qx * c - qy * s,
+    y: pet.y + pet.bob + SIZE + qx * s + qy * c - SIZE / 2, // rotate, then translateY(-half)
+  };
+}
+
+// Balloon, UFO and star trail (./floaters.js): behind him, following with a lag.
+const floaters = createFloaters({
+  stage, petEl, art: accessoryArt, size: () => SIZE, anchor: anchorOnScreen, center,
+});
+
 // ---- Render ----
+const g = canvas.getContext('2d');
+g.imageSmoothingQuality = 'high';
 let shownFace = null; // face currently on screen...
 let faceSince = 0; // ...since this time (ms), so its frames alternate from the start
-let lastFrame = null; // last image drawn into the canvas
-let lastFallbackKey = '';
+let fallback = null; // the old drawn star, only if the PNGs can't load
 
-function render(now) {
+function render(now, dt) {
   const { x, y, bob, squash, look, rotation } = pet;
   petEl.style.transform = `translate(${x}px, ${y + bob}px)`;
-  // The canvas's transform-origin is its bottom-center (squash from the feet, see pet.css).
-  // Rotation goes around the center instead: shift up half a size, rotate, shift back.
-  // Only the canvas rotates, so the speech bubble stays upright.
+  // The canvas's transform-origin is his feet (set above). Rotation goes around his middle
+  // instead: shift up half a size, rotate, shift back. Only the canvas rotates, so the speech
+  // bubble stays upright. Worn accessories are in the canvas, so they spin/squash with him.
   // No mirroring by pet.facing: the PNGs face the viewer, and walking left/right has its own
   // frames (frames.js 'left' / 'right'). Mirroring would flip the wink and tongue to the wrong side.
   const half = SIZE / 2;
@@ -177,27 +236,32 @@ function render(now) {
     shownFace = face;
     faceSince = now;
   }
-  const img = frames.frameFor(face, look.colorSet, (now - faceSince) / 1000);
-  if (img) {
-    if (img !== lastFrame) {
-      lastFrame = img;
-      const c = canvas.getContext('2d');
-      c.clearRect(0, 0, RES, RES);
-      // Frames come out of frames.js already lined up, with his feet on the bottom edge
-      // (squash pivots there, and he stands right on the taskbar).
-      c.drawImage(img, 0, 0, RES, RES);
+  const picked = frames.pick(face, look.colorSet, (now - faceSince) / 1000);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, canvas.width, canvas.height);
+  const ox = PAD.side * PX; // where his frame box starts in the canvas
+  const oy = PAD.top * PX;
+  if (picked) {
+    pet.frameFile = picked.file;
+    // Frames come out of frames.js already lined up, with his feet on the bottom edge.
+    g.drawImage(picked.img, ox, oy, RES, RES);
+    if (look.accessories.length) {
+      const u = RES / ART; // worn accessories are placed in art units
+      g.setTransform(u, 0, 0, u, ox, oy);
+      drawWorn(g, accessoryArt, look.accessories, picked.file, now / 1000);
     }
-    return;
+  } else {
+    // No PNG loaded (art missing or failed to load): fall back to the old drawn star so he's
+    // never invisible. Should only ever happen if assets/sprite/ is missing.
+    if (!fallback) {
+      fallback = document.createElement('canvas');
+      fallback.width = RES;
+      fallback.height = RES;
+    }
+    drawSprite(fallback, { ...look });
+    g.drawImage(fallback, ox, oy, RES, RES);
   }
-
-  // No PNG loaded (art missing or failed to load): fall back to the old drawn star so he's
-  // never invisible. Should only ever happen if assets/sprite/ is missing.
-  lastFrame = null;
-  const key = `${look.color}|${look.accessory}`;
-  if (key !== lastFallbackKey) {
-    lastFallbackKey = key;
-    drawSprite(canvas, { ...look });
-  }
+  floaters.update(dt, now / 1000);
 }
 
 // ---- Boot ----
@@ -210,7 +274,7 @@ async function boot() {
   // the rest of the faces keep loading in the background.
   await frames.loadEssentials(pet.look.colorSet);
   await frames.loadEssentials(DEFAULT_SET);
-  frames.loadAll(DEFAULT_SET);
+  frames.loadAll(DEFAULT_SET).then(() => accessoryArt.loadAll()); // accessories appear once loaded
 
   pet.x = workArea().left + 200;
   pet.y = groundY();
@@ -262,7 +326,7 @@ async function boot() {
       lastMode = pet.mode;
     }
 
-    render(now);
+    render(now, dt);
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

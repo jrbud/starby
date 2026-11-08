@@ -13,8 +13,9 @@ export const approach = (value, target, dt, speed = 12) =>
 // Leave room above the star so its speech bubble never goes off the top of the screen.
 export const TOP_MARGIN = 60;
 
-// Yawning: a slow, sleepy plod toward the nap corner (pet.goal), px/s. Used by idle.js and walk.js.
-export const CORNER_WALK_SPEED = [40, 55];
+// Yawning: a sleepy but purposeful walk toward the nap corner (pet.goal), px/s. Used by idle.js
+// and walk.js. (Was 40–55; sped up so he gets there in a reasonable time.)
+export const CORNER_WALK_SPEED = [80, 100];
 
 /** True when there's a goal (set by mood.js) and the star isn't standing on it yet. */
 export const hasGoalToReach = (pet) =>

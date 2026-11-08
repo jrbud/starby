@@ -1,9 +1,16 @@
 // Shop UI: buy and equip cosmetic items with starbits.
 // Equipping goes through the main process, which persists it and broadcasts 'state:changed',
 // so the on-screen sprite updates immediately.
-import { drawSprite } from '../shared/sprite.js';
+// Previews draw the real hand-drawn Starby PNG wearing the item (same placement code as the
+// pet window: ../pet/accessories.js), not the old code-drawn star.
+import { createFrames } from '../pet/frames.js';
+import { createAccessoryArt, drawPreview } from '../pet/accessories.js';
 
 const api = window.sprite;
+const PREVIEW_RES = 256; // art is shrunk to this per 2048 once, then previews draw from it
+const frames = createFrames(PREVIEW_RES);
+const accessoryArt = createAccessoryArt(PREVIEW_RES);
+const colorSetOf = (colorId) => (colorId || 'color-sunny').replace(/^color-/, '');
 const SLOT_TITLES = { color: 'Colors', accessory: 'Accessories' };
 
 const TOAST_MS = 2200;
@@ -29,9 +36,23 @@ function cardState(item) {
 
 const TAG_TEXT = { equipped: 'Wearing', owned: 'Owned', buyable: '', locked: 'Locked' };
 
-function equippedLook(overrides = {}) {
-  const value = (slot) => catalog.find((i) => i.id === state.equipped[slot])?.value;
-  return { color: value('color'), accessory: value('accessory'), ...overrides };
+// What to preview: the equipped look, with `item` (if given) swapped in.
+function previewLook(item = null) {
+  const accessory = catalog.find((i) => i.id === state.equipped.accessory)?.value || 'none';
+  return {
+    colorSet: colorSetOf(item?.slot === 'color' ? item.id : state.equipped.color),
+    accessory: item?.slot === 'accessory' ? item.value : accessory,
+  };
+}
+
+// A canvas drawn at 2x for sharpness, shown at `css` px.
+function previewCanvas(css) {
+  const c = document.createElement('canvas');
+  c.width = css * 2;
+  c.height = css * 2;
+  c.style.width = `${css}px`;
+  c.style.height = `${css}px`;
+  return c;
 }
 
 function itemCard(item) {
@@ -45,14 +66,22 @@ function itemCard(item) {
   tag.textContent = TAG_TEXT[status];
   if (!tag.textContent) tag.hidden = true;
 
-  // Preview: the current sprite with just this item swapped in.
-  const thumb = document.createElement('canvas');
-  thumb.width = 48;
-  thumb.height = 48;
-  drawSprite(thumb, equippedLook({ [item.slot]: item.value }));
+  // Preview: the current Starby with just this item swapped in.
+  const thumb = previewCanvas(56);
+  drawPreview(thumb, frames, accessoryArt, previewLook(item));
 
   const name = document.createElement('div');
   name.textContent = item.name;
+  // Colors: until each color has its own PNG set, every preview shows the sunny art, so add a
+  // small flat swatch of the color (plain UI, like the starbits icon) to tell them apart.
+  if (item.slot === 'color') {
+    const swatch = document.createElement('span');
+    Object.assign(swatch.style, {
+      display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', marginRight: '5px',
+      verticalAlign: 'middle', background: item.value, border: '1px solid rgba(0,0,0,0.25)',
+    });
+    name.prepend(swatch);
+  }
 
   const btn = document.createElement('button');
   if (status === 'equipped') {
@@ -109,7 +138,9 @@ async function equip(item) {
 
 function render() {
   $('balance').textContent = state.starbits;
-  drawSprite($('preview'), equippedLook());
+  const header = $('preview');
+  if (header.width !== 192) { header.width = 192; header.height = 192; header.style.width = '96px'; header.style.height = '96px'; }
+  drawPreview(header, frames, accessoryArt, previewLook());
 
   const sections = $('sections');
   sections.replaceChildren();
@@ -127,6 +158,12 @@ async function boot() {
   catalog = await api.getCatalog();
   state = await api.getState();
   api.onStateChanged((s) => { state = s; render(); });
+  render();
+  // The art loads in the background; redraw the previews once it's here.
+  await frames.loadEssentials(colorSetOf(state.equipped.color));
+  await frames.loadEssentials('sunny');
+  render();
+  await accessoryArt.loadAll();
   render();
 }
 

@@ -230,10 +230,40 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
       same CSS transform on the canvas, so it works on the PNGs as before. Tested in the real app.
     - **No longer visible:** eyes following the cursor, and mad's eyes looking away (the eyes are painted
       on now).
-    - **Still to do:**
-      - the old code-drawn accessories (top hat, bow, halo) don't show on the PNGs and need PNG versions;
-      - **shop previews** (`shop.js` / `sprite.js`, Person 4) still draw the old star;
-      - other color sets need their PNG folders.
+    - **Still to do:** other color sets need their PNG folders. (Accessories and shop previews are done
+      in P3-7.)
+- [x] **P3-7 Accessories (hand-drawn PNGs).** Done by Person 3; it touches Person 4's shop files (flag to Person 4).
+  - **Art:** 11 accessories in `assets/accessories/`, on the same 2048 canvas as Starby. The placement
+    table is in `assets/README.md`.
+  - **`src/renderer/pet/accessories.js` (new):**
+    - body points per frame (head, both hands, chest, both feet), measured from the art, so accessories
+      follow his pose (leaning, slumped, raised arms, dizzy sway);
+    - each accessory's placement (anchor, pivot, offset, scale);
+    - loading, and drawing worn ones into his canvas, so they spin, squash and swing with him;
+    - still previews for the shop.
+  - **Worn:** top hat, propeller hat, bow, halo (bobs slightly), tie, sneakers, boots (one shoe per
+    foot), lollipop (in HIS left hand; passes to the other hand while yawning). None cover his face.
+  - **`src/renderer/pet/floaters.js` (new), floating ones, always behind him:**
+    - **balloon:** floats just above him on a string tied to his right hand, drifting behind his
+      movement. The string is a code-drawn line (team-approved exception, noted in `claude.md`).
+    - **UFO:** loops near him.
+    - **star trail:** streams behind whichever way he moves.
+  - **`pet.js`:** the canvas now has room around his box for things that stick out (only the box is
+    clickable), and draws worn accessories after his frame. `anchorOnScreen()` maps a body point through
+    his spin and squash, so the string stays tied to his hand.
+  - **Shop (Person 4's files):**
+    - `shopCatalog.js` lists the 11 accessories, each with a `place`;
+    - `stateSchema.js` unlocks every accessory from the start, for now (`UNLOCKED_FOR_NOW`);
+    - `shop.js` previews draw the PNG Starby wearing the item, and color cards get a small swatch.
+  - **One accessory at a time for now.** The renderer already takes a list (`pet.look.accessories`), and
+    `accessoriesConflict()` in the catalog implements the rule for wearing several later: one per `place`,
+    so boots and sneakers (both `feet`) can't be worn together.
+  - **Also in this change:**
+    - sad after saying no to a game lasts 5s;
+    - he yawns after 1 minute and walks to the corner about twice as fast (`CORNER_WALK_SPEED` in
+      `motion.js`);
+    - a happy star turns playful when the cursor rests on him for 0.8s;
+    - wall bounces during a throw give him some spin (`drag.js`, `BOUNCE_SPIN_*`).
 
 ---
 

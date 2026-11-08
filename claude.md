@@ -57,6 +57,12 @@ Claude's job on the visual side is purely to write the code that loads,
 positions, animates, and swaps between asset files the team supplies — never
 to create the files themselves.
 
+Team-approved exception: simple **supplementary lines** (e.g. the balloon
+accessory's string, a thin line in Starby's outline brown) may be drawn by
+code when the team asks for them. This covers plain lines that connect or
+support existing art, not shapes, characters, accessories or effects; those
+still need hand-drawn assets.
+
 ### Asset format
 
 - **PNG with transparent background** for all sprite/character art
