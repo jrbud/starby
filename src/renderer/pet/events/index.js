@@ -30,9 +30,11 @@
 // or from the right-click menu (see src/main/ipc.js). Logged as 'event-start' / 'event-end'.
 import tag from './tag.js';
 import pong from './pong.js';
+import invite from './invite.js';
 import { gamesMenu } from './games.js';
 
-export const EVENTS = [tag, pong];
+// invite = Starby asking you to play one of the games (picks from GAMES in games.js).
+export const EVENTS = [tag, pong, invite];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js).

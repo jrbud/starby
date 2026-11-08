@@ -54,12 +54,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   jerks and fast swipes spin it. On release (`'toss'` mode) it keeps its speed and spin, glides, bounces
   off screen edges and wobbles back upright. "wheee!" on fast spins, dizzy wobble after 3+ turns.
   `pet.rotation` is rendered by `pet.js` (canvas only, so the speech bubble stays upright).
-- [x] **P1-6 (Nice) Tag event.** First *event* (`src/renderer/pet/events/`, see below). He first **asks**: stops,
-  says "wanna play tag?" and shows a Yes / No popup next to him (`events/prompt.js`, a clickable `.hit` box).
-  **No** → new `sad` mood (`moods.js` / `mood.js`: half walk speed, no hops, looks away, no "oh! hi"; 30s, or a
-  click cheers him up) and he won't ask on his own again for 10 min. No answer in 12s → "maybe later", not sad.
-  **Yes** → he counts down in his bubble ("3...", "2...", "1...", "GO!", one per second, standing still) so
-  you can get ready. Then real tag on a **15s clock** (top-right box, shows who's it): Starby starts as it and
+- [x] **P1-6 (Nice) Tag event.** First *event* (`src/renderer/pet/events/`, see below). Starts from an invite
+  (P1-9), the game buttons (P1-7), the menu ("Play tag") or `starby.startEvent('tag')`. He counts down in his
+  bubble ("3...", "2...", "1...", "GO!", one per second, standing still) so you can get ready. Then real tag on a **15s clock** (top-right box, shows who's it): Starby starts as it and
   chases the cursor (700–900px/s, pounces at 1350px/s within 160px); touching you = you're it, and he runs
   (450–780px/s, jukes at 1150px/s within 120px). Touch him = he's it again: he stands still 1s, then chases. No
   tag-backs for 1.2s after he tags you. **Whoever is it when time runs out loses.** You win → he shoots out 7
@@ -67,9 +64,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   screen (`reclaimStarbits`). Touches are spotted every
   frame (fast moves can pass between ticks) and acted on at the tick. Grabbing him mid-game = foul, game over.
   Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
-  stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
-  skips the question. Random: every 60s, 20% chance, 4-min cooldown, only when happy/playful, relaxed and the
-  cursor moved in the last 10s. Tuning at the top of `events/tag.js`.
+  stays playful afterwards. Tuning at the top of `events/tag.js`.
 - [x] **P1-7 (Nice) Ask Starby to play.** Clicking him also pops up "Play a game? [Tag] [Pong]" next to him for
   4s (`events/games.js`, shared by all games). Pressing one starts that game right away (no question back).
   After ANY game he needs a 60s rest (`GAME_REST`): asking via the buttons or the menu gets "give me a little,
@@ -82,8 +77,16 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   paddles (hit position sets the angle, max 55°; +9% speed per hit, max 1500px/s), spinning. The AI predicts
   where he'll arrive but misjudges more as he speeds up (and tops out at 430px/s), so a decent player wins about
   half the time. **One point wins:** past the AI → you win, 7 starbits burst out; past you → you lose, he takes
-  back the starbits on screen. Grabbing him = foul. Starts from the game buttons, the menu ("Play pong") or
-  `starby.startEvent('pong')`; never asks first. Tuning at the top of `events/pong.js`.
+  back the starbits on screen. Grabbing him = foul. Starts from an invite (P1-9), the game buttons, the menu
+  ("Play pong") or `starby.startEvent('pong')`. Tuning at the top of `events/pong.js`.
+- [x] **P1-9 (Nice) Starby invites you to play (any game).** `events/invite.js`: every 60s, 20% chance (4-min
+  cooldown) he picks a game at random from `GAMES` in `events/games.js` (not the same one twice in a row),
+  stops and asks ("wanna play pong? i can be the ball!") with a "Play Pong with Starby? [Yes] [No]" popup
+  (`events/prompt.js`). **Yes** → that game starts. **No** → `sad` mood (`moods.js` / `mood.js`: half walk speed,
+  no hops, looks away, no "oh! hi"; 30s, or a click cheers him up) and no invites for 10 min. No answer in 12s →
+  "maybe later", not sad. Only when he's relaxed, happy/playful, rested after the last game, and the cursor
+  moved in the last 10s. **New games join automatically:** add them to `GAMES` with their ask lines.
+  DevTools: `starby.invite()` / `starby.invite('pong')`. The menu items start games directly (no invite).
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors

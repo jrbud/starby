@@ -1,15 +1,11 @@
-// TAG — a high-priority event. The star asks if you want to play; if you do, he counts down and
-// you play real tag against a 15s clock (top-right): tags go back and forth, and whoever is
-// "it" when time runs out loses. He moves much faster than normal the whole time.
+// TAG — a high-priority event. He counts down and you play real tag against a 15s clock
+// (top-right): tags go back and forth, and whoever is "it" when time runs out loses. He moves
+// much faster than normal the whole time.
 //
-//   0. invite    he stops and asks: a Yes / No popup next to him (./prompt.js), up to INVITE_FOR s
-//                Yes → the game starts. No → he gets sad (mood.js 'sad') and won't ask again for
-//                a while. No answer → "maybe later", no hard feelings.
-//                (starby.startEvent('tag') in DevTools skips the question.)
-//
-//   ASKING HIM: click Starby → "Play a game? [Tag] [Pong]" (./games.js). Pressing Tag starts it
-//                right away (no question back). The rest between games, the tired / mad / dizzy
-//                answers and the 3-2-1 countdown are shared with pong, in ./games.js.
+//   STARTING: Starby asking you (./invite.js picks tag or another game; Yes starts it), the
+//              "Play a game? [Tag] [Pong]" buttons when you click him, the right-click menu
+//              ("Play tag"), or starby.startEvent('tag'). The rest between games, the tired /
+//              mad / dizzy answers and the 3-2-1 countdown are shared, in ./games.js.
 //   ½. ready     once a game is agreed he stays put, faces you and counts down in his bubble:
 //                "3...", "2...", "1...", "GO!" (one per second), so you can get ready
 //   1. play      "GO!" starts the GAME_SECONDS clock. Starby starts as "it".
@@ -37,12 +33,9 @@ import { requestMood } from '../behaviors/mood.js';
 import { burstStarbits, reclaimStarbits } from '../behaviors/starbits.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { createCountdown } from './countdown.js';
-import { createPrompt } from './prompt.js';
 import { readyToPlay, markPlayed, createReady } from './games.js';
 
 // ---- Tuning ----
-const INVITE_FOR = 12; // seconds to answer the popup
-const DECLINED_COOLDOWN = 600; // after a "no", don't ask again on his own for this long (seconds)
 const GAME_SECONDS = 15; // the game clock, from "GO!"
 const WIN_REWARD = 7; // starbits he shoots out when you win
 const CHASE_SPEED = [700, 900]; // px/s while he's it: close ... far (his fastest normal walk is ~160)
@@ -67,16 +60,9 @@ const MOOD_SWAP = [1.5, 3]; // seconds between playful ↔ happy
 const HOP_PER_SEC = 0.5;
 const TAUNT_GAP = 3; // seconds of quiet before a taunt
 
-// Random start (the runner rolls this): every 60s, 20% chance, at most once per 4 minutes.
-const AUTO = { every: 60, chance: 0.2, cooldown: 240 };
-const USER_AROUND = 10; // seconds since the cursor last moved, to count as "you're there"
-
 const LINES = {
-  ask: lineBag(['wanna play tag?', 'hey! play tag with me?', 'tag? pleeease?']),
   start: lineBag(["yay! let's play!", 'hehe... tag time!', "yesss! ok, here i come!"]),
-  declined: lineBag(['oh... ok.', 'aw... nevermind then', '*sniff* ok...']),
   accept: lineBag(["ooh, yes! let's play!", 'you wanna play? yay!', 'tag time! ✦']),
-  ignored: lineBag(['...maybe later then', 'oh, you\'re busy. ok!']),
   tag: lineBag(["tag! you're it!", 'tag! ✦ catch me!', "you're it! bye!"]),
   tagged: lineBag(["aw! you got me... my turn!", "no fair! ok, i'm it", "hey! ok... here i come!"]),
   chase: lineBag(["i'm gonna get you!", 'here i come!', 'you can\'t hide!']),
@@ -109,26 +95,10 @@ let jukeCooldown = 0;
 let hopT = 0;
 let wasClose = false;
 let countdown = null;
-let prompt = null;
-let answer = null; // 'yes' | 'no', set by the popup buttons, acted on at the next tick
-let inviteLeft = 0;
 const ready = createReady(); // "3... 2... 1... GO!" (./games.js)
-let declinedAt = -Infinity; // session seconds of the last "no" (kept between games)
-
-// Cursor-presence tracking for random starts (updated even when tag isn't running).
-let lastCursor = { x: -9999, y: -9999 };
-let cursorMovedAt = -Infinity;
 
 const centerOf = (pet) => ({ x: pet.x + pet.size / 2, y: pet.y + pet.size / 2 });
 const toTopLeft = (pet, c) => ({ x: c.x - pet.size / 2, y: c.y - pet.size / 2 });
-
-function trackCursor(ctx) {
-  const { cursor } = ctx;
-  if (cursor.x !== lastCursor.x || cursor.y !== lastCursor.y) {
-    lastCursor = { x: cursor.x, y: cursor.y };
-    cursorMovedAt = ctx.clock.seconds;
-  }
-}
 
 // Somewhere `dist` px from the cursor in roughly the "away" direction. If a screen edge is in
 // the way (cornered), try angling off to the sides and take whichever gets furthest.
@@ -223,21 +193,11 @@ function finish(result) {
 export default {
   name: 'tag',
   priority: 10,
-  auto: AUTO,
-
-  watch: trackCursor, // every tick, so random starts know whether you're around
-
   canStart(ctx, reason) {
     const { pet, cursor } = ctx;
     if (cursor.x < -1000) return false; // no cursor to tag yet
     if (pet.mode === 'drag' || pet.mode === 'toss') return false; // being held / thrown
-    if (!readyToPlay(ctx, reason)) return false; // asked right after a game: "i'm tired"
-    if (reason !== 'random') return true; // asked for (button / menu / DevTools): just play
-    const relaxed = pet.mode === 'idle' || pet.mode === 'walk';
-    const goodMood = pet.mood === 'happy' || pet.mood === 'playful';
-    const userAround = ctx.clock.seconds - cursorMovedAt <= USER_AROUND;
-    const notJustRefused = ctx.clock.seconds - declinedAt >= DECLINED_COOLDOWN;
-    return relaxed && goodMood && userAround && notJustRefused;
+    return readyToPlay(ctx, reason); // asked right after a game: "i'm tired"
   },
 
   start(ctx, end, reason) {
@@ -251,32 +211,13 @@ export default {
     jukeLeft = 0;
     jukeCooldown = 0;
     wasClose = false;
-    answer = null;
-    target = { x: pet.x, y: pet.y }; // stay put while asking
+    target = { x: pet.x, y: pet.y };
     countdown = countdown || createCountdown(ctx.stage, () => ctx.area ? ctx.area() : null);
-    prompt = prompt || createPrompt(ctx.stage);
 
     pet.mode = 'tag'; // behaviors stand down
     cancelJump();
-    if (reason === 'devtools' || reason === 'request') {
-      beginGame(ctx, reason === 'request' ? LINES.accept : LINES.start); // you asked: no question back
-      return;
-    }
-
-    // ---- 0. Ask first ----
-    phase = 'invite';
-    inviteLeft = INVITE_FOR;
-    startJump({ height: rand(8, 12), air: 0.25 }); // perk up
-    ctx.say(LINES.ask(), INVITE_FOR * 1000);
-    ctx.log('tag-invite', { reason });
-    prompt.show({
-      text: 'Play tag with Starby?',
-      yes: 'Yes!',
-      no: 'No',
-      onYes: () => { answer = 'yes'; },
-      onNo: () => { answer = 'no'; },
-    });
-    prompt.place(pet, ctx.area?.());
+    // You asked (button) → "ooh, yes!"; he asked and you said yes / menu / DevTools → "yay!"
+    beginGame(ctx, reason === 'request' ? LINES.accept : LINES.start);
   },
 
   onTick(ctx) {
@@ -289,32 +230,6 @@ export default {
         finish('foul');
       } else {
         finish(`interrupted:${pet.mode}`);
-      }
-      return;
-    }
-
-    // ---- 0. Waiting for an answer ----
-    if (phase === 'invite') {
-      inviteLeft -= TICK_SECONDS;
-      if (cursor.x > -1000) pet.facing = cursor.x >= centerOf(pet).x ? 1 : -1; // looks at you, hopeful
-      if (answer === 'yes') {
-        prompt.hide();
-        ctx.log('tag-answer', { answer: 'yes' });
-        beginGame(ctx);
-      } else if (answer === 'no') {
-        prompt.hide();
-        declinedAt = ctx.clock.seconds;
-        ctx.log('tag-answer', { answer: 'no' });
-        requestMood(ctx, 'sad', 'said no to tag');
-        ctx.say(LINES.declined(), 2500);
-        finish('declined');
-      } else if (inviteLeft <= 0) {
-        prompt.hide();
-        ctx.log('tag-answer', { answer: 'none' });
-        ctx.say(LINES.ignored(), 2000);
-        finish('ignored');
-      } else if (!isJumping() && chance(0.3, TICK_SECONDS)) {
-        startJump({ height: rand(6, 10), air: 0.22 }); // bouncing on the spot, waiting
       }
       return;
     }
@@ -476,7 +391,6 @@ export default {
     const kept = clampToScreen(ctx, pet.x, pet.y);
     pet.x = kept.x;
     pet.y = kept.y;
-    prompt?.place(pet, ctx.area?.()); // the yes/no popup follows him (only visible while asking)
 
     // Spot touches every frame; onTick turns them into tags (with the head-start rules).
     if (phase === 'play' && ctx.cursor.x > -1000) {
@@ -497,11 +411,9 @@ export default {
   stop(ctx) {
     const { pet } = ctx;
     endGame = null;
-    answer = null;
-    prompt?.hide();
     countdown?.hide();
     if (pet.mode === 'tag') pet.mode = 'idle'; // hand him back (grabbed → stays 'drag')
-    // After an actual game he stays playful for a bit (not after a "no" or no answer), and
+    // After an actual game he stays playful for a bit (not if grabbed mid-countdown), and
     // needs a rest before the next one.
     const played = phase === 'play'; // got past "GO!" (not a "no", or grabbed mid-count)
     if (played) markPlayed(ctx); // starts the rest between games (./games.js)
