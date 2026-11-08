@@ -10,5 +10,10 @@ export function createBubble(el) {
       hideTimer = setTimeout(() => el.classList.add('hidden'), ms);
     },
     isShowing: () => !el.classList.contains('hidden'),
+    /** Hide right now (e.g. a video call just started, see events/hush.js). */
+    hide() {
+      clearTimeout(hideTimer);
+      el.classList.add('hidden');
+    },
   };
 }
