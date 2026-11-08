@@ -34,16 +34,21 @@ const titleCase = (s) => s[0].toUpperCase() + s.slice(1);
 for (const color of STARBIT_COLORS) {
   const label = document.createElement('label');
   label.className = 'color-option';
+  // The checkbox stays (keyboard, screen readers, the change handler below) but is hidden: the
+  // tile itself shows on/off with the team's square art (settings.css, .color-option).
   const box = document.createElement('input');
   box.type = 'checkbox';
   box.value = color;
+  box.className = 'sr-only';
+  box.setAttribute('aria-label', titleCase(color));
+  label.title = titleCase(color);
   const preview = document.createElement('img');
   preview.src = starbitImage(color, 1); // the team's art for this color
   preview.alt = '';
   preview.draggable = false;
-  const name = document.createElement('span');
-  // name.textContent = titleCase(color);
-  label.append(box, preview, name);
+  // No visible name (the tile's title / the checkbox's aria-label carry it). Don't add an empty
+  // element here: the tile is a centering grid, and a 2nd item pushes the starbit off-center.
+  label.append(box, preview);
   colorGrid.append(label);
   colorBoxes.set(color, box);
   box.addEventListener('change', () => {

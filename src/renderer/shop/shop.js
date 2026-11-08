@@ -202,6 +202,19 @@ function renderLists() {
   const scroll = lists.scrollTop; // keep the scroll position across re-renders
   lists.replaceChildren(...SECTIONS.map(sectionEl));
   lists.scrollTop = scroll;
+  fitNames();
+}
+
+// Long names ("Basketball shoes") don't fit next to a price in the narrow rows: shrink just
+// those names, a step at a time, until they fit (down to a readable minimum).
+function fitNames() {
+  for (const name of document.querySelectorAll('.item-name')) {
+    let px = 18;
+    while (name.scrollWidth > name.clientWidth && px > 13) {
+      px -= 1;
+      name.style.fontSize = `${px}px`;
+    }
+  }
 }
 
 function renderAction() {

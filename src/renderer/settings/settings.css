@@ -15,7 +15,11 @@ body {
 }
 
 /* Scrolls vertically inside the art's grey panel. */
+/* The scrollbar sits 10px in from the panel's right edge (right inset + 10px over
+   menuFrame.css), and the content's left padding matches the space on the right
+   (10px gap + 8px scrollbar + 12px padding = 30px), so it's evenly spaced on both sides. */
 .settings-scroll {
+  right: calc(8.7% + 10px);
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -32,7 +36,7 @@ body {
 }
 
 .settings-content {
-  padding: 14px 16px 18px;
+  padding: 14px 12px 18px 30px; /* left = right side's 10px gap + 8px scrollbar + 12px */
   display: grid;
   gap: 14px;
   align-content: start;
@@ -126,30 +130,39 @@ label,
   margin-top: 2px;
 }
 
+/* Each color is a square tile drawn with the team's art (no visible checkbox; the real one is
+   hidden inside, see settings.js):
+     not selected → assets/menuIcons/yellow-square-idle.png  (yellow-square-hover.png on hover)
+     selected     → assets/menuIcons/white-square-idle.png   (white-square-hover.png on hover)
+   Hover files are preloaded in index.html. */
 .color-option {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  /*border: 1px solid var(--line);*/
-  border-radius: 8px;
-  font-weight: 500;
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 622 / 610; /* the art's shape */
+  background: url('../../../assets/menuIcons/yellow-square-idle.png') center / 100% 100% no-repeat;
   cursor: pointer;
   user-select: none;
 }
-
+.color-option:hover,
+.color-option:has(input:focus-visible) {
+  background-image: url('../../../assets/menuIcons/yellow-square-hover.png');
+}
 .color-option:has(input:checked) {
-  border-color: var(--accent);
-  background: #f1eefd;
+  background-image: url('../../../assets/menuIcons/white-square-idle.png');
+}
+.color-option:has(input:checked):hover,
+.color-option:has(input:checked:focus-visible) {
+  background-image: url('../../../assets/menuIcons/white-square-hover.png');
+}
+.color-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .color-option:has(input:disabled) {
-  cursor: not-allowed;
-}
-
-.color-option input {
-  margin: 0;
-  accent-color: var(--accent);
+  cursor: not-allowed; /* the last color on can't be turned off */
 }
 
 /* Starbits → on/off switches: one card, a row per switch (name + help left, switch right). */
@@ -228,9 +241,10 @@ input.art-check:checked:focus-visible {
 }
 
 .color-option img {
-  width: 18px;
-  height: 18px;
+  width: 55%;
+  height: 55%;
   object-fit: contain;
+  pointer-events: none;
 }
 
 output {
@@ -259,6 +273,21 @@ button {
   padding: 6px 12px;
   font: inherit;
   cursor: pointer;
+}
+
+/* Reset to default: team art, button-white-light.png → button-white-dark.png on hover. */
+#reset {
+  width: 170px;
+  height: 56px; /* art ratio ~2.4:1 (stretched a little for the label) */
+  padding: 0 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: url('../../../assets/menuIcons/button-white-light.png') center / 100% 100% no-repeat;
+  font-weight: 700;
+}
+#reset:hover,
+#reset:focus-visible {
+  background-image: url('../../../assets/menuIcons/button-white-dark.png');
 }
 
 button:focus-visible,

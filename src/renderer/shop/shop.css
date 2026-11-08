@@ -33,13 +33,15 @@ button {
 /* ---- The panel: the art's starry inner box (~480×477, placed by .menu-panel) ---- */
 .panel {
   display: grid;
-  grid-template-columns: 244px 1fr;
+  grid-template-columns: 256px 1fr; /* 26px padding + 220px display box + 10px gap */
   overflow: hidden;
 }
 
-/* Left: wallet, display box, Buy/Equip. Fixed: never scrolls (the star stands in the box). */
+/* Left: wallet, display box, Buy/Equip. Fixed: never scrolls (the star stands in the box).
+   26px from the panel's left edge = the right side's 10px gap + 6px scrollbar + 10px padding,
+   so the content is evenly spaced from both edges. */
 .left {
-  padding: 14px 0 0 14px;
+  padding: 14px 0 0 26px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -81,8 +83,8 @@ button {
      .equip  owned, not worn  → white art (white-dark on hover)
      .done   already wearing  → white art, faded, no hover */
 .action-button {
-  align-self: center;
-  margin: 16px 0 0 -14px; /* centered under the box */
+  align-self: flex-start;
+  margin: 16px 0 0 45px; /* centered under the 220px box: (220 - 130) / 2 */
   width: 130px;
   height: 46px; /* art ratio ~2.4:1 */
   padding: 0 0 2px;
@@ -115,9 +117,11 @@ button {
 }
 
 /* Right: dropdown sections. This column scrolls; the yellow bar is its scrollbar. */
+/* Scrollbar 10px in from the panel's right edge (margin-right). */
 .right {
   overflow-y: scroll;
-  padding: 26px 10px 16px 6px;
+  margin-right: 10px;
+  padding: 26px 8px 16px 6px; /* + .items' 2px right padding = 10px, matching the left side */
 }
 
 .right::-webkit-scrollbar {
@@ -173,14 +177,14 @@ button {
 .item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   width: 100%;
   height: 42px;
-  padding: 0 14px 0 14px; /* clear of the art's drawn border */
+  padding: 0 12px; /* clear of the art's drawn border */
   border: 0;
   background: url('../../../assets/menuIcons/button-tan-idle.png') center / 100% 100% no-repeat;
   color: var(--ink);
-  font-size: 20px;
+  font-size: 18px; /* rows got narrower with the scroll spacing: longest names still fit */
   text-align: left;
 }
 .item:hover,
