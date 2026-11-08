@@ -105,7 +105,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   "you found me!" + 10 starbits. Not found in 150s → he comes out and wins. On the game buttons, the games timer
   (he hides on his own, P1-15) and the menu ("Play hide & seek"); never in invites (`invite: false`).
 - [x] **P1-14 (Nice) Catch.** `events/catchGame.js`, a game (buttons, invites, menu "Play catch"): "i'm gonna
-  throw myself! catch me in the box!" A dashed catch box (5 × 5 Starbys) appears on the right; he goes to the far
+  throw myself! catch me in the box!" A catch box (5 × 5 Starbys, the team's tan box art `assets/events/tan-translucent-box.png`, no label above it) appears on the right; he goes to the far
   left, stretches out, says "get ready to catch me!", counts down "3... 2... 1... GO!" (before every throw) and flings himself at the box (950px/s, ~0.35s inside it). Click/grab him
   **inside the box** → "NICE!" + 10 starbits. Missed → "STRIKE n!", he bonks the edge, flies back, tries again;
   3 strikes → out. He walks back to the left facing left (the 'left' art, via `pet.faceOverride`, which

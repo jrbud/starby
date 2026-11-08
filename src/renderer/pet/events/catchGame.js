@@ -1,8 +1,8 @@
 // CATCH — a game: Starby throws himself across the screen and you catch him in the box.
 //
-//   setup   "i'm gonna throw myself! catch me in the box!" A dashed catch box (BOX_STARBYS × BOX_STARBYS
-//           Starbys big) appears on the right side of the usable screen, labelled with the strikes;
-//           he goes to the far left.
+//   setup   "i'm gonna throw myself! catch me in the box!" The catch box (BOX_STARBYS × BOX_STARBYS
+//           Starbys big; the team's tan box art, BOX_ART) appears on the right side of the usable
+//           screen; he goes to the far left. (No label above it: strikes are only said out loud.)
 //   windup  he stretches out (squashed wide, winding up), announces "get ready to catch me!" and counts
 //           down "3... 2... 1... GO!" (createReady, ./games.js), then throws. Before every throw.
 //   fly     he flings himself at the box, fast (THROW_SPEED). Click / grab him WHILE HE'S INSIDE THE
@@ -37,6 +37,7 @@ const STEP_HOP = 5; // px of that bounce
 const STRIKES_OUT = 3;
 const WIN_REWARD = 10;
 const CATCH_PAD = 12; // px around him that still counts as clicking him (from inside the box)
+const BOX_ART = '../../../assets/events/tan-translucent-box.png'; // team art; relative to src/renderer/pet/index.html
 
 const LINES = {
   intro: lineBag(["i'm gonna throw myself! catch me in the box!", 'catch me! but only in the box!']),
@@ -54,7 +55,6 @@ let strikes = 0;
 let laneY = 0; // center y of this throw
 let box = null; // { x, y, size } in pet-window coordinates
 let boxEl = null;
-let labelEl = null;
 let wasInBox = false; // his center was inside the box last frame
 let leftBox = false; // he went through and out the far side this throw
 let grab = null; // { inBox } recorded on mousedown, judged at the next tick
@@ -74,18 +74,14 @@ const inBoxNow = (pet) => {
 function buildBox(ctx) {
   boxEl = document.createElement('div');
   boxEl.className = 'catch-box hit'; // .hit: catches clicks during the game (see CLICK-THROUGH above)
+  // The box is the team's hand-drawn tan box PNG (translucent inside), stretched to the box's size.
   Object.assign(boxEl.style, {
     position: 'absolute', boxSizing: 'border-box', display: 'none',
-    border: '3px dashed rgba(255, 255, 255, 0.95)', outline: '2px solid rgba(43, 43, 58, 0.55)',
-    borderRadius: '12px', background: 'rgba(108, 92, 231, 0.10)',
+    backgroundImage: `url("${BOX_ART}")`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat',
   });
-  labelEl = document.createElement('div');
-  Object.assign(labelEl.style, {
-    position: 'absolute', left: '50%', bottom: '100%', transform: 'translateX(-50%)', marginBottom: '6px',
-    font: '700 12px "Segoe UI", system-ui, sans-serif', color: '#2b2b3a', background: 'rgba(255,255,255,0.92)',
-    border: '1px solid #2b2b3a', borderRadius: '6px', padding: '2px 8px', whiteSpace: 'nowrap', pointerEvents: 'none',
-  });
-  boxEl.appendChild(labelEl);
+  const probe = new Image(); // warn in DevTools if the art is missing (a background-image fails silently)
+  probe.onerror = () => console.warn(`[catch] missing box art: ${BOX_ART}`);
+  probe.src = BOX_ART;
   // Under Starby, so he flies in front of the box.
   ctx.stage.insertBefore(boxEl, ctx.petEl);
   // A click in the box counts if he's under the cursor (incl. a little padding).
@@ -98,12 +94,6 @@ function buildBox(ctx) {
   });
 }
 
-function showLabel() {
-  if (!labelEl) return;
-  const dots = Array.from({ length: STRIKES_OUT }, (_, i) => (i < strikes ? '●' : '○')).join(' ');
-  labelEl.textContent = `CATCH ZONE · strikes ${dots}`;
-}
-
 function placeBox(ctx) {
   const a = areaOf(ctx);
   const size = Math.min(BOX_STARBYS * ctx.pet.size, (a.bottom - a.top) - 60);
@@ -112,7 +102,6 @@ function placeBox(ctx) {
   Object.assign(boxEl.style, {
     left: `${box.x}px`, top: `${box.y}px`, width: `${size}px`, height: `${size}px`, display: 'block',
   });
-  showLabel();
 }
 
 // Where he winds up for the next throw: far left, at a height that sends him through the box.
@@ -244,7 +233,6 @@ export default {
     } else if (phase === 'fly' && leftBox) {
       // Out the far side of the box without being caught.
       strikes++;
-      showLabel();
       ctx.say(LINES.strike(strikes), 1600);
       ctx.log('catch-strike', { strikes });
       phase = 'bonk'; // keeps flying to the edge (update), then comes back or the game ends
