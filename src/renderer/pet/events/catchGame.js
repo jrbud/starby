@@ -169,6 +169,7 @@ function finish(ctx, result) {
 
 export default {
   name: 'catch',
+  category: 'games',
   priority: 10, // a game: same level as tag / pong / hide and seek
 
   init(ctx) {

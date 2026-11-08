@@ -54,9 +54,10 @@ src/
       core/                 clock.js (10 ticks/s), scheduler.js (after/every), eventLog.js
       events/               scripted sequences that take over the star (index.js = runner; tag.js;
                             pong.js; invite.js = he asks you to play a random game;
-                            happenings.js = 20–50 min timer for random happenings (starShower.js, shootingStar.js);
-                            hideSeek.js = hide and seek (a game and a happening); catchGame.js = catch;
-                            games.js = list of games, game buttons, rest between games, 3-2-1-GO;
+                            categories: sky / games / dance (table at the top of index.js);
+                            happenings.js = 20–50 min sky timer (starShower.js, shootingStar.js);
+                            hideSeek.js = hide and seek; catchGame.js = catch; dance.js = dancing to music;
+                            games.js = list of games, game buttons, rest, games timer, 3-2-1-GO;
                             prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements
       bubble.js             speech bubble UI (behaviors call ctx.say)

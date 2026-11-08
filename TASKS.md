@@ -102,8 +102,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   edge); no windows. "Behind the edge" is a CSS clip on the pet element, so a peek shows only the part sticking
   out. Every 4–9s he peeks out ~30px for 1.5s, and **each peek comes from a new random edge spot** (he moves
   there while fully hidden), so he isn't where you saw him hide. Touch him (or grab him) while he peeks → found:
-  "you found me!" + 10 starbits. Not found in 150s → he comes out and wins. On the game buttons, in `HAPPENINGS`
-  (he hides on his own) and the menu ("Play hide & seek"); never in invites (`invite: false`).
+  "you found me!" + 10 starbits. Not found in 150s → he comes out and wins. On the game buttons, the games timer
+  (he hides on his own, P1-15) and the menu ("Play hide & seek"); never in invites (`invite: false`).
 - [x] **P1-14 (Nice) Catch.** `events/catchGame.js`, a game (buttons, invites, menu "Play catch"): "i'm gonna
   throw myself! catch me in the box!" A dashed catch box (5 × 5 Starbys) appears on the right; he goes to the far
   left, stretches out, says "ready?" and flings himself at the box (950px/s, ~0.35s inside it). Click/grab him
@@ -112,8 +112,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   `mood.js` honours) on one straight path. Clicking him before or after the box (or while winding up / flying back) → "CHEATER!", game
   over. During the game the box is a `.hit` element, so a click with a still cursor still reaches us (the pet
   window is otherwise click-through until the cursor moves over him). Clicks are judged at the next tick.
-- [x] **P1-13 (Nice) Shooting Star + slower random tosses.** `events/shootingStar.js`: a happening (shares the
-  20–50 min timer with Star Shower and Hide & Seek): he yells "WATCH OUT! STARS INCOMING!", then 1.5s later
+- [x] **P1-13 (Nice) Shooting Star + slower random tosses.** `events/shootingStar.js`: a sky event (shares the
+  20–50 min timer with Star Shower, P1-15): he yells "WATCH OUT! STARS INCOMING!", then 1.5s later
   10–16 starbits shoot across the screen from the left or right as one tight clump with trails (`shootStarbit` in
   `starbits.js`; all launched within 0.2s, ±25px of one height, 910–970px/s, shared slant: ~180×50px mid-flight). Catch them as they fly past; uncaught ones fade at the far side.
   Rain and shooting stars share one "flying starbit" path in `starbits.js`. Developer menu: "Start shooting star
@@ -123,6 +123,19 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   Open pet DevTools, Start star shower now, Start shooting star now, Starby invites you to a game, Skip game rest (`starby.skipRest()`), Stop
   current event. Menu items send `{ type: 'starby', fn, args }` and `pet.js` calls `window.starby[fn](...args)`,
   so any new debug helper can be added to the menu without touching `pet.js`.
+- [x] **P1-15 (Nice) Event categories: sky, games, dance.** Each event has a `category`, and each category
+  starts its own way (table in `events/index.js`):
+  - **Sky events** (`category: 'sky'`, priority 14; hush is 15): Star Shower, Shooting Star. Only these are on the 20–50 min
+    timer in `events/happenings.js`. A due sky event **interrupts a dance**; if a game, invite, the shop or the
+    intro is running, it waits and retries every 60s.
+  - **Games** (`category: 'games'`, priority 10; invite 5): Tag, Pong, Hide & Seek, Catch. They start from the
+    buttons, the menu, or the **games timer** in `events/games.js` (every 60s, 20%, 4-min cooldown, only when
+    nothing else is running and you're around). The timer picks a random game: announced games go through an
+    invite (`events/invite.js` no longer has its own `auto` roll); Hide & Seek starts silently
+    (`canStart(ctx, 'random')`).
+  - **Dance** (`category: 'dance'`, priority 2): music-triggered (P3-8), with a **1-minute cooldown** between
+    dances (counted from the end of every dance).
+  - Intro and shop are `category: 'system'`. The runner still supports `auto`, but nothing uses it now.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
@@ -311,8 +324,10 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - the title never leaves the main process, only true/false;
     - limits: it can't see Spotify closed to the tray, or the web player.
   - **`events/dance.js` (new):**
-    - the lowest-priority event (2), so star showers, invites, games and the shop always win;
-    - while a song plays and he's happy or playful, he dances in bursts (14–24s on, 12–25s off);
+    - its own category (`'dance'`, P1-15) and the lowest-priority event (2): a sky event interrupts it,
+      and invites, games and the shop always win;
+    - while a song plays and he's happy or playful, he dances in bursts (14–24s on, then a 1-minute cooldown
+      between dances);
     - moves, on a steady ~120 bpm beat: bounce, sway, side steps, hops, a spin;
     - he uses the new `dancing` face (`happy-1/2` swapping on the beat);
     - it ends when the song stops, when he's grabbed, or when his mood changes (mad, dizzy, sleepy...);

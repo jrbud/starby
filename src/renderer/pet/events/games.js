@@ -10,6 +10,13 @@
 //
 // DevTools / Developer menu: starby.skipRest() ends the rest early.
 //
+// THE GAMES TIMER (category: games). Every GAMES_TIMER.every seconds there's a GAMES_TIMER.chance
+// roll (at most once per GAMES_TIMER.cooldown) to start a game on his own, picked at random from
+// GAMES (never the same one twice in a row): games he announces get an invite ("wanna play
+// pong?", ./invite.js); games with invite: false (hide and seek) just start, silently. Only when
+// nothing else is running and you're around (the cursor moved in the last USER_AROUND seconds);
+// each game's / the invite's canStart(ctx, 'random') adds its own checks (mood, rested, ...).
+//
 // Not an event itself: events/index.js runs `gamesMenu` as a helper (init / watch / watchFrame
 // every tick/frame), and each game imports what it needs:
 //   canStart(ctx, reason) { if (!readyToPlay(ctx, reason)) return false; ... }
@@ -42,6 +49,57 @@ const LINES = {
 };
 
 let lastPlayedEndAt = -Infinity; // session seconds when the last actual game ended
+
+// Games timer
+const GAMES_TIMER = { every: 60, chance: 0.2, cooldown: 240 }; // seconds, chance per roll, seconds
+const USER_AROUND = 10; // seconds since the cursor last moved, to count as "you're there"
+let nextRollAt = null;
+let lastTimerStartAt = -Infinity;
+let lastPicked = null;
+let invitePick = null; // game the timer wants the invite to offer (taken by invite.js)
+let lastCursor = { x: -9999, y: -9999 };
+let cursorMovedAt = -Infinity;
+
+/** For ./invite.js: the game the games timer picked for this invite (or null). */
+export function takeInviteGame() {
+  const name = invitePick;
+  invitePick = null;
+  return name;
+}
+
+function trackCursor(ctx) {
+  const { cursor } = ctx;
+  if (cursor.x !== lastCursor.x || cursor.y !== lastCursor.y) {
+    lastCursor = { x: cursor.x, y: cursor.y };
+    cursorMovedAt = ctx.clock.seconds;
+  }
+}
+
+// Every tick: maybe start a game on his own (see THE GAMES TIMER above).
+function rollGamesTimer(ctx) {
+  const now = ctx.clock.seconds;
+  if (nextRollAt === null) nextRollAt = now + GAMES_TIMER.every;
+  if (now < nextRollAt) return;
+  nextRollAt = now + GAMES_TIMER.every;
+  if (!GAMES.length || ctx.activeEvent()) return;
+  if (now - lastTimerStartAt < GAMES_TIMER.cooldown || now - cursorMovedAt > USER_AROUND) return;
+  if (Math.random() >= GAMES_TIMER.chance) return;
+  const choices = GAMES.length > 1 ? GAMES.filter((g) => g.name !== lastPicked) : GAMES;
+  const game = choices[Math.floor(Math.random() * choices.length)];
+  lastPicked = game.name;
+  let started;
+  if (game.invite === false) {
+    started = ctx.startEvent(game.name, 'random'); // e.g. hide and seek: he just goes, silently
+  } else {
+    invitePick = game.name;
+    started = ctx.startEvent('invite', 'random'); // "wanna play ...?"
+    if (!started) invitePick = null;
+  }
+  if (started) {
+    lastTimerStartAt = now;
+    ctx.log('games-timer', { game: game.name, how: game.invite === false ? 'silent' : 'invite' });
+  }
+}
 let chip = null; // the game buttons (a prompt with one button per game)
 let chipLeft = 0;
 let chipPressed = null; // name of the game whose button was pressed; acted on at the next tick
@@ -133,8 +191,11 @@ export const gamesMenu = {
     }
   },
 
-  // Every tick: act on a pressed button, keep the rest countdown live, hide when done/busy.
+  // Every tick: the games timer; act on a pressed button, keep the rest countdown live, hide when
+  // done/busy.
   watch(ctx) {
+    trackCursor(ctx);
+    rollGamesTimer(ctx);
     if (!chip || chipLeft <= 0) return;
     const { pet } = ctx;
     if (chipPressed) { askToPlay(ctx, chipPressed); return; }

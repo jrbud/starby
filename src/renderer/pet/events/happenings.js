@@ -1,13 +1,17 @@
-// HAPPENINGS — random things that just happen now and then (not games, not something you ask for).
+// SKY EVENTS — the sky-event category: things that fall out of the sky now and then (star shower,
+// shooting star). Not games, not dancing, not something you ask for. High priority (14).
 //
-// One shared timer on the session clock: the next happening is due a random GAP (20–50 minutes)
-// after the last one started. When it's due, one happening is picked at random from HAPPENINGS
-// (by weight) and started with ctx.startEvent(name, 'happening').
-//   Not a good moment (a game or invite is running, or you've been away from the mouse for
-//   USER_AWAY seconds)? It waits RETRY seconds and tries again, rather than skipping.
+// One shared timer on the session clock: the next sky event is due a random GAP (20–50 minutes)
+// after the last one started. When it's due, one is picked at random from HAPPENINGS (by weight)
+// and started with ctx.startEvent(name, 'happening').
+//   A dance running? The sky event interrupts it. A game, an invite, the shop, hush or the intro
+//   running, or you away from the mouse for USER_AWAY seconds? It waits RETRY seconds and tries
+//   again, rather than skipping.
 //
-// TO ADD A HAPPENING: write its event (see ./starShower.js), register it in ./index.js, and add
-// it to HAPPENINGS below with a weight (higher = picked more often). It shares this timer.
+// The other categories have their own timers: games → ./games.js, dance → ./dance.js (music).
+//
+// TO ADD A SKY EVENT: write its event (see ./starShower.js; category: 'sky', priority: 14),
+// register it in ./index.js, and add it to HAPPENINGS below with a weight (higher = more often).
 //
 // Not an event itself: ./index.js runs it as a helper (init / watch hooks).
 // DevTools: starby.happening() (random one now), starby.happening('star-shower'),
@@ -15,9 +19,10 @@
 
 export const HAPPENINGS = [
   { name: 'star-shower', weight: 1 },
-  { name: 'shooting-star', weight: 1 }, // a stream of starbits shoots across the screen
-  { name: 'hide-seek', weight: 1 }, // he quietly goes and hides (also a game on the buttons)
+  { name: 'shooting-star', weight: 1 }, // a clump of starbits shoots across the screen
 ];
+// Running events a due sky event may interrupt (lower-priority categories).
+const INTERRUPTS = ['dance'];
 
 const GAP = [20 * 60, 50 * 60]; // seconds between happenings
 const RETRY = 60; // seconds to wait when it's not a good moment
@@ -50,7 +55,8 @@ function fire(ctx) {
   timer = null;
   if (!HAPPENINGS.length) return;
   const away = ctx.clock.seconds - cursorMovedAt > USER_AWAY;
-  if (away || ctx.activeEvent()) {
+  const active = ctx.activeEvent();
+  if (away || (active && !INTERRUPTS.includes(active))) {
     scheduleIn(ctx, RETRY);
     return;
   }
