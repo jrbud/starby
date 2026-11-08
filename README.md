@@ -10,8 +10,8 @@ npm install
 npm start
 ```
 
-Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Quit**. Click him and a **Play tag?**
-button pops up too (he needs a minute's rest between games). Settings has the *Fling power* slider
+Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Play pong** / **Quit**. Click him and
+**Play a game? [Tag] [Pong] [Hide & Seek]** pops up too (he needs a minute's rest between games). Settings has the *Fling power* slider
 (how hard throws fly and how bouncy the screen edges are).
 
 > `npm start` runs `scripts/start.js`, which launches Electron with `ELECTRON_RUN_AS_NODE` removed.
@@ -46,7 +46,11 @@ src/
       pet.js                builds `ctx`, runs the frame + tick loop, renders
       core/                 clock.js (10 ticks/s), scheduler.js (after/every), eventLog.js
       events/               scripted sequences that take over the star (index.js = runner; tag.js;
-                            prompt.js = yes/no popup; countdown.js = top-right timer)
+                            pong.js; invite.js = he asks you to play a random game;
+                            happenings.js = 20–50 min timer for random happenings (starShower.js);
+                            hideSeek.js = hide and seek (a game and a happening);
+                            games.js = list of games, game buttons, rest between games, 3-2-1-GO;
+                            prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements
       bubble.js             speech bubble UI (behaviors call ctx.say)
       behaviors/            one file per behavior, registered in behaviors/index.js

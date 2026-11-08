@@ -14,13 +14,15 @@
 //   happy/playful/mad → dizzy spun 3+ turns (drag.js logs 'dizzy'), 3 throws within 20s, or the
 //                             cursor circling him 3 times within 6s. Lasts 5s, then back to
 //                             playful (if he was playful) or happy.
-//   happy → yawning           2 min without interaction (1 min at night), or the system 'idle' event.
+//   happy → yawning           1 min without interaction, or the system 'idle' event.
 //                             Interaction = click, grab, throw, edge hit, flinch, starbits pickup,
 //                             or the cursor within 120px.
 //   yawning → happy           any interaction
 //   yawning → sleepy          reached the top corner in pet.goal
-//   any → sad                 said no to a game (events/tag.js calls requestMood). Lasts 30s, or
+//   any → sad                 said no to a game (events/tag.js calls requestMood). Lasts 5s, or
 //                             one click cheers him up early. Then back to happy.
+//   happy → playful           the cursor rests on him for HOVER_FOR seconds; staying there keeps
+//                             him playful.
 //   sleepy → happy            ONLY picked up and shaken. Clicks, the cursor, throws don't wake him;
 //                             dropped or thrown asleep, he keeps sleeping where he lands.
 //
@@ -36,14 +38,15 @@ const MAD_FOR = 20; // seconds after the last poke
 const PLAYFUL_SPEED = 500; // px/s release speed that counts as a throw
 const PLAYFUL_FOR = 15; // seconds after the last throw
 const DIZZY_FOR = 5;
-const SAD_FOR = 30; // seconds; a click cheers him up sooner
+const SAD_FOR = 5; // seconds; a click cheers him up sooner
+const HOVER_FOR = 0.8; // seconds the cursor rests on a happy star before he turns playful
 const DIZZY_TOSSES = 3; // throws...
 const DIZZY_TOSS_WINDOW = 20; // ...within this many seconds
 const CIRCLE_RADIUS = 200; // cursor must circle within this distance of his center...
 const CIRCLE_MIN_RADIUS = 20; // ...but not right on top of him (angles get jumpy)
 const CIRCLE_TURNS = 3;
 const CIRCLE_WINDOW = 6; // seconds
-const YAWN_AFTER = 120; // seconds without interaction
+const YAWN_AFTER = 60; // seconds without interaction
 const YAWN_AFTER_NIGHT = 60;
 const NEAR_RADIUS = 120; // cursor this close counts as interacting
 const CORNER_REACHED = 6; // px from pet.goal
@@ -216,6 +219,31 @@ function onEntry(ctx, e) {
   }
 }
 
+// ---- Cursor resting on him (checked per tick) ----
+// A happy star turns playful after HOVER_FOR seconds; while the cursor stays, playful is kept
+// topped up (refreshed once a second, so it doesn't wear off under your cursor).
+let hoverSince = null;
+let hoverRefreshedAt = 0;
+function trackHover(ctx, now) {
+  const { pet, cursor } = ctx;
+  const free = pet.mode === 'idle' || pet.mode === 'walk' || pet.mode === 'follow';
+  const over = free && cursor.x >= pet.x && cursor.x <= pet.x + pet.size
+    && cursor.y >= pet.y && cursor.y <= pet.y + pet.size;
+  if (!over) {
+    hoverSince = null;
+    return;
+  }
+  if (hoverSince === null) hoverSince = now;
+  if (now - hoverSince < HOVER_FOR) return;
+  if (pet.mood === 'happy') {
+    enter(ctx, 'playful', 'hovered');
+    hoverRefreshedAt = now;
+  } else if (pet.mood === 'playful' && now - hoverRefreshedAt >= 1) {
+    enter(ctx, 'playful', 'still hovered'); // restarts the 15s playful timer
+    hoverRefreshedAt = now;
+  }
+}
+
 // ---- Cursor circling him (checked per tick) ----
 function trackCircle(ctx, now) {
   const { pet, cursor } = ctx;
@@ -380,6 +408,7 @@ export default {
     if (cursor.x > -1000 && pet.mode !== 'drag' && Math.hypot(cursor.x - c.x, cursor.y - c.y) < NEAR_RADIUS) {
       interacted(ctx, 'cursor');
     }
+    trackHover(ctx, now);
     trackCircle(ctx, now);
     maybeFlourish(ctx, now);
 

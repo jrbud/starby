@@ -54,12 +54,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   jerks and fast swipes spin it. On release (`'toss'` mode) it keeps its speed and spin, glides, bounces
   off screen edges and wobbles back upright. "wheee!" on fast spins, dizzy wobble after 3+ turns.
   `pet.rotation` is rendered by `pet.js` (canvas only, so the speech bubble stays upright).
-- [x] **P1-6 (Nice) Tag event.** First *event* (`src/renderer/pet/events/`, see below). He first **asks**: stops,
-  says "wanna play tag?" and shows a Yes / No popup next to him (`events/prompt.js`, a clickable `.hit` box).
-  **No** → new `sad` mood (`moods.js` / `mood.js`: half walk speed, no hops, looks away, no "oh! hi"; 30s, or a
-  click cheers him up) and he won't ask on his own again for 10 min. No answer in 12s → "maybe later", not sad.
-  **Yes** → he counts down in his bubble ("3...", "2...", "1...", "GO!", one per second, standing still) so
-  you can get ready. Then real tag on a **15s clock** (top-right box, shows who's it): Starby starts as it and
+- [x] **P1-6 (Nice) Tag event.** First *event* (`src/renderer/pet/events/`, see below). Starts from an invite
+  (P1-9), the game buttons (P1-7), the menu ("Play tag") or `starby.startEvent('tag')`. He counts down in his
+  bubble ("3...", "2...", "1...", "GO!", one per second, standing still) so you can get ready. Then real tag on a **15s clock** (top-right box, shows who's it): Starby starts as it and
   chases the cursor (700–900px/s, pounces at 1350px/s within 160px); touching you = you're it, and he runs
   (450–780px/s, jukes at 1150px/s within 120px). Touch him = he's it again: he stands still 1s, then chases. No
   tag-backs for 1.2s after he tags you. **Whoever is it when time runs out loses.** You win → he shoots out 7
@@ -67,14 +64,48 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   screen (`reclaimStarbits`). Touches are spotted every
   frame (fast moves can pass between ticks) and acted on at the tick. Grabbing him mid-game = foul, game over.
   Mood flips playful ↔ happy every 1.5–3s (via `requestMood` in `mood.js`), and he
-  stays playful afterwards. Asks from the right-click menu ("Play tag") or randomly; `starby.startEvent('tag')`
-  skips the question. Random: every 60s, 20% chance, 4-min cooldown, only when happy/playful, relaxed and the
-  cursor moved in the last 10s. Tuning at the top of `events/tag.js`.
-- [x] **P1-7 (Nice) Ask Starby to play.** Clicking him also pops up a "Play tag?" button next to him for 4s
-  (`events/tag.js` + `events/prompt.js`). Pressing it starts the game right away (no question back). After a
-  game he needs a 60s rest (`GAME_REST`): asking via the button or the menu gets "give me a little, i'm
-  tired", then "still tired... give me Ns", then "i'm tired! ask me in a bit"; the button shows "resting…
-  0:42". Mad / dizzy: he refuses. Asleep: no button. Sad: the click cheers him up, so he says yes.
+  stays playful afterwards. Tuning at the top of `events/tag.js`.
+- [x] **P1-7 (Nice) Ask Starby to play.** Clicking him also pops up "Play a game? [Tag] [Pong]" next to him for
+  4s (`events/games.js`, shared by all games). Pressing one starts that game right away (no question back).
+  After ANY game he needs a 60s rest (`GAME_REST`): asking via the buttons or the menu gets "give me a little,
+  i'm tired", then "still tired... give me Ns", then "i'm tired! ask me in a bit"; the buttons show "resting…
+  0:42". Mad / dizzy: he refuses. Asleep: no buttons. Sad: the click cheers him up, so he says yes.
+  `games.js` also has `createReady()` (the 3-2-1-GO countdown) used by tag and pong.
+- [x] **P1-8 (Nice) Pong event.** `events/pong.js`: Starby is the ball. He glides to the middle; a paddle
+  appears on each side (plain CSS bars labelled YOU / AI): left = yours, follows the mouse up and down; right =
+  the AI. "3... 2... 1... GO!", served toward you; bounces off the top/bottom of the usable area and off the
+  paddles (hit position sets the angle, max 55°; +9% speed per hit, max 1500px/s), spinning. The AI predicts
+  where he'll arrive but misjudges more as he speeds up (and tops out at 430px/s), so a decent player wins about
+  half the time. **One point wins:** past the AI → you win, 7 starbits burst out; past you → you lose, he takes
+  back the starbits on screen. Grabbing him = foul. Starts from an invite (P1-9), the game buttons, the menu
+  ("Play pong") or `starby.startEvent('pong')`. Tuning at the top of `events/pong.js`.
+- [x] **P1-9 (Nice) Starby invites you to play (any game).** `events/invite.js`: every 60s, 20% chance (4-min
+  cooldown) he picks a game at random from `GAMES` in `events/games.js` (not the same one twice in a row),
+  stops and asks ("wanna play pong? i can be the ball!") with a "Play Pong with Starby? [Yes] [No]" popup
+  (`events/prompt.js`). **Yes** → that game starts. **No** → `sad` mood (`moods.js` / `mood.js`: half walk speed,
+  no hops, looks away, no "oh! hi"; 30s, or a click cheers him up) and no invites for 10 min. No answer in 12s →
+  "maybe later", not sad. Only when he's relaxed, happy/playful, rested after the last game, and the cursor
+  moved in the last 10s. **New games join automatically:** add them to `GAMES` with their ask lines.
+  DevTools: `starby.invite()` / `starby.invite('pong')`. The menu items start games directly (no invite).
+- [x] **P1-10 (Nice) Happenings timer + Star Shower.** `events/happenings.js`: one shared timer on the session
+  clock; every 20–50 min (random gap) it starts a random *happening* from `HAPPENINGS` (weighted). Not a good
+  moment (a game/invite running, or the cursor hasn't moved for 2 min)? It retries every 60s instead of
+  skipping. **Add a happening:** write its event, register it in `events/index.js`, add it to `HAPPENINGS`.
+  First one, `events/starShower.js`: he shouts "THE SKY IS FALLING!" and hops; for 12s, 30 starbits fall from
+  the top of the usable area (`rainStarbit` in `starbits.js`: sway + spin, no magnet, slightly bigger catch
+  zone). Catch them with the cursor or they fade at the bottom; then he says how many you caught. He isn't
+  taken over (keeps wandering, extra hops). Low priority: never interrupts a game. DevTools:
+  `starby.happening('star-shower')`, `starby.nextHappening()` (seconds until the next).
+- [x] **P1-11 (Nice) Hide and seek.** `events/hideSeek.js`: he runs off and hides without a word (no speech,
+  no countdown, no starbit drops, debug mood label hidden; `pet.hiding` tells `starbits.js` / `moodLabel.js`).
+  Spots: just inside an edge of your active window (needs the window rectangle: `activeWindow.js` now sends
+  `bounds`, and `active-window-bounds` when it moves), behind the taskbar, or past a screen edge / corner.
+  "Behind" is faked with a CSS clip on the pet element, so a peek shows only the part sticking out. The spot is
+  fixed once he hides (moving the window does nothing). Every 4–9s he peeks out ~30px for 1.5s; touch him (or
+  grab him) while he peeks → found: "you found me!" + 10 starbits. After a peek he sometimes moves to a new spot.
+  Not found in 150s → he comes out and wins. On the game buttons ([Tag] [Pong] [Hide & Seek]; `prompt.js` now
+  takes any number of buttons) and in `HAPPENINGS` (he hides on his own), never in invites (`invite: false`).
+  DevTools: `starby.startEvent('hide-seek')`, `starby.setHideWindow({ x, y, width, height })`.
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
@@ -100,7 +131,7 @@ before changing these — they're core).
   (CSS transition, plain text). Also show the total: e.g. a small plain-text badge near the star while the
   cursor is over it. Get the total from `ctx.api.getState()` / `ctx.api.onStateChanged`.
   Badge/float text must not have class `hit` (keep them click-through).
-- [ ] **P2-3 (Must) Old starbits fade.** Each drop gets a spawn time; after ~60s fade it out and remove it
+- [x] **P2-3 (Must) Old starbits fade.** Each drop gets a spawn time; after ~60s fade it out and remove it
   from `drops`.
 - [ ] **P2-4 (Nice) Drop animation.** Spawn at the star's center and fall/bounce to its feet with a CSS
   transition or per-frame update before it becomes collectable.
@@ -221,10 +252,40 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
       same CSS transform on the canvas, so it works on the PNGs as before. Tested in the real app.
     - **No longer visible:** eyes following the cursor, and mad's eyes looking away (the eyes are painted
       on now).
-    - **Still to do:**
-      - the old code-drawn accessories (top hat, bow, halo) don't show on the PNGs and need PNG versions;
-      - **shop previews** (`shop.js` / `sprite.js`, Person 4) still draw the old star;
-      - other color sets need their PNG folders.
+    - **Still to do:** other color sets need their PNG folders. (Accessories and shop previews are done
+      in P3-7.)
+- [x] **P3-7 Accessories (hand-drawn PNGs).** Done by Person 3; it touches Person 4's shop files (flag to Person 4).
+  - **Art:** 11 accessories in `assets/accessories/`, on the same 2048 canvas as Starby. The placement
+    table is in `assets/README.md`.
+  - **`src/renderer/pet/accessories.js` (new):**
+    - body points per frame (head, both hands, chest, both feet), measured from the art, so accessories
+      follow his pose (leaning, slumped, raised arms, dizzy sway);
+    - each accessory's placement (anchor, pivot, offset, scale);
+    - loading, and drawing worn ones into his canvas, so they spin, squash and swing with him;
+    - still previews for the shop.
+  - **Worn:** top hat, propeller hat, bow, halo (bobs slightly), tie, sneakers, boots (one shoe per
+    foot), lollipop (in HIS left hand; passes to the other hand while yawning). None cover his face.
+  - **`src/renderer/pet/floaters.js` (new), floating ones, always behind him:**
+    - **balloon:** floats just above him on a string tied to his right hand, drifting behind his
+      movement. The string is a code-drawn line (team-approved exception, noted in `claude.md`).
+    - **UFO:** loops near him.
+    - **star trail:** streams behind whichever way he moves.
+  - **`pet.js`:** the canvas now has room around his box for things that stick out (only the box is
+    clickable), and draws worn accessories after his frame. `anchorOnScreen()` maps a body point through
+    his spin and squash, so the string stays tied to his hand.
+  - **Shop (Person 4's files):**
+    - `shopCatalog.js` lists the 11 accessories, each with a `place`;
+    - `stateSchema.js` unlocks every accessory from the start, for now (`UNLOCKED_FOR_NOW`);
+    - `shop.js` previews draw the PNG Starby wearing the item, and color cards get a small swatch.
+  - **One accessory at a time for now.** The renderer already takes a list (`pet.look.accessories`), and
+    `accessoriesConflict()` in the catalog implements the rule for wearing several later: one per `place`,
+    so boots and sneakers (both `feet`) can't be worn together.
+  - **Also in this change:**
+    - sad after saying no to a game lasts 5s;
+    - he yawns after 1 minute and walks to the corner about twice as fast (`CORNER_WALK_SPEED` in
+      `motion.js`);
+    - a happy star turns playful when the cursor rests on him for 0.8s;
+    - wall bounces during a throw give him some spin (`drag.js`, `BOUNCE_SPIN_*`).
 
 ---
 

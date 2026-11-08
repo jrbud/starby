@@ -34,6 +34,13 @@ contextBridge.exposeInMainWorld('sprite', {
   onSettingsChanged: (cb) => subscribe('settings:changed', cb),
   openSettings: () => ipcRenderer.send('settings:open'),
 
+  // Admin Settings (starbits tuning overrides; defaults/ranges in renderer/shared/starbitsTuning.js)
+  getAdminSettings: () => ipcRenderer.invoke('admin:get'),
+  setAdminSettings: (patch) => ipcRenderer.invoke('admin:set', patch),
+  resetAdminSettings: () => ipcRenderer.invoke('admin:reset'),
+  onAdminSettingsChanged: (cb) => subscribe('admin:changed', cb),
+  openAdminSettings: () => ipcRenderer.send('admin:open'),
+
   // Pet window
   setIgnoreMouse: (ignore) => ipcRenderer.send('pet:set-ignore-mouse', ignore),
   showContextMenu: () => ipcRenderer.send('pet:context-menu'),

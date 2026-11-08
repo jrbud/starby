@@ -65,6 +65,9 @@ export default {
   update(ctx) {
     if (!el || el.style.display === 'none') return;
     const { pet } = ctx;
+    // Hide and seek (events/hideSeek.js): the label would give away where he's hiding.
+    el.style.visibility = pet.hiding ? 'hidden' : '';
+    if (pet.hiding) return;
 
     const text = describe(ctx);
     if (text !== lastText) {

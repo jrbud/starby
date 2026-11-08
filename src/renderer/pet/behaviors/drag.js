@@ -50,6 +50,14 @@ const IMPACT_SQUASH = 0.62; // how flat it gets against the wall (lower = flatte
 const UPRIGHT_STIFFNESS = 60; // spring pulling it back upright...
 const UPRIGHT_DAMPING = 9; // ...and how quickly the wobble settles
 
+// Bounce spin: every wall bounce gives him some spin, so a throw that started with little spin
+// doesn't glide around as one still picture. Part "rolling" (from how fast he slid along the
+// wall), part a random kick; capped below WHEE_SPIN-ish so not every bounce says "wheee".
+const BOUNCE_SPIN_MIN_SPEED = 120; // px/s into the wall; gentler bumps while settling don't spin
+const BOUNCE_SPIN_ROLL = 0.35; // fraction of the "rolling along the wall" spin
+const BOUNCE_SPIN_KICK = [3, 6]; // rad/s random extra (about half to one turn per second)
+const BOUNCE_SPIN_MAX = 10; // rad/s (doesn't slow down a throw that's already spinning faster)
+
 // Reactions
 const WHEE_SPIN = 12; // rad/s (about 2 turns per second)
 const WHEE_COOLDOWN = 5; // seconds
@@ -160,11 +168,27 @@ function holdStep(ctx, dt) {
 }
 
 // ---- Throwing ----
+// Spin from a wall bounce (see BOUNCE_SPIN_*). Rolling direction, like a ball skidding along
+// the wall (positive omega = clockwise): along the floor moving right = clockwise, along the
+// ceiling moving right = counter-clockwise, down the right wall = clockwise, down the left = counter.
+function bounceSpin(pet, side) {
+  const along = { bottom: vel.x, top: -vel.x, right: vel.y, left: -vel.y }[side] || 0;
+  const roll = (along / (pet.size / 2)) * BOUNCE_SPIN_ROLL;
+  const dir = Math.sign(roll) || Math.sign(omega) || (Math.random() < 0.5 ? -1 : 1);
+  const kick = BOUNCE_SPIN_KICK[0] + Math.random() * (BOUNCE_SPIN_KICK[1] - BOUNCE_SPIN_KICK[0]);
+  const next = omega + roll + dir * kick;
+  // Never slow down a throw that was already spinning harder than the cap.
+  const cap = Math.max(BOUNCE_SPIN_MAX, Math.abs(omega));
+  omega = clamp(next, -cap, cap);
+  uprighting = false; // let the new spin play out before wobbling upright again
+}
+
 // Hit a screen edge: bounce (keeping tuning.bounce of the speed) and, if it was a hard hit,
 // freeze for an impact frame. `side` = which edge; `into` = speed straight into the wall.
 function hitWall(ctx, side, into) {
   const { pet } = ctx;
   omega *= 0.8;
+  if (into >= BOUNCE_SPIN_MIN_SPEED) bounceSpin(pet, side);
   const strength = clamp((into - IMPACT_MIN_SPEED) / (IMPACT_FULL_SPEED - IMPACT_MIN_SPEED), 0, 1);
   if (strength <= 0) {
     pet.squash = 0.85; // soft bump

@@ -27,15 +27,46 @@
 //   burstStarbits(ctx, 7)   he throws starbits out in a full ring, a bit farther than a normal drop,
 //                           ignoring MAX_ON_SCREEN; for REWARD_PICKUP_DELAY the magnet and pickup
 //                           leave them alone, so you see them fly out before sweeping them up
+//   rainStarbit(ctx, x, speed)  one starbit falls from the top of the screen (star shower happening):
+//                           catch it with the cursor before it reaches the bottom, or it fades away
 //   reclaimStarbits(ctx)    every starbit on screen spins and flies back into him and disappears
 //                           (not added to the count)
 import { rulesFor } from './moods.js';
 import { chat, lineBag } from './chatter.js';
 
+// ======================= TUNING — the main knobs =======================
+// Spawn rate, burst size, value, lifetime and magnet strength/reach are NOT constants here:
+// their defaults, ranges and labels live in ../../shared/starbitsTuning.js, and they can be
+// changed live from the right-click menu → "Admin Settings…". Read them as `tuning.<key>`:
+//   tuning.dropEveryMin / dropEveryMax   seconds between drops (moods scale this)
+//   tuning.burstMin / burstMax           starbits per drop
+//   tuning.value                         counter increase per starbit collected
+//   tuning.lifetime                      seconds before an uncollected starbit fades (P2-3)
+//   tuning.magnetStrength                cursor pull multiplier (0 = magnet off)
+//   tuning.magnetRadius                  px the cursor must be within to pull
+import { DEFAULT_TUNING, resolveTuning } from '../../shared/starbitsTuning.js';
+let tuning = { ...DEFAULT_TUNING }; // replaced with saved Admin Settings at startup
+// =======================================================================
+
 const rand = (a, b) => a + Math.random() * (b - a);
 const PICKUP_RADIUS = 22;
 const MAX_ON_SCREEN = 8;
-const SIZE = 8; // matches .starbits width/height in pet.css
+// Old starbits fade (P2-3): after tuning.lifetime seconds uncollected, a starbit fades out over
+// FADE_OUT seconds (still floating, but no longer collectable or magnetic), then is removed.
+const FADE_OUT = 1.5;
+const SIZE = 20; // px on screen; matches .starbits width/height in pet.css
+
+// ART: team-drawn PNGs in assets/starbits/, named <color><n>.png (e.g. pink3.png). Each
+// starbit picks one at random. The page can't list a folder, so the files are listed here:
+// to add a color, add it to STARBIT_COLORS; to add a 5th design per color, bump the count.
+// Paths are relative to src/renderer/pet/index.html.
+const STARBIT_ART_DIR = '../../../assets/starbits/';
+const STARBIT_COLORS = ['blue', 'green', 'pink', 'red', 'teal', 'yellow'];
+const STARBIT_VARIANTS_PER_COLOR = 4;
+const STARBIT_IMAGES = STARBIT_COLORS.flatMap((color) =>
+  Array.from({ length: STARBIT_VARIANTS_PER_COLOR }, (_, i) => `${STARBIT_ART_DIR}${color}${i + 1}.png`),
+);
+const randomStarbitImage = () => STARBIT_IMAGES[Math.floor(Math.random() * STARBIT_IMAGES.length)];
 const EDGE_MARGIN = 12; // keep this far inside the screen
 
 // Throw: how far past the star's edge it lands, and how fast space-drag bleeds speed off.
@@ -47,12 +78,9 @@ const THROW_UP_CHANCE = 0.8; // otherwise any direction
 const THROW_DRAG = 2.2; // 1/s, exponential slow-down
 const THROW_SPIN = 360; // deg/s, max spin right out of the throw (eases down after)
 
-// Bursts: each drop throws a random number of starbits (BURST_MIN–BURST_MAX, inclusive).
-// Set both to 1 for the old one-at-a-time drops. A burst fans out across the throw arc
+// Bursts (size set by tuning.burstMin/burstMax): a burst fans out across the throw arc
 // (each starbit gets its own slice of it, so they don't stack) and comes out
 // BURST_STAGGER seconds apart, so it reads as a little flurry. MAX_ON_SCREEN still caps it.
-const BURST_MIN = 1;
-const BURST_MAX = 4;
 const BURST_STAGGER = 0.07; // s between starbits in one burst
 
 // Wall-hit drops (see WALL HITS above). They're thrown out from the star, fanned across
@@ -66,6 +94,12 @@ const IMPACT_ARC = 120; // degrees
 const REWARD_DIST = [60, 130]; // px past the star's edge a reward starbit lands
 const REWARD_PICKUP_DELAY = 0.35; // s before the magnet/pickup notice a fresh reward starbit
 const RECLAIM_SPEED = 700; // px/s minimum while flying back into him
+// Falling starbits (rainStarbit, used by the star shower happening in ../events/starShower.js)
+const FALL_SWAY = [10, 28]; // px side-to-side sway
+const FALL_SWAY_FREQ = [1.2, 2.4]; // rad/s
+const FALL_SPIN = 160; // deg/s max
+const FALL_CATCH_BONUS = 8; // px added to PICKUP_RADIUS for a falling starbit (no magnet while falling)
+const FALL_MISS_FADE = 0.35; // s fade when one reaches the bottom uncaught
 const RECLAIM_SPIN = 720; // deg/s while flying back
 
 const REFUSE_LINES = lineBag(['no starbits for you!', 'hmph. no sparkles.', 'not dropping anything for a poker']);
@@ -83,11 +117,11 @@ const BOB_AMP = 3; // px
 // Spin: deg/s, eases toward a new random target every few seconds (can reverse).
 const SPIN_MAX = 40;
 
-// Magnet: when the cursor comes within MAGNET_RADIUS, the starbit is pulled toward it —
-// gently at the edge of the radius, quickly up close. It steers toward the cursor (rather than
-// accelerating straight at it) so it homes in instead of orbiting. If the cursor leaves
-// before pickup, the starbit coasts to a stop and floats wherever it ends up.
-const MAGNET_RADIUS = 90; // px from the cursor
+// Magnet (tuning.magnetStrength / magnetRadius): when the cursor comes within reach, the
+// starbit is pulled toward it — gently at the edge of the radius, quickly up close. It steers
+// toward the cursor (rather than accelerating straight at it) so it homes in instead of
+// orbiting. If the cursor leaves before pickup, the starbit coasts to a stop and floats
+// wherever it ends up. These are the values at magnet strength 1.
 const MAGNET_SPEED_MIN = 40; // px/s at the edge of the radius
 const MAGNET_SPEED_MAX = 420; // px/s right next to the cursor
 const MAGNET_STEER = 7; // 1/s, how quickly velocity turns toward the cursor
@@ -95,7 +129,8 @@ const MAGNET_STEER = 7; // 1/s, how quickly velocity turns toward the cursor
 // { el, spawnX, spawnY, px, py, vx, vy, thrown, anchorX, anchorY, angle, spin, spinTarget,
 //   retargetIn, bob, x, y }  — px/py = position without bob; x/y = live position (for pickup)
 const drops = [];
-let nextDropIn = rand(8, 15);
+const nextDropDelay = () => rand(tuning.dropEveryMin, tuning.dropEveryMax);
+let nextDropIn = nextDropDelay();
 let lastImpactDropAt = -Infinity; // session seconds
 let refusedThisSpell = false;
 
@@ -175,6 +210,59 @@ export function reclaimStarbits(ctx) {
   return n;
 }
 
+/**
+ * Rain: drop one starbit from the top of the usable screen at x, falling at `speed` px/s.
+ * It sways and spins on the way down. No magnet while falling: catch it with the cursor (slightly
+ * bigger catch zone than a normal pickup) and it's collected like any starbit. If it reaches the
+ * bottom uncaught it fades away. Doesn't count against MAX_ON_SCREEN.
+ */
+export function rainStarbit(ctx, x, speed = 240) {
+  const a = area(ctx);
+  const y = a.top + EDGE_MARGIN;
+  const el = document.createElement('img');
+  el.className = 'starbits';
+  el.src = randomStarbitImage();
+  el.alt = '';
+  el.draggable = false;
+  el.style.left = `${x - SIZE / 2}px`;
+  el.style.top = `${y - SIZE / 2}px`;
+  ctx.stage.appendChild(el);
+  drops.push({
+    el, spawnX: x, spawnY: y, px: x, py: y, x, y, vx: 0, vy: speed,
+    falling: { baseX: x, sway: rand(...FALL_SWAY), freq: rand(...FALL_SWAY_FREQ), phase: rand(0, 6.28), t: 0 },
+    thrown: false, attracted: false, age: 0, fading: false, reclaiming: false,
+    pickableAt: ctx.clock.seconds, anchorX: x, anchorY: y,
+    angle: rand(0, 360), spin: rand(-FALL_SPIN, FALL_SPIN), spinTarget: 0, retargetIn: 99,
+    bob: { t: 0, amp: 0, fx1: 1, fx2: 1, px1: 0, px2: 0, fy1: 1, fy2: 1, py1: 0, py2: 0 },
+  });
+}
+
+// One frame of falling (see rainStarbit). Missed at the bottom → fade out and remove.
+function fallStep(ctx, d, dt) {
+  const f = d.falling;
+  f.t += dt;
+  d.py += d.vy * dt;
+  d.px = f.baseX + Math.sin(f.t * f.freq + f.phase) * f.sway;
+  d.angle = (d.angle + d.spin * dt) % 360;
+  d.x = d.px;
+  d.y = d.py;
+  d.el.style.transform = `translate(${d.x - d.spawnX}px, ${d.y - d.spawnY}px) rotate(${d.angle}deg)`;
+  const bottom = area(ctx).bottom - EDGE_MARGIN;
+  if (!d.fading && d.py >= bottom) {
+    d.fading = true; // too late to catch
+    d.vy = 0; // stop right there (don't slide down over the taskbar while fading)
+    d.py = bottom;
+    d.el.style.transition = `opacity ${FALL_MISS_FADE}s ease-in`;
+    d.el.style.opacity = '0';
+    ctx.after(FALL_MISS_FADE, () => {
+      const i = drops.indexOf(d);
+      if (i !== -1) drops.splice(i, 1);
+      d.el.remove();
+    }, 'falling starbit missed');
+    ctx.log('starbit-missed', {});
+  }
+}
+
 // One frame of flying back into him. Returns true once it has arrived (then it's removed).
 function reclaimStep(ctx, d, dt) {
   const { pet } = ctx;
@@ -196,7 +284,7 @@ function reclaimStep(ctx, d, dt) {
 
 // The regular timed drop.
 function throwBurst(ctx) {
-  throwAngles(ctx, burstAngles(randInt(BURST_MIN, BURST_MAX), onGround(ctx)));
+  throwAngles(ctx, burstAngles(randInt(tuning.burstMin, tuning.burstMax), onGround(ctx)));
 }
 
 // A hard wall hit during a throw: a little burst of starbits flung out from the wall he hit.
@@ -215,13 +303,16 @@ function impactDrops(ctx, impact) {
 // opts (for rewards): ignoreCap, past = [min, max] px past the star's edge to land,
 // pickupDelay = seconds before the magnet/pickup notice it.
 function spawn(ctx, deg, { ignoreCap = false, past, pickupDelay = 0 } = {}) {
-  if (!ignoreCap && drops.length >= MAX_ON_SCREEN) return;
+  if (!ignoreCap && drops.filter((d) => !d.falling).length >= MAX_ON_SCREEN) return;
   const { pet } = ctx;
   // Out of the star's center, wherever it is.
   const x = pet.x + pet.size / 2;
   const y = pet.y + pet.size / 2;
-  const el = document.createElement('div');
+  const el = document.createElement('img');
   el.className = 'starbits';
+  el.src = randomStarbitImage();
+  el.alt = '';
+  el.draggable = false;
   el.style.left = `${x - SIZE / 2}px`;
   el.style.top = `${y - SIZE / 2}px`;
   ctx.stage.appendChild(el);
@@ -238,6 +329,8 @@ function spawn(ctx, deg, { ignoreCap = false, past, pickupDelay = 0 } = {}) {
     vy,
     thrown: true,
     attracted: false, // being pulled toward the cursor
+    age: 0, // seconds since thrown
+    fading: false, // past tuning.lifetime: fading out, can't be collected
     reclaiming: false, // flying back into him (reclaimStarbits)
     pickableAt: ctx.clock.seconds + pickupDelay, // magnet/pickup ignore it until then
     anchorX: x, // set for real when it settles
@@ -260,12 +353,15 @@ function move(ctx, d, dt) {
   const cdx = ctx.cursor.x - d.px;
   const cdy = ctx.cursor.y - d.py;
   const cdist = Math.hypot(cdx, cdy);
-  const pickable = ctx.clock.seconds >= (d.pickableAt ?? 0);
-  if (pickable && cdist < MAGNET_RADIUS && cdist > 0.001) {
+  const { magnetStrength, magnetRadius } = tuning;
+  // Not while fading away, and not while a fresh reward starbit is still flying out.
+  const pickable = !d.fading && ctx.clock.seconds >= (d.pickableAt ?? 0);
+  if (pickable && magnetStrength > 0 && cdist < magnetRadius && cdist > 0.001) {
     // Pulled by the cursor: steer toward it, faster the closer it is.
-    const closeness = 1 - cdist / MAGNET_RADIUS; // 0 at the edge → 1 at the cursor
-    const speed = MAGNET_SPEED_MIN + (MAGNET_SPEED_MAX - MAGNET_SPEED_MIN) * closeness * closeness;
-    const steer = Math.min(1, MAGNET_STEER * dt);
+    const closeness = 1 - cdist / magnetRadius; // 0 at the edge → 1 at the cursor
+    const speed =
+      (MAGNET_SPEED_MIN + (MAGNET_SPEED_MAX - MAGNET_SPEED_MIN) * closeness * closeness) * magnetStrength;
+    const steer = Math.min(1, MAGNET_STEER * magnetStrength * dt);
     d.vx += ((cdx / cdist) * speed - d.vx) * steer;
     d.vy += ((cdy / cdist) * speed - d.vy) * steer;
     d.attracted = true;
@@ -334,7 +430,23 @@ function move(ctx, d, dt) {
   if (d.py > maxY) { d.py = maxY; d.vy = -Math.abs(d.vy) * bounce; }
 }
 
+// Past its lifetime: fade out where it is, then remove it.
+function expire(ctx, d) {
+  d.fading = true;
+  d.attracted = false;
+  d.el.style.transition = `opacity ${FADE_OUT}s ease-in`;
+  d.el.style.opacity = '0';
+  ctx.after(FADE_OUT, () => {
+    const i = drops.indexOf(d);
+    if (i !== -1) drops.splice(i, 1);
+    d.el.remove();
+  }, 'starbit expired');
+  ctx.log('starbit-expired', {});
+}
+
 function animate(ctx, d, dt) {
+  d.age += dt;
+  if (!d.fading && d.age >= tuning.lifetime) expire(ctx, d);
   move(ctx, d, dt);
 
   // Bob on top of the position (fades in once floating).
@@ -385,7 +497,8 @@ let toastHideId = null;
 
 // The count on the card only counts starbits that have *arrived*, so it ticks up as each one
 // lands rather than jumping when it's picked up.
-const shownCount = () => Math.max(0, (total ?? 0) - zipping.length);
+// (Each zipping starbit remembers its own value, in case the value is changed mid-flight.)
+const shownCount = () => Math.max(0, (total ?? 0) - zipping.reduce((sum, z) => sum + z.value, 0));
 
 function ensureToast(ctx) {
   if (toast) return toast;
@@ -462,13 +575,15 @@ function zipTarget(ctx) {
 
 function collect(ctx, index) {
   const [drop] = drops.splice(index, 1);
-  ctx.api.collectStarbits(1).then((state) => {
+  const value = tuning.value;
+  ctx.api.collectStarbits(value).then((state) => {
     if (state && Number.isFinite(state.starbits)) total = state.starbits;
   });
 
   if (COLLECT_STYLE === 'zip') {
     slideToastIn(ctx); // give it somewhere to land
     zipping.push({
+      value,
       el: drop.el,
       spawnX: drop.spawnX,
       spawnY: drop.spawnY,
@@ -532,6 +647,21 @@ export default {
   name: 'starbits',
 
   init(ctx) {
+    // Tuning from Admin Settings: load the saved values, and follow live changes.
+    const applyTuning = (overrides) => {
+      tuning = resolveTuning(overrides);
+      // A shorter drop interval should kick in now, not after the old (longer) wait.
+      nextDropIn = Math.min(nextDropIn, tuning.dropEveryMax);
+    };
+    ctx.api.getAdminSettings?.().then(applyTuning);
+    ctx.api.onAdminSettingsChanged?.(applyTuning);
+
+    // Preload every starbit image so the first throw of each color doesn't pop in late.
+    for (const src of STARBIT_IMAGES) {
+      const img = new Image();
+      img.onerror = () => console.warn(`[starbits] missing art: ${src}`);
+      img.src = src;
+    }
     ctx.api.getState().then((s) => {
       if (s && Number.isFinite(s.starbits)) total = s.starbits;
     });
@@ -546,7 +676,9 @@ export default {
   update(ctx, dt) {
     for (let i = drops.length - 1; i >= 0; i--) {
       const d = drops[i];
-      if (!d.reclaiming) {
+      if (d.falling && !d.reclaiming) {
+        fallStep(ctx, d, dt); // rain (star shower)
+      } else if (!d.reclaiming) {
         animate(ctx, d, dt);
       } else if (reclaimStep(ctx, d, dt)) {
         drops.splice(i, 1); // arrived back inside him
@@ -568,22 +700,24 @@ export default {
     const now = ctx.clock.seconds;
     for (let i = drops.length - 1; i >= 0; i--) {
       const d = drops[i];
+      if (d.fading) continue; // too late, it's fading away
       if (d.reclaiming || now < (d.pickableAt ?? 0)) continue; // flying home / just thrown as a reward
-      if (Math.hypot(ctx.cursor.x - d.x, ctx.cursor.y - d.y) < PICKUP_RADIUS) {
+      const reach = PICKUP_RADIUS + (d.falling ? FALL_CATCH_BONUS : 0);
+      if (Math.hypot(ctx.cursor.x - d.x, ctx.cursor.y - d.y) < reach) {
         collect(ctx, i);
       }
     }
 
     const rules = rulesFor(ctx.pet);
     if (!rules.refuses) refusedThisSpell = false; // next mad spell may refuse again
-    // 'shop': parked in the shop's display box (events/shop.js), so no drops while shopping.
-    if (ctx.pet.mode === 'drag' || ctx.pet.mode === 'shop') return;
+    if (ctx.pet.mode === 'drag') return;
+    if (ctx.pet.hiding) return; // hide and seek: a starbit flying out would give him away
 
     // Playful (rate 2) counts down twice as fast. Rate 0 still counts at normal speed,
     // so a mad star "refuses" at about the moment he'd have dropped some.
     nextDropIn -= dt * Math.max(1, rules.starbits);
     if (nextDropIn <= 0) {
-      nextDropIn = rand(8, 15);
+      nextDropIn = nextDropDelay();
       if (rules.starbits > 0) {
         throwBurst(ctx);
       } else if (rules.refuses && !refusedThisSpell) {

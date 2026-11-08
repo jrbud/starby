@@ -1,0 +1,88 @@
+// HAPPENINGS — random things that just happen now and then (not games, not something you ask for).
+//
+// One shared timer on the session clock: the next happening is due a random GAP (20–50 minutes)
+// after the last one started. When it's due, one happening is picked at random from HAPPENINGS
+// (by weight) and started with ctx.startEvent(name, 'happening').
+//   Not a good moment (a game or invite is running, or you've been away from the mouse for
+//   USER_AWAY seconds)? It waits RETRY seconds and tries again, rather than skipping.
+//
+// TO ADD A HAPPENING: write its event (see ./starShower.js), register it in ./index.js, and add
+// it to HAPPENINGS below with a weight (higher = picked more often). It shares this timer.
+//
+// Not an event itself: ./index.js runs it as a helper (init / watch hooks).
+// DevTools: starby.happening() (random one now), starby.happening('star-shower'),
+//           starby.nextHappening() → seconds until the next one.
+
+export const HAPPENINGS = [
+  { name: 'star-shower', weight: 1 },
+  { name: 'hide-seek', weight: 1 }, // he quietly goes and hides (also a game on the buttons)
+];
+
+const GAP = [20 * 60, 50 * 60]; // seconds between happenings
+const RETRY = 60; // seconds to wait when it's not a good moment
+const USER_AWAY = 120; // seconds without cursor movement = nobody's watching, so wait
+
+const rand = (a, b) => a + Math.random() * (b - a);
+
+let timer = null;
+let dueAt = null; // session seconds
+let lastCursor = { x: -9999, y: -9999 };
+let cursorMovedAt = -Infinity;
+
+function pick() {
+  const total = HAPPENINGS.reduce((sum, h) => sum + (h.weight ?? 1), 0);
+  let r = Math.random() * total;
+  for (const h of HAPPENINGS) {
+    r -= h.weight ?? 1;
+    if (r <= 0) return h;
+  }
+  return HAPPENINGS[HAPPENINGS.length - 1];
+}
+
+function scheduleIn(ctx, seconds) {
+  ctx.cancel(timer);
+  dueAt = ctx.clock.seconds + seconds;
+  timer = ctx.after(seconds, () => fire(ctx), 'happenings: next');
+}
+
+function fire(ctx) {
+  timer = null;
+  if (!HAPPENINGS.length) return;
+  const away = ctx.clock.seconds - cursorMovedAt > USER_AWAY;
+  if (away || ctx.activeEvent()) {
+    scheduleIn(ctx, RETRY);
+    return;
+  }
+  const h = pick();
+  if (ctx.startEvent(h.name, 'happening')) {
+    ctx.log('happening', { name: h.name });
+    scheduleIn(ctx, rand(...GAP)); // next one, counted from this one's start
+  } else {
+    scheduleIn(ctx, RETRY);
+  }
+}
+
+export const happenings = {
+  name: 'happenings',
+
+  init(ctx) {
+    scheduleIn(ctx, rand(...GAP));
+    if (typeof window !== 'undefined' && window.starby) {
+      window.starby.happening = (name) => {
+        const h = name ? HAPPENINGS.find((x) => x.name === name) : pick();
+        if (!h) return `unknown happening; try: ${HAPPENINGS.map((x) => x.name).join(', ')}`;
+        return ctx.startEvent(h.name, 'devtools');
+      };
+      window.starby.nextHappening = () => (dueAt === null ? null : Math.max(0, Math.round(dueAt - ctx.clock.seconds)));
+    }
+  },
+
+  // Every tick: notice whether you're around.
+  watch(ctx) {
+    const { cursor } = ctx;
+    if (cursor.x !== lastCursor.x || cursor.y !== lastCursor.y) {
+      lastCursor = { x: cursor.x, y: cursor.y };
+      cursorMovedAt = ctx.clock.seconds;
+    }
+  },
+};

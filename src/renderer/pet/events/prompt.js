@@ -1,5 +1,5 @@
-// A small popup next to the star with one or two buttons, for events: tag uses it for its
-// Yes / No invite and for the "Play tag?" button that appears when you click him.
+// A small popup next to the star with buttons, for events: the Yes / No game invite and the
+// "Play a game?" buttons that appear when you click him.
 //
 // Plain HTML box + buttons: UI chrome, not character art. It has the `hit` class, so
 // click-through switches off while the cursor is over it (see ../clickThrough.js) and the
@@ -8,6 +8,7 @@
 //   const prompt = createPrompt(ctx.stage);
 //   prompt.show({ text: 'Play tag?', yes: 'Yes!', no: 'No', onYes, onNo });
 //   prompt.show({ text: '', yes: 'Play tag?', no: null, onYes });   // one button, no text line
+//   prompt.show({ text: 'Play a game?', buttons: [{ label: 'Tag', onClick }, ...] });   // any number
 //   prompt.setText('resting… 0:42');   // update the text line in place (empty = hide it)
 //   prompt.place(pet, ctx.area());   // every frame: keep it next to the star, off the taskbar
 //   prompt.hide();
@@ -49,6 +50,8 @@ export function createPrompt(stage) {
   let textEl = null;
   let yesBtn = null;
   let noBtn = null;
+  let buttonsEl = null;
+  let extraBtns = []; // buttons made for show({ buttons }) beyond yes/no
   let handlers = {};
   let size = { w: 0, h: 0 };
 
@@ -60,6 +63,7 @@ export function createPrompt(stage) {
     textEl.className = 'text';
     const buttons = document.createElement('div');
     buttons.className = 'buttons';
+    buttonsEl = buttons;
     yesBtn = document.createElement('button');
     yesBtn.className = 'yes';
     noBtn = document.createElement('button');
@@ -73,14 +77,32 @@ export function createPrompt(stage) {
   }
 
   return {
-    show({ text = '', yes = 'Yes', no = 'No', onYes, onNo }) {
+    show({ text = '', yes = 'Yes', no = 'No', onYes, onNo, buttons }) {
       if (!el) build();
       textEl.textContent = text;
       textEl.style.display = text ? '' : 'none';
-      yesBtn.textContent = yes;
-      noBtn.textContent = no || '';
-      noBtn.style.display = no ? '' : 'none'; // no = null → a single button
-      handlers = { onYes, onNo };
+      for (const b of extraBtns) b.remove();
+      extraBtns = [];
+      if (buttons && buttons.length) {
+        // Any number of buttons: the first reuses the "yes" style (filled), the rest the outlined one.
+        const [first, ...rest] = buttons;
+        yesBtn.textContent = first.label;
+        noBtn.style.display = 'none';
+        handlers = { onYes: first.onClick };
+        for (const b of rest) {
+          const btn = document.createElement('button');
+          btn.className = 'no';
+          btn.textContent = b.label;
+          btn.addEventListener('mousedown', (e) => { e.stopPropagation(); b.onClick?.(); });
+          buttonsEl.appendChild(btn);
+          extraBtns.push(btn);
+        }
+      } else {
+        yesBtn.textContent = yes;
+        noBtn.textContent = no || '';
+        noBtn.style.display = no ? '' : 'none'; // no = null → a single button
+        handlers = { onYes, onNo };
+      }
       el.style.display = 'block';
       size = { w: el.offsetWidth, h: el.offsetHeight };
     },

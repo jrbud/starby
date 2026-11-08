@@ -8,6 +8,11 @@
 // ~1s (loading the addon); after that each poll is ~1ms, so polling doesn't stall the main process.
 // `get-windows` is ESM-only, hence the dynamic import() from this CommonJS file.
 //
+// BOUNDS: the event also carries the window's rectangle { x, y, width, height } (screen
+// coordinates, Electron DIPs), and while the same app stays focused, 'active-window-bounds'
+// { bounds } is emitted when that window moves/resizes noticeably. Hide and seek
+// (renderer/pet/events/hideSeek.js) uses it to hide behind the window. A rectangle isn't private.
+//
 // PRIVACY: the window title never leaves this file (titles hold email subjects, file names,
 // chat names...). It's only used locally for one game hint below. We send the app's display
 // name and a coarse category, nothing else.
@@ -63,8 +68,26 @@ function isOwnProcess(owner) {
     || (owner.path && owner.path.toLowerCase() === process.execPath.toLowerCase());
 }
 
+// WINDOWS QUIRK: get-windows reports physical pixels on Windows; the renderer works in DIPs
+// (they differ with display scaling above 100%), so convert. Other platforms already match.
+const BOUNDS_MOVE = 20; // px change before re-sending the bounds
+function toDip(b) {
+  if (!b || !Number.isFinite(b.x)) return null;
+  const rect = { x: b.x, y: b.y, width: b.width, height: b.height };
+  if (process.platform !== 'win32') return rect;
+  try {
+    return require('electron').screen.screenToDipRect(null, rect);
+  } catch {
+    return rect;
+  }
+}
+const movedEnough = (a, b) => !a || !b
+  || Math.abs(a.x - b.x) > BOUNDS_MOVE || Math.abs(a.y - b.y) > BOUNDS_MOVE
+  || Math.abs(a.width - b.width) > BOUNDS_MOVE || Math.abs(a.height - b.height) > BOUNDS_MOVE;
+
 function start(emit) {
   let activeWindow = null;
+  let sentBounds = null; // last bounds we emitted
   let candidate = null; // app seen on the last poll(s)
   let seen = 0; // how many polls in a row
   let reported = null; // last app we emitted
@@ -86,10 +109,20 @@ function start(emit) {
 
     seen = key === candidate ? seen + 1 : 1;
     candidate = key;
-    if (seen < STABLE_POLLS || key === reported) return;
+    const bounds = toDip(win.bounds);
+    if (key === reported) {
+      // Same app still focused: just keep its window rectangle up to date.
+      if (bounds && movedEnough(sentBounds, bounds)) {
+        sentBounds = bounds;
+        emit('active-window-bounds', { bounds });
+      }
+      return;
+    }
+    if (seen < STABLE_POLLS) return;
 
     reported = key;
-    emit('active-window', { app: owner.name || exe, category: categorize(exe, exePath, win.title || '') });
+    sentBounds = bounds;
+    emit('active-window', { app: owner.name || exe, category: categorize(exe, exePath, win.title || ''), bounds });
   };
 
   import('get-windows')
