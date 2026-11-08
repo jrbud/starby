@@ -31,7 +31,7 @@ import speech from './speech.js';
 import starbits from './starbits.js';
 import systemReactions from './systemReactions.js';
 import sessionEvents from './sessionEvents.js';
-import shopOpener from './shopOpener.js';
+// (No double-click → shop: the shop opens only from the right-click menu, src/main/ipc.js.)
 import wallImpact from './wallImpact.js'; // crash lines + dust + star clouds when he hits a wall
 
-export const BEHAVIORS = [idle, walk, drag, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, shopOpener, wallImpact];
+export const BEHAVIORS = [idle, walk, drag, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, wallImpact];
