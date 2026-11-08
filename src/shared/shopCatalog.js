@@ -18,11 +18,16 @@
 // list (e.g. state.equipped.accessories) and allow at most ONE item per place: that's the rule
 // that keeps e.g. boots and sneakers from being worn together (both 'feet'), or two hats.
 // accessoriesConflict() below already implements it; the renderer already takes a list.
-// For now every accessory is unlocked from the start (see stateSchema.js).
 //
 // BALANCE: starbits.js drops one every 8–15s (~11.5s average), so a player who collects most
 // drops earns ~5 per minute. Cheapest items cost 25 (~5 min of play, the first purchase).
-// Rough tiers: colors 25–60, accessories 40–120 (prices only matter once they're locked again).
+// Accessories are bought with starbits like colors (only "None" is free):
+//   40–50   small things: lollipop, bow, tie                       (~8–10 min of play)
+//   60–70   hats and shoes: propeller hat, sneakers, boots, top hat (~12–14 min)
+//   80–90   floating extras: balloon, star trail                   (~16–18 min)
+//   100–120 the showpieces: halo, UFO buddy                        (~20–24 min)
+// Everything (colors 295 + accessories 780) costs 1075 starbits, about 3.5 hours of play.
+// For demos use the shop's demo shortcut (P4-3).
 
 const SHOP_ITEMS = [
   // Colors

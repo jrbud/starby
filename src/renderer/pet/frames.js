@@ -21,6 +21,7 @@ export const FACES = {
   happy: { files: ['idle-1', 'idle-2'], every: 0.6 }, // default: standing, content
   talking: { files: ['talk-1', 'talk-2'], every: 0.2 }, // mouth flapping
   playful: { files: ['happy-1', 'happy-2'], every: 0.35 }, // playing / thrown / tag (tongue out)
+  dancing: { files: ['happy-1', 'happy-2'], every: 0.25 }, // dancing to music: swaps twice a beat (events/dance.js)
   mad: { files: ['mad-1', 'mad-2'], every: 0.4 },
   sad: { files: ['mad-1', 'mad-2'], every: 0.5 }, // said no to tag: grumpy for a bit, not truly mad
   dizzy: { files: ['dizzy-1', 'dizzy-2'], every: 0.3 },

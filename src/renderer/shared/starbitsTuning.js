@@ -11,11 +11,11 @@
 
 export const STARBITS_TUNING = [
   {
-    group: 'Starbits', key: 'dropEveryMin', label: 'Drop every (min)', unit: 's', min: 1, max: 120, step: 1, default: 8,
+    group: 'Starbits', key: 'dropEveryMin', label: 'Drop every (min)', unit: 's', min: 1, max: 120, step: 1, default: 30,
     help: 'Shortest wait between drops. Moods scale this (playful = twice as often, mad/asleep = none).',
   },
   {
-    group: 'Starbits', key: 'dropEveryMax', label: 'Drop every (max)', unit: 's', min: 1, max: 120, step: 1, default: 15,
+    group: 'Starbits', key: 'dropEveryMax', label: 'Drop every (max)', unit: 's', min: 1, max: 120, step: 1, default: 60,
     help: 'Longest wait between drops. Each wait is random between min and max.',
   },
   {

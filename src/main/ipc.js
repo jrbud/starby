@@ -101,6 +101,7 @@ function registerIpc() {
           { label: 'Open pet DevTools', click: () => e.sender.openDevTools({ mode: 'detach' }) },
           { type: 'separator' },
           { label: 'Start star shower now', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'happening', args: ['star-shower'] }) },
+          { label: 'Start shooting star now', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'happening', args: ['shooting-star'] }) },
           { label: 'Hide & seek behind a real window', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'hideReal' }) },
           { label: 'Hide & seek behind a fake test window', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'hideTest' }) },
           { label: 'Starby invites you to a game', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'invite' }) },
