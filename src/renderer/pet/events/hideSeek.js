@@ -15,8 +15,8 @@
 //           peeking → you found him: "you found me!" and FOUND_REWARD starbits.
 //   end     found → 'found'; not found within GAME_FOR seconds → he comes out, 'star-won'.
 //
-// Starts: the "Play a game?" buttons, the happenings timer (./happenings.js: he just quietly goes
-// and hides on his own), the right-click menu ("Play hide & seek"), or starby.startEvent('hide-seek').
+// Starts: the "Play a game?" buttons, the games timer (./games.js: he just quietly goes and hides
+// on his own), the right-click menu ("Play hide & seek"), or starby.startEvent('hide-seek').
 // Never offered in his "wanna play?" invites: he doesn't announce it. Shares the rest between games.
 //
 // Owns the star via pet.mode = 'hide'. Decisions (timers, found, picking spots) on ticks; motion
@@ -150,13 +150,15 @@ function comeOut(ctx, result) {
 
 export default {
   name: 'hide-seek',
+  category: 'games',
   priority: 10, // a game: same level as tag / pong
 
   canStart(ctx, reason) {
     const { pet } = ctx;
     if (pet.mode === 'drag' || pet.mode === 'toss') return false;
-    if (reason === 'happening') {
-      // Hiding on his own: only when he's in the mood and rested; never says "i'm tired".
+    if (reason === 'random') {
+      // The games timer starts him hiding on his own: only when he's in the mood and rested;
+      // never says "i'm tired".
       const relaxed = pet.mode === 'idle' || pet.mode === 'walk';
       const goodMood = pet.mood === 'happy' || pet.mood === 'playful';
       return relaxed && goodMood && restLeft(ctx) === 0;

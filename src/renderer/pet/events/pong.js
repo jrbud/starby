@@ -178,6 +178,7 @@ function finish(result) {
 
 export default {
   name: 'pong',
+  category: 'games',
   priority: 10,
 
   canStart(ctx, reason) {

@@ -192,6 +192,7 @@ function finish(result) {
 
 export default {
   name: 'tag',
+  category: 'games',
   priority: 10,
   canStart(ctx, reason) {
     const { pet, cursor } = ctx;

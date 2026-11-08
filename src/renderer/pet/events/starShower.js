@@ -1,4 +1,4 @@
-// STAR SHOWER — a happening (./happenings.js): starbits rain from the sky for a short while.
+// STAR SHOWER — a sky event (./happenings.js): starbits rain from the sky for a short while.
 //
 // Starby shouts "THE SKY IS FALLING!" and hops, then for RAIN_FOR seconds starbits fall from the
 // top of the usable screen at random spots (rainStarbit in ../behaviors/starbits.js). They don't
@@ -6,8 +6,8 @@
 // When the last ones have landed (or been caught) he says how many you got.
 //
 // He isn't taken over: no pet.mode of its own, so he keeps wandering and reacting while it rains
-// (with some extra excited hops). Low priority, so it never interrupts a game; the happenings
-// timer just tries again a bit later.
+// (with some extra excited hops). A SKY EVENT: high priority, interrupts a dance; the sky timer
+// waits for a running game to finish rather than interrupting it.
 // Decisions (when to drop the next starbit, ending) run on ticks.
 import { rand, chance, startJump, isJumping } from '../behaviors/motion.js';
 import { lineBag } from '../behaviors/chatter.js';
@@ -44,7 +44,8 @@ function finish(result) {
 
 export default {
   name: 'star-shower',
-  priority: 3, // below games and invites
+  category: 'sky',
+  priority: 15, // high: beats dancing and invites (the sky timer waits for games to finish)
 
   start(ctx, end) {
     const { pet } = ctx;

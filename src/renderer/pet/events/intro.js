@@ -183,6 +183,7 @@ function finish(result) {
 
 export default {
   name: 'intro',
+  category: 'system',
   priority: 100, // nothing interrupts the intro
 
   init(ctx) {
