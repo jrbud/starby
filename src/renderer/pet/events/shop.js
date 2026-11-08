@@ -18,12 +18,15 @@
 // You can still grab and throw him; when he lands he runs straight back to the box.
 // Priority 20: opening the shop interrupts a game of tag (10).
 
+import { approach, cancelJump } from '../behaviors/motion.js';
+
 const RUN_SPEED = 420; // px/s top speed on the way to the box
 const ACCEL = 6; // 1/s, how fast he gets up to speed
 const ARRIVE = 1.5; // px: close enough, snap into place
 const FREE_MODES = ['idle', 'walk', 'follow', 'flee']; // landed after a throw, etc. → go back
 
 let target = null; // { x, y } top-left for the star so he's centered in the box
+let shopOpen = false; // between 'shop-park' and 'shop-release'
 let speed = 0;
 let arrived = false;
 let endFn = null;
@@ -51,8 +54,11 @@ export default {
       if (!cmd) return;
       if (cmd.type === 'shop-park') {
         setTarget(ctx, cmd);
+        shopOpen = true;
         if (ctx.activeEvent() !== 'shop') ctx.startEvent('shop', 'shop-open');
       } else if (cmd.type === 'shop-release') {
+        shopOpen = false;
+        target = null;
         ctx.previewAccessory?.(null); // take off anything he was only trying on
         ctx.previewColor?.(null);
         endFn?.('shop-closed');
@@ -64,6 +70,13 @@ export default {
         ctx.say(cmd.text, 2800);
       }
     });
+  },
+
+  // Every tick, even when not running: if the shop is open but he isn't in it (the launch intro,
+  // priority 100, was still playing when the shop opened, or something higher interrupted),
+  // keep asking until he's free. Without this he never went into the box.
+  watch(ctx) {
+    if (shopOpen && target && ctx.activeEvent() !== 'shop') ctx.startEvent('shop', 'shop-open');
   },
 
   start(ctx, end) {
@@ -82,11 +95,18 @@ export default {
       speed = 0;
       return;
     }
-    if (FREE_MODES.includes(pet.mode)) pet.mode = 'shop';
+    if (FREE_MODES.includes(pet.mode)) {
+      pet.mode = 'shop';
+      cancelJump(); // a hop that started before we took over (e.g. a startle) is dropped
+    }
     if (pet.mode !== 'shop') return;
 
+    // In 'shop' mode no behavior eases his body back to normal, so do it here. Without this, a
+    // throw's landing squish (drag.js sets squash 0.85; idle.js only eases it in 'idle') stuck
+    // around and he ran back into the box stretched wide.
     pet.bob = 0;
     pet.rotation = 0;
+    pet.squash = approach(pet.squash, 1, dt, 10);
     if (arrived) {
       pet.x = target.x;
       pet.y = target.y;
@@ -114,12 +134,15 @@ export default {
     if (Math.abs(dx) > 4 && !ctx.isSpeaking()) pet.face = dx < 0 ? 'left' : 'right';
   },
 
+  // Closing/minimizing ('shop-release') clears the target and try-ons. If he was only
+  // interrupted, the target stays so watch() can send him back once he's free.
   stop(ctx) {
     const { pet } = ctx;
     endFn = null;
-    target = null;
-    ctx.previewAccessory?.(null);
-    ctx.previewColor?.(null);
+    if (!shopOpen) {
+      ctx.previewAccessory?.(null);
+      ctx.previewColor?.(null);
+    }
     if (pet.mode === 'shop') pet.mode = 'idle'; // free to wander again
   },
 };

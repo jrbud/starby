@@ -62,7 +62,7 @@ button {
 .titlebar h1 {
   margin: 0;
   color: var(--yellow);
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 800;
 }
 
@@ -143,7 +143,7 @@ button {
   border-radius: 999px;
   background: #ffffff;
   color: var(--ink);
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 800;
 }
 .action-button:hover {
@@ -196,7 +196,7 @@ button {
   background: none;
   border: 0;
   color: var(--yellow);
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 800;
 }
 .section-toggle .label {
@@ -228,7 +228,7 @@ button {
   border: 1.5px solid var(--outline);
   background: var(--button-bg);
   color: var(--ink);
-  font-size: 15px;
+  font-size: 20px;
   text-align: left;
 }
 .item:hover {
@@ -271,7 +271,7 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 14px;
+  font-size: 15px;
 }
 .price .starbit-icon {
   width: 13px;
