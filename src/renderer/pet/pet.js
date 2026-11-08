@@ -145,6 +145,11 @@ const ctx = {
       log('say-muted', { text });
       return;
     }
+    // Just spawned (events/intro.js sets quietUntil): he says nothing until he's settled in.
+    if (clock.seconds < (pet.quietUntil || 0)) {
+      log('say-muted', { text, reason: 'just spawned' });
+      return;
+    }
     bubble.say(text, ms);
     log('say', { text });
   },

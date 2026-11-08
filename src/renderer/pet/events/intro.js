@@ -44,6 +44,8 @@ const LAUNCH_VX = [700, 1000];
 const LAUNCH_VY = [250, 450];
 const LAUNCH_SPIN = [4, 7];
 const LAND_TIMEOUT = 25; // seconds: greet anyway if he's still bouncing around by then
+const SPAWN_QUIET = 1; // seconds after he's flung on screen before he may say anything (pet.quietUntil)
+const LAUNCH_SOUND_LEAD_MS = 200; // launch.mp3 starts this long before the title slams in
 const GREETING_MS = 2800;
 
 // ---- Greetings ----
@@ -118,7 +120,6 @@ function showTitle(ctx, frames, w, h) {
   el.append(canvas);
   // Behind Starby: first in the stage, so he flies in front of the fading title.
   ctx.stage.prepend(el);
-  sfx.play('launch'); // launch.mp3 with the title card
   const g = canvas.getContext('2d');
   g.drawImage(frames[0], 0, 0);
   // The slam: drop in from big and see-through to full size, with a squash on impact.
@@ -150,6 +151,7 @@ function launchStarby(ctx) {
   pet.rotation = 0;
   pet.facing = 1; // looking the way he flies (right)
   hideStarby(false); // he appears now, as he's flung
+  pet.quietUntil = ctx.clock.seconds + SPAWN_QUIET; // ctx.say (pet.js) stays silent until then
   launch(ctx, {
     vx: rand(...LAUNCH_VX),
     vy: rand(...LAUNCH_VY),
@@ -162,6 +164,12 @@ function launchStarby(ctx) {
 }
 
 function greet(ctx) {
+  // Landed within his first second on screen: hold the hello until he may talk (SPAWN_QUIET).
+  const wait = (ctx.pet.quietUntil || 0) - ctx.clock.seconds;
+  if (wait > 0) {
+    ctx.after(wait + 0.05, () => greet(ctx), 'intro greeting (after spawn quiet)');
+    return;
+  }
   const firstTime = lastSeenBeforeThisRun == null && !hasSave;
   if (firstTime) {
     // A little introduction, one line after another.
@@ -202,12 +210,17 @@ export default {
     endIntro = end;
     phase = 'loading';
     ctx.pet.mode = 'intro'; // behaviors stand down for modes they don't know
+    ctx.pet.quietUntil = Infinity; // not on screen yet: silent until launchStarby() sets the real time
     hideStarby(true);
     const a = ctx.area();
     const w = Math.round(Math.min(TITLE_MAX_WIDTH, (a.right - a.left) * TITLE_WIDTH));
     const h = Math.round(w * TITLE_ASPECT);
     try {
       const frames = await withTimeout(loadTitleFrames(w, h), LOAD_TIMEOUT_MS);
+      if (phase !== 'loading') { frames.forEach((f) => f.close?.()); return; } // stopped meanwhile
+      // launch.mp3 leads the title by LAUNCH_SOUND_LEAD_MS so its hit lands with the slam.
+      sfx.play('launch');
+      await new Promise((r) => setTimeout(r, LAUNCH_SOUND_LEAD_MS));
       if (phase !== 'loading') { frames.forEach((f) => f.close?.()); return; } // stopped meanwhile
       title = showTitle(ctx, frames, w, h);
       phase = 'title';
@@ -265,8 +278,9 @@ export default {
     removeTitle();
     hideStarby(false);
     if (phase === 'loading' || phase === 'title') {
-      // Stopped early: put him back in play.
+      // Stopped early: put him back in play (and let him talk: he never got launched).
       if (ctx.pet.mode === 'intro') ctx.pet.mode = 'idle';
+      ctx.pet.quietUntil = 0;
     }
     phase = 'idle';
   },

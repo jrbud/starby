@@ -27,6 +27,11 @@ import { approach, clamp, petBounds } from './motion.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { flingTuning, DEFAULT_FLING_POWER } from '../../shared/flingTuning.js';
 import { rulesFor } from './moods.js';
+import { sfx } from '../../shared/sfx.js';
+
+// A release at least this fast (px/s, after Fling power) plays a throw sound; slower is just
+// putting him down after a drag.
+const THROW_SOUND_MIN_SPEED = 400;
 
 const CLICK_SLOP = 4; // px of movement before a press counts as a drag
 
@@ -433,6 +438,7 @@ export default {
         uprighting = false;
         freezeLeft = 0;
         pet.mode = 'toss';
+        if (speed >= THROW_SOUND_MIN_SPEED) sfx.play('throw'); // one of throw-1..4
         ctx.log('toss', { speed: Math.round(Math.min(speed, tuning.maxSpeed)), spin: Math.round(omega * 10) / 10 });
       } else {
         ctx.log('click', {});

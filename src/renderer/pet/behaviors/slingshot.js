@@ -24,6 +24,7 @@
 import { launch } from './drag.js';
 import { rulesFor } from './moods.js';
 import { rand, cancelJump } from './motion.js';
+import { sfx } from '../../shared/sfx.js';
 
 // ---- Tuning ----
 const PULL_SLOP = 6; // px of pull before it counts as a slingshot (less = a right-click)
@@ -85,6 +86,7 @@ function release(ctx) {
   const d = lastStretch - 1;
   wobble = { x: d >= 0 ? d : d / (1 + SQUASH_SOFT * d), v: 0 };
   launch(ctx, { vx, vy, spin: (Math.random() < 0.5 ? -1 : 1) * rand(...LAUNCH_SPIN) * tension });
+  sfx.play('sling');
   ctx.log('slingshot', { pull: Math.round(dist), angle: Math.round((Math.atan2(-py, -px) * 180) / Math.PI) });
 }
 

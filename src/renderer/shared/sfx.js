@@ -9,7 +9,14 @@
 // check them. Clips overlap freely: each play() uses a fresh copy of the preloaded clip.
 //
 // Where each sound is played (keep this list current when hooking up new ones):
-//   chat             pet/bubble.js say(): he says something that needs no answer (not dreams)
+//   chat             pet/bubble.js say(): he says something that needs no answer (not dreams);
+//                    one of chat-1..4 at random
+//   explode          pet/behaviors/fx.js wallHit(): he hits a wall hard and the impact art plays
+//                    (also pong hits, which reuse it); louder the harder he hits
+//   throw            pet/behaviors/drag.js mouseup: you throw him (fast enough to be a throw, not a
+//                    gentle drag-and-drop); one of throw-1..4 at random
+//   sling            pet/behaviors/slingshot.js release() and pet/events/hoopShot.js: you let go of a
+//                    slingshot pull (not his own self-slingshot in events/focus.js)
 //   prompt           pet/dialogue/dialogue.js showNode(): dialogue tree steps + event questions
 //   collect-starbit  pet/behaviors/starbits.js collect(): one of the 3 clips at random
 //   launch           pet/events/intro.js showTitle(): the title card at app launch
@@ -17,12 +24,30 @@
 //
 // SOUND names (add a new file to assets/sounds/ and list it here):
 const SOUNDS = {
-  chat: ['chat'],
+  chat: ['chat-1', 'chat-2', 'chat-3', 'chat-4'],
   'collect-starbit': ['collect-starbit-1', 'collect-starbit-2', 'collect-starbit-3'],
   exit: ['exit'],
+  explode: ['explode'],
   launch: ['launch'],
   prompt: ['prompt'],
+  throw: ['throw-1', 'throw-2', 'throw-3', 'throw-4'],
+  sling: ['sling'],
 };
+
+// Per-sound loudness (1 = as recorded), applied on top of the Settings volume. Tweak here to
+// balance clips against each other without re-exporting the files.
+// 0 = silent, 0.5 = half as loud, 1 = as recorded.
+const GAIN = {
+  'collect-starbit': 0.05,
+  explode: 0.6,
+  chat: 0.1,
+  throw: 0.1,
+  sling: 0.07,
+  startup: 1
+};
+// Sounds that always share another sound's loudness: change chat above and prompt follows.
+GAIN.prompt = GAIN.chat; // his questions sound as loud as his lines
+GAIN.launch = GAIN.startup; // `startup` above sets the startup sound (launch.mp3)
 
 // Resolved from this file, so it works from any window (pet, shop, settings...).
 const url = (file) => new URL(`../../../assets/sounds/${file}.mp3`, import.meta.url).href;
@@ -59,13 +84,21 @@ api?.onSettingsChanged?.(applySettings);
 // e.g. the chat blip of his goodbye line.
 let exclusiveUntil = 0;
 
+// STARTUP QUIET: only the startup sound (launch) may play during the first STARTUP_QUIET_MS after
+// a window opens, and again for STARTUP_QUIET_MS after launch.mp3 starts, so nothing (e.g. a chat
+// blip) plays over the startup sound. Checked when a sound is ASKED for, not when it starts.
+const STARTUP_QUIET_MS = 500;
+const STARTUP_SOUND = 'launch';
+let startupQuietUntil = performance.now() + STARTUP_QUIET_MS;
+
 function start(name, files, scale, exclusive) {
   if (volume <= 0) return;
   const now = performance.now();
   if (now < exclusiveUntil) return;
+  if (name === STARTUP_SOUND) startupQuietUntil = Math.max(startupQuietUntil, now + STARTUP_QUIET_MS);
   const file = files[Math.floor(Math.random() * files.length)];
   const audio = clip(file).cloneNode();
-  audio.volume = Math.max(0, Math.min(1, volume * scale));
+  audio.volume = Math.max(0, Math.min(1, volume * (GAIN[name] ?? 1) * scale));
   if (exclusive) {
     exclusiveUntil = now + 3000; // until we know the clip's real length
     audio.addEventListener('loadedmetadata', () => {
@@ -83,6 +116,7 @@ export const sfx = {
   play(name, { volume: scale = 1, exclusive = false } = {}) {
     const files = SOUNDS[name];
     if (!files) return;
+    if (name !== STARTUP_SOUND && performance.now() < startupQuietUntil) return; // startup quiet
     if (settingsLoaded) start(name, files, scale, exclusive);
     else settingsReady.then(() => start(name, files, scale, exclusive));
   },
