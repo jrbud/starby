@@ -9,11 +9,6 @@
 // ~1s (loading the addon); after that each poll is ~1ms, so polling doesn't stall the main process.
 // `get-windows` is ESM-only, hence the dynamic import() from this CommonJS file.
 //
-// BOUNDS: the event also carries the window's rectangle { x, y, width, height } (screen
-// coordinates, Electron DIPs), and while the same app stays focused, 'active-window-bounds'
-// { bounds } is emitted when that window moves/resizes noticeably. Hide and seek
-// (renderer/pet/events/hideSeek.js) uses it to hide behind the window. A rectangle isn't private.
-//
 // PRIVACY: the window title never leaves this file (titles hold email subjects, file names,
 // chat names...). It's only used locally for a few hints below (Minecraft, a PDF or a Google
 // Doc open in a browser). We send the app's display name and a coarse category, nothing else.
@@ -93,9 +88,8 @@ function isOwnProcess(owner) {
     || (owner.path && owner.path.toLowerCase() === process.execPath.toLowerCase());
 }
 
-// WINDOWS QUIRK: get-windows reports physical pixels on Windows; the renderer works in DIPs
-// (they differ with display scaling above 100%), so convert. Other platforms already match.
-const BOUNDS_MOVE = 20; // px change before re-sending the bounds
+// WINDOWS QUIRK: get-windows reports physical pixels on Windows; Electron's displays are in DIPs
+// (they differ with display scaling above 100%), so convert before comparing. Others match.
 function toDip(b) {
   if (!b || !Number.isFinite(b.x)) return null;
   const rect = { x: b.x, y: b.y, width: b.width, height: b.height };
@@ -106,6 +100,7 @@ function toDip(b) {
     return rect;
   }
 }
+
 // FULLSCREEN: the focused window covers its whole display (a fullscreen game or video; a
 // maximized window doesn't count, the taskbar is still showing). Not the desktop itself.
 // Emitted as 'fullscreen' { active } whenever it changes (renderer/pet/events/hush.js).
@@ -120,13 +115,8 @@ function isFullscreen(exe, b) {
   return b.x <= d.x + 2 && b.y <= d.y + 2 && b.width >= d.width - 4 && b.height >= d.height - 4;
 }
 
-const movedEnough = (a, b) => !a || !b
-  || Math.abs(a.x - b.x) > BOUNDS_MOVE || Math.abs(a.y - b.y) > BOUNDS_MOVE
-  || Math.abs(a.width - b.width) > BOUNDS_MOVE || Math.abs(a.height - b.height) > BOUNDS_MOVE;
-
 function start(emit) {
   let activeWindow = null;
-  let sentBounds = null; // last bounds we emitted
   let candidate = null; // app seen on the last poll(s)
   let seen = 0; // how many polls in a row
   let reported = null; // last app we emitted
@@ -151,25 +141,15 @@ function start(emit) {
 
     seen = key === candidate ? seen + 1 : 1;
     candidate = key;
-    const bounds = toDip(win.bounds);
-    const fullscreen = isFullscreen(exe, bounds);
+    const fullscreen = isFullscreen(exe, toDip(win.bounds));
     if (fullscreen !== sentFullscreen) {
       sentFullscreen = fullscreen;
       emit('fullscreen', { active: fullscreen });
     }
-    if (key === reported) {
-      // Same app still focused: just keep its window rectangle up to date.
-      if (bounds && movedEnough(sentBounds, bounds)) {
-        sentBounds = bounds;
-        emit('active-window-bounds', { bounds });
-      }
-      return;
-    }
-    if (seen < STABLE_POLLS) return;
+    if (seen < STABLE_POLLS || key === reported) return;
 
     reported = key;
-    sentBounds = bounds;
-    emit('active-window', { app: owner.name || exe, category, bounds });
+    emit('active-window', { app: owner.name || exe, category });
   };
 
   import('get-windows')
@@ -184,4 +164,4 @@ function start(emit) {
     });
 }
 
-module.exports = { start, categorize, toDip, isOwnProcess, isFullscreen }; // toDip / isOwnProcess: also used by openWindows.js
+module.exports = { start, categorize, isFullscreen };

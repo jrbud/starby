@@ -3,10 +3,9 @@
 const { ipcMain, BrowserWindow, Menu, app } = require('electron');
 const store = require('./store');
 const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
-const { openShopWindow, setDisplayRect, petSay, setPreview, minimizeShop, closeShop } = require('./windows/shopWindow');
+const { openShopWindow, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const settingsStore = require('./settingsStore');
-const { listOpenWindows } = require('./systemReads/openWindows');
 const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
 const adminSettingsStore = require('./adminSettingsStore');
 
@@ -52,15 +51,14 @@ function registerIpc() {
   ipcMain.on('shop:display-rect', (_e, rect) => setDisplayRect(rect));
   ipcMain.on('shop:say', (_e, text) => petSay(text));
   ipcMain.on('shop:preview', (_e, accessory) => setPreview(accessory)); // try-on, never saved
+  // Color/skin try-on: only real color items from the catalog, never saved.
+  ipcMain.on('shop:preview-color', (_e, id) => setPreviewColor(getItem(id)?.slot === 'color' ? id : null));
 
   // ---- Settings (sliders) ----
   ipcMain.handle('settings:get', () => settingsStore.get());
   ipcMain.handle('settings:set', (_e, patch) => settingsStore.set(patch));
   ipcMain.handle('settings:reset', () => settingsStore.reset());
   ipcMain.on('settings:open', () => openSettingsWindow());
-
-  // ---- Read-only: rectangles of the open windows (hide and seek hides behind them) ----
-  ipcMain.handle('system:open-windows', () => listOpenWindows());
 
   // ---- Admin Settings (starbits tuning overrides; see renderer/shared/starbitsTuning.js) ----
   ipcMain.handle('admin:get', () => adminSettingsStore.get());
@@ -90,6 +88,7 @@ function registerIpc() {
       { label: 'Play tag', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'tag' }) },
       { label: 'Play pong', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'pong' }) },
       { label: 'Play hide & seek', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'hide-seek' }) },
+      { label: 'Play catch', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'catch' }) },
       { type: 'separator' },
       // Dev / demo helpers. 'starby' commands call window.starby.<fn>(...args) in the pet window
       // (the same debug helpers you can run in its DevTools console).
@@ -99,8 +98,7 @@ function registerIpc() {
           { label: 'Open pet DevTools', click: () => e.sender.openDevTools({ mode: 'detach' }) },
           { type: 'separator' },
           { label: 'Start star shower now', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'happening', args: ['star-shower'] }) },
-          { label: 'Hide & seek behind a real window', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'hideReal' }) },
-          { label: 'Hide & seek behind a fake test window', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'hideTest' }) },
+          { label: 'Start shooting star now', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'happening', args: ['shooting-star'] }) },
           { label: 'Starby invites you to a game', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'invite' }) },
           { label: 'Skip game rest', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'skipRest' }) },
           { label: 'Stop current event', click: () => e.sender.send('pet:command', { type: 'starby', fn: 'stopEvent' }) },

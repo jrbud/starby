@@ -10,6 +10,8 @@
 //                                (null = what he really has on). Removed again when the shop
 //                                closes/minimizes; only Buy/Equip make it stick (that's saved
 //                                state, which pet.js shows once the preview is cleared).
+//   { type: 'shop-preview-color', color }  same for colors/skins: show this color item id
+//                                (e.g. 'color-pink' = the bubblegum skin); null = equipped color.
 //
 // He owns the star via pet.mode = 'shop', so behaviors stand down (they only act on modes they
 // know): no wandering, no flinching, no idle chatter, and starbits.js drops nothing in 'shop'.
@@ -51,9 +53,12 @@ export default {
         if (ctx.activeEvent() !== 'shop') ctx.startEvent('shop', 'shop-open');
       } else if (cmd.type === 'shop-release') {
         ctx.previewAccessory?.(null); // take off anything he was only trying on
+        ctx.previewColor?.(null);
         endFn?.('shop-closed');
       } else if (cmd.type === 'shop-preview') {
         ctx.previewAccessory?.(typeof cmd.accessory === 'string' ? cmd.accessory : null);
+      } else if (cmd.type === 'shop-preview-color') {
+        ctx.previewColor?.(typeof cmd.color === 'string' ? cmd.color : null);
       } else if (cmd.type === 'shop-say' && typeof cmd.text === 'string') {
         ctx.say(cmd.text, 2800);
       }
@@ -113,6 +118,7 @@ export default {
     endFn = null;
     target = null;
     ctx.previewAccessory?.(null);
+    ctx.previewColor?.(null);
     if (pet.mode === 'shop') pet.mode = 'idle'; // free to wander again
   },
 };

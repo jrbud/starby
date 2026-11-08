@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('sprite', {
   shopSay: (text) => ipcRenderer.send('shop:say', text),
   // Try-on: show this accessory value on Starby while browsing (null = what he really wears).
   previewAccessory: (value) => ipcRenderer.send('shop:preview', value),
+  // Try-on for colors/skins: show this color item id on Starby while browsing (null = equipped).
+  previewColor: (id) => ipcRenderer.send('shop:preview-color', id),
 
   // Settings (sliders): { flingPower: 0–100 }
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -51,7 +53,4 @@ contextBridge.exposeInMainWorld('sprite', {
 
   // Read-only system events: { type, ...payload }
   onSystemEvent: (cb) => subscribe('system:event', cb),
-  // Read-only: rectangles of the open windows, front to back: [{ x, y, width, height }]
-  // (screen coordinates, DIPs). No titles or app names. [] if unavailable.
-  getOpenWindows: () => ipcRenderer.invoke('system:open-windows'),
 });

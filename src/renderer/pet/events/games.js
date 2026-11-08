@@ -31,6 +31,7 @@ export const GAMES = [
   { name: 'tag', label: 'Tag', ask: ['wanna play tag?', 'hey! play tag with me?', 'tag? pleeease?'] },
   { name: 'pong', label: 'Pong', ask: ['wanna play pong? i can be the ball!', 'pong? pleeease?', 'hey! bonk me around in pong?'] },
   { name: 'hide-seek', label: 'Hide & Seek', invite: false },
+  { name: 'catch', label: 'Catch', ask: ["wanna play catch? i'll throw myself!", 'catch? i throw, you catch!', 'hey! play catch with me?'] },
 ];
 
 const LINES = {

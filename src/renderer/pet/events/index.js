@@ -28,11 +28,14 @@
 //
 // Start one from code with ctx.startEvent('tag'), from DevTools with starby.startEvent('tag'),
 // or from the right-click menu (see src/main/ipc.js). Logged as 'event-start' / 'event-end'.
+import intro from './intro.js';
 import tag from './tag.js';
 import pong from './pong.js';
 import invite from './invite.js';
 import starShower from './starShower.js';
+import shootingStar from './shootingStar.js';
 import hideSeek from './hideSeek.js';
+import catchGame from './catchGame.js';
 import shop from './shop.js';
 import dance from './dance.js';
 import hush from './hush.js';
@@ -40,12 +43,14 @@ import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
 
 // invite = Starby asking you to play one of the games (picks from GAMES in games.js).
-// star-shower = a happening, started by the happenings timer (happenings.js).
+// star-shower, shooting-star = happenings, started by the happenings timer (happenings.js).
 // hide-seek = a game (buttons) and a happening (he hides on his own); never in invites.
 // shop = parks him in the shop window's display box while it's open (shop.js).
+// intro = the launch animation (title slam, Starby flies in, greeting); starts itself at launch.
+// catch = a game: he throws himself across the screen, catch him in the box (catchGame.js).
 // dance = dances in bursts while a song plays in Spotify (dance.js); lowest priority.
 // hush = quiet and still during video calls / fullscreen apps (hush.js); above the games.
-export const EVENTS = [tag, pong, invite, starShower, hideSeek, shop, dance, hush];
+export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance, hush];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the "Play a game?" buttons + the rest between games (games.js);

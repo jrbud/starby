@@ -15,6 +15,7 @@
 
 export const HAPPENINGS = [
   { name: 'star-shower', weight: 1 },
+  { name: 'shooting-star', weight: 1 }, // a stream of starbits shoots across the screen
   { name: 'hide-seek', weight: 1 }, // he quietly goes and hides (also a game on the buttons)
 ];
 
