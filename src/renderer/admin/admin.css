@@ -1,0 +1,129 @@
+/* Plain, flat UI, matching the Settings and shop windows. */
+:root {
+  --bg: #f6f4fb;
+  --panel: #ffffff;
+  --ink: #2b2b3a;
+  --muted: #77768a;
+  --accent: #6c5ce7;
+  --line: #e2dff0;
+}
+
+body {
+  margin: 0;
+  padding: 16px 20px 20px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+main {
+  display: grid;
+  gap: 16px;
+}
+
+/* A titled group of settings, e.g. "Starbits". */
+.group {
+  display: grid;
+  gap: 8px;
+}
+
+.group h2 {
+  margin: 0;
+  padding-bottom: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-bottom: 1px solid var(--line);
+}
+
+.group-body {
+  display: grid;
+  gap: 10px;
+}
+
+.setting {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: grid;
+  gap: 4px;
+}
+
+/* A knob that's been moved off its default gets an accent edge, so changes are easy to spot. */
+.setting.changed {
+  border-left-color: var(--accent);
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+label {
+  font-weight: 600;
+}
+
+output {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ends .default {
+  font-style: italic;
+}
+
+.detail {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+button {
+  justify-self: start;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

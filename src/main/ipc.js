@@ -6,6 +6,8 @@ const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
 const { openShopWindow } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const settingsStore = require('./settingsStore');
+const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
+const adminSettingsStore = require('./adminSettingsStore');
 
 function registerIpc() {
   // ---- State ----
@@ -50,6 +52,12 @@ function registerIpc() {
   ipcMain.handle('settings:reset', () => settingsStore.reset());
   ipcMain.on('settings:open', () => openSettingsWindow());
 
+  // ---- Admin Settings (starbits tuning overrides; see renderer/shared/starbitsTuning.js) ----
+  ipcMain.handle('admin:get', () => adminSettingsStore.get());
+  ipcMain.handle('admin:set', (_e, patch) => adminSettingsStore.set(patch));
+  ipcMain.handle('admin:reset', () => adminSettingsStore.reset());
+  ipcMain.on('admin:open', () => openAdminSettingsWindow());
+
   // ---- Pet window ----
   // Renderer toggles click-through depending on whether the cursor is over the sprite.
   ipcMain.on('pet:set-ignore-mouse', (e, ignore) => {
@@ -66,6 +74,7 @@ function registerIpc() {
     Menu.buildFromTemplate([
       { label: 'Open shop', click: () => openShopWindow() },
       { label: 'Settings…', click: () => openSettingsWindow() },
+      { label: 'Admin Settings…', click: () => openAdminSettingsWindow() },
       { type: 'separator' },
       // Scripted events run in the pet renderer (src/renderer/pet/events/).
       { label: 'Play tag', click: () => e.sender.send('pet:command', { type: 'start-event', name: 'tag' }) },

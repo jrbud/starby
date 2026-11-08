@@ -58,16 +58,20 @@ body {
   opacity: 0;
 }
 
-/* Starbits: a tiny flat diamond. Collected by hovering, so it is NOT a .hit element.
+/* Starbits: team-drawn PNGs from assets/starbits/ (an <img> each; starbits.js picks one at
+   random). Collected by hovering, so it is NOT a .hit element.
    Position/rotation are set every frame by behaviors/starbits.js (inline transform), so
-   transform is NOT transitioned here — that would make the floating lag and smear. */
+   transform is NOT transitioned here — that would make the floating lag and smear.
+   Size must match SIZE in starbits.js. */
 .starbits {
   position: absolute;
-  width: 8px;
-  height: 8px;
-  background: #ffe680;
-  transform: rotate(45deg);
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
   pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
   will-change: transform;
   transition: opacity 200ms;
 }
