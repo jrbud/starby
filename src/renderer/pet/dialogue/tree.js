@@ -80,8 +80,8 @@ export const TREE = {
       { label: 'Wanna play a game?', next: 'games' },
       { label: 'Sorry, I gotta focus', action: 'focus', show: (ctx) => !focusing(ctx) },
       { label: "Okay, I'm done focusing!", action: 'unfocus', show: focusing },
-      { label: 'Settings', next: 'settings' },
       { label: 'Never mind', action: 'close' },
+      { label: 'Settings', next: 'settings' },
     ],
   },
 
@@ -302,7 +302,7 @@ export const TREE = {
   },
 
   quit: {
-    line: ["you're leaving? :(", 'aww, bye already?'],
+    line: ["you're leaving?", 'aww, bye already?'],
     options: [
       { label: 'Yes, quit', action: 'quit' },
       { label: 'No, stay!', next: 'start' },
