@@ -20,6 +20,7 @@
 export const HAPPENINGS = [
   { name: 'star-shower', weight: 1 },
   { name: 'shooting-star', weight: 1 }, // a clump of starbits shoots across the screen
+  { name: 'black-hole', weight: 1 }, // a black hole pulls him in: save him (blackHole.js)
 ];
 // Running events a due sky event may interrupt (lower-priority categories).
 const INTERRUPTS = ['dance'];
