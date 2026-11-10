@@ -215,6 +215,15 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   over his asteroid) and the right-click dialogue is off (`pet.hiding`, also for hide and seek). Right → "you found me!" + 8 starbits; wrong / too slow → his asteroid lifts too. **Asteroids are a
   PLACEHOLDER: the moon PNG** (`assets/events/moon.png`) until asteroid art exists; swap `ASTEROID_ART`.
 
+- [x] **P1-24 (Nice) Maze (an action game).** `events/maze.js`: drag Starby through a maze without touching the walls
+  ("operation" style). Invite "wanna try my maze?", the dialogue's **Action** games, tray "Play maze". A new random
+  maze each time (7×4 cells of 104px, fewer on small screens; one way through), walls = the team's `line.png` stroke
+  in yellow with the purple outline (CSS masks), exit marked by the starbit cluster. Left-drag him (a window capture
+  listener keeps drag.js from picking him up; he follows the cursor in 4px collision-checked steps, so he can't skip
+  through walls; he can't leave the maze except via its entrance/exit pockets). Touch a wall = zap, back to the
+  start; 3 zaps = out. 45s moon timer. 5 bonus starbits in the maze, kept whatever happens. Out the exit → 10 +
+  bonus. DevTools: `starby.mazeInfo()`.
+
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
 > stand down for modes they don't know), then hand it back. One at a time; pet.js runs the active event

@@ -43,6 +43,7 @@ function buildPetMenu() {
     { label: 'Play hoop shot', click: () => play('hoop-shot') },
     { label: 'Play memory', click: () => play('memory') },
     { label: 'Play asteroid shuffle', click: () => play('shuffle') },
+    { label: 'Play maze', click: () => play('maze') },
     { type: 'separator' },
     {
       label: 'Developer',

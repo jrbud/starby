@@ -63,6 +63,7 @@ src/
                             hoopShot.js = slingshot him into a hoop (right-drag, gravity);
                             memory.js = memory game: click starbits in the order they light up;
                             shuffle.js = asteroid shuffle: find which asteroid he's hiding behind;
+                            maze.js = drag him through a maze without touching the walls;
                             games.js = list of games, game buttons, rest, games timer, 3-2-1-GO;
                             prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements
