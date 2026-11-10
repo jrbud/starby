@@ -1,0 +1,226 @@
+/* Welcome window (src/main/windows/welcomeWindow.js). Frameless + transparent window.
+   The FRAME is the team's white square art (assets/menuIcons/white-square-idle.png, 622×610: a dark
+   grey hand-drawn edge ~90 art px thick, light grey inside), filling the whole window as a CSS
+   border-image (edge keeps its thickness, the inside stretches). The PANEL is positioned INSIDE the
+   drawn edge (--inset), so text can never reach the edge or past it; long text scrolls in the middle.
+   No shadows/filters: on a transparent window they show up as a dark haze around it.
+   Nothing is drawn by code. */
+
+@font-face {
+  font-family: 'Sour Gummy';
+  src: local('Sour Gummy'), url('../../../assets/fonts/SourGummy.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --edge: 22px; /* how thick the art's drawn edge is on screen */
+  --inset: 36px; /* panel distance from the window edge: past the drawn edge, plus breathing room */
+  --ink: #2b2236; /* text: the art's outline color */
+  --accent: #5f5587; /* headings: the menu frames' purple */
+  --yellow: #ffe8a3; /* the button's text */
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+body {
+  font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+/* The art, filling the window. */
+.frame {
+  position: fixed;
+  inset: 0;
+  border: var(--edge) solid transparent;
+  border-image: url('../../../assets/menuIcons/white-square-idle.png') 95 fill / var(--edge) stretch;
+  pointer-events: none;
+}
+
+/* Frameless window: drag it by the top edge. */
+.drag {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--inset);
+  -webkit-app-region: drag;
+}
+
+/* Everything readable lives in here, inside the drawn edge. */
+.panel {
+  position: fixed;
+  inset: var(--inset);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  min-width: 0;
+}
+
+header {
+  text-align: center;
+}
+/* Starby himself (team sprite PNGs, frames swapped by welcome.js), with a gentle idle bob. */
+.starby {
+  display: block;
+  width: 84px;
+  height: 84px;
+  margin: -4px auto 0;
+  object-fit: contain;
+  animation: bob 1.6s ease-in-out infinite;
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.15;
+  font-weight: 800;
+  color: var(--accent);
+}
+.lead {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+/* The middle scrolls if it doesn't fit; never sideways. */
+.body {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
+  overflow-wrap: anywhere;
+}
+.body::-webkit-scrollbar {
+  width: 6px;
+}
+.body::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 3px;
+}
+section + section {
+  margin-top: 12px;
+}
+h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent);
+}
+p {
+  margin: 0 0 6px;
+}
+ul {
+  margin: 0 0 6px;
+  padding-left: 18px;
+}
+li {
+  margin: 0 0 3px;
+}
+b {
+  font-weight: 800;
+}
+
+/* Bottom: the two checkboxes and the button, always visible. */
+footer {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding-top: 8px;
+  border-top: 2px solid rgba(43, 34, 54, 0.15);
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+/* Checkbox: team art (white square / checked box). */
+.check input {
+  appearance: none;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border: 0;
+  background: url('../../../assets/menuIcons/white-square-hover.png') center / contain no-repeat;
+  cursor: pointer;
+}
+.check input:checked {
+  background-image: url('../../../assets/menuIcons/checked-box-idle.png');
+}
+.check:hover input:checked,
+.check input:checked:focus-visible {
+  background-image: url('../../../assets/menuIcons/checked-box-hover.png');
+}
+.check input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.check.disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.check.disabled input {
+  cursor: default;
+}
+.hint {
+  margin: -4px 0 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* "Let's go!": button art (button-idle → button-hover). */
+#go {
+  position: relative;
+  isolation: isolate;
+  margin-top: 6px;
+  padding: 10px 32px 11px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--yellow);
+  cursor: pointer;
+  transition: transform 110ms ease-out;
+}
+#go::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 12px solid transparent;
+  border-image: url('../../../assets/menuIcons/button-idle.png') 120 fill / 12px stretch;
+}
+#go:hover,
+#go:focus-visible {
+  transform: scale(1.06);
+  outline: none;
+}
+#go:hover::before,
+#go:focus-visible::before {
+  border-image-source: url('../../../assets/menuIcons/button-hover.png');
+}
+#go:disabled {
+  cursor: default;
+}

@@ -48,6 +48,11 @@ contextBridge.exposeInMainWorld('sprite', {
   onSettingsChanged: (cb) => subscribe('settings:changed', cb),
   openSettings: () => ipcRenderer.send('settings:open'),
 
+  // Welcome window + "Start Starby when Windows starts" (src/main/startup.js): { available, enabled }
+  getRunAtStartup: () => ipcRenderer.invoke('startup:get'),
+  setRunAtStartup: (on) => ipcRenderer.invoke('startup:set', on),
+  welcomeDone: () => ipcRenderer.send('welcome:done'), // "Let's go!": start Starby
+
   // Admin Settings (starbits tuning overrides; defaults/ranges in renderer/shared/starbitsTuning.js)
   getAdminSettings: () => ipcRenderer.invoke('admin:get'),
   setAdminSettings: (patch) => ipcRenderer.invoke('admin:set', patch),

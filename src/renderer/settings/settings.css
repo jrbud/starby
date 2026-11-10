@@ -189,6 +189,13 @@ label,
 .switch-name {
   font-weight: 600;
 }
+/* A switch that can't be used here (App → Start when Windows starts, while developing). */
+.switch-row.disabled {
+  opacity: 0.55;
+}
+.switch-row.disabled input.art-check {
+  cursor: default;
+}
 
 /* Checkboxes (Mute all, sound categories, Spawning / Visible / Shooting animation): real
    checkboxes (keyboard + screen readers work as usual), drawn with the team's art:

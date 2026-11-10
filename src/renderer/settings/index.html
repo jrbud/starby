@@ -165,6 +165,26 @@
       </div>
     </details>
 
+    <!-- App: the welcome window at launch (settingsStore.showWelcome) and starting with Windows
+         (src/main/startup.js; only in the built app, disabled while developing). -->
+    <details class="group" data-key="app">
+      <summary>
+        <span class="group-title">App</span>
+      </summary>
+      <div class="group-body">
+    <section class="setting switches">
+      <label class="switch-row">
+        <span class="switch-name">Show welcome window at launch</span>
+        <input id="show-welcome" type="checkbox" class="art-check" />
+      </label>
+      <label class="switch-row" id="run-at-startup-row">
+        <span class="switch-name">Start Starby when Windows starts</span>
+        <input id="run-at-startup" type="checkbox" class="art-check" />
+      </label>
+    </section>
+      </div>
+    </details>
+
     <!-- Lifetime stats (read-only; src/main/statsStore.js, filled in by settings.js). Not touched by
          Restore default or Reset progress. -->
     <details class="group" data-key="stats">

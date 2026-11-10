@@ -9,6 +9,7 @@ const settingsStore = require('./settingsStore');
 const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
 const adminSettingsStore = require('./adminSettingsStore');
 const statsStore = require('./statsStore');
+const startup = require('./startup');
 const { buildPetMenu } = require('./tray');
 const { createDefaultState } = require('../shared/stateSchema');
 const { getPetWindow } = require('./windows/petWindow');
@@ -106,6 +107,12 @@ function registerIpc() {
   ipcMain.handle('settings:set', (_e, patch) => settingsStore.set(patch));
   ipcMain.handle('settings:reset', () => settingsStore.reset());
   ipcMain.on('settings:open', () => openSettingsWindow());
+
+  // ---- Welcome window + run when Windows starts (windows/welcomeWindow.js, startup.js) ----
+  ipcMain.handle('startup:get', () => startup.get()); // { available, enabled }
+  ipcMain.handle('startup:set', (_e, on) => startup.set(Boolean(on)));
+  // "Let's go!": start Starby (main.js), then the welcome window closes.
+  ipcMain.on('welcome:done', (e) => BrowserWindow.fromWebContents(e.sender)?.finish?.());
 
   // ---- Admin Settings (starbits tuning overrides; see renderer/shared/starbitsTuning.js) ----
   ipcMain.handle('admin:get', () => adminSettingsStore.get());

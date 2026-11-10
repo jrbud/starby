@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULTS = {
+  showWelcome: 1, // the welcome window at launch (windows/welcomeWindow.js); 0 = "Don't show this again"
   flingPower: 50, // 0–100: how hard throws fly and how bouncy the walls are (50 = original feel)
   starbySize: 100, // Starby's size on screen in px (Settings slider, 50–150; pet.js applies it live)
   // Settings → UI (sliders, 75–150 %; 100 = as designed):

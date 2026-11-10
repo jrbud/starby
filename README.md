@@ -68,12 +68,12 @@ src/
                             games.js = list of games, game buttons, rest, games timer, 3-2-1-GO;
                             prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements
-      howTo.js              the "How To Care for Your New Starby" popup at launch (don't show again)
       bubble.js             speech bubble UI (behaviors call ctx.say)
       behaviors/            one file per behavior, registered in behaviors/index.js
         idle.js walk.js drag.js cursorReact.js speech.js starbits.js systemReactions.js
     shop/                   shop window UI
     settings/               settings window UI
+    welcome/                welcome window at launch (what Starby is, what he can see, how to play)
 ```
 
 ## How it fits together

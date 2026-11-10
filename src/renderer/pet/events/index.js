@@ -68,7 +68,6 @@ import friend from './friend.js';
 import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
 import { dialogue } from '../dialogue/dialogue.js';
-import { howTo } from '../howTo.js';
 
 // invite = Starby asking you to play one of the games (the games timer in games.js starts it).
 // star-shower, shooting-star = sky events, started by the sky timer (happenings.js).
@@ -93,8 +92,9 @@ export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideS
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the rest between games, requestGame and the games timer (games.js);
 // dialogue = the right-click dialogue box (../dialogue/dialogue.js); happenings = the 10–15 minute sky timer that starts a sky event (happenings.js).
-// howTo = the "How To Care for Your New Starby" popup after the launch intro (../howTo.js).
-const HELPERS = [gamesMenu, happenings, dialogue, howTo];
+// (The old "How To Care for Your New Starby" popup is gone: the welcome window at launch explains
+// the basics now, src/main/windows/welcomeWindow.js.)
+const HELPERS = [gamesMenu, happenings, dialogue];
 const WITH_HOOKS = [...EVENTS, ...HELPERS];
 
 // Reasons that mean "Starby decided to do this himself" — held while he's drowsy (see start()).

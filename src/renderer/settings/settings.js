@@ -111,6 +111,7 @@ const SWITCHES = [
   ['starbit-visible', 'starbitVisible'],
   ['starbit-shoot', 'starbitShootAnimation'],
   ['starbit-show-count', 'starbitShowCount'],
+  ['show-welcome', 'showWelcome'], // App → the welcome window at launch
 ].map(([id, key]) => ({ box: document.getElementById(id), key }));
 
 for (const { box, key } of SWITCHES) {
@@ -322,6 +323,21 @@ resetProgressBtn.addEventListener('click', async () => {
   }
   setResetStep(0);
   await api.resetProgress();
+});
+
+// ---- App → Start Starby when Windows starts (src/main/startup.js). Not a saved setting: it's
+// Windows' own startup list, so it's read from there. Disabled where it can't work (development).
+const runAtStartupBox = document.getElementById('run-at-startup');
+const runAtStartupRow = document.getElementById('run-at-startup-row');
+function showRunAtStartup(s) {
+  runAtStartupBox.checked = Boolean(s?.enabled);
+  runAtStartupBox.disabled = !s?.available;
+  runAtStartupRow.classList.toggle('disabled', !s?.available);
+  runAtStartupRow.title = s?.available ? '' : 'Only in the downloaded app (not while developing)';
+}
+api.getRunAtStartup?.().then(showRunAtStartup).catch(() => showRunAtStartup(null));
+runAtStartupBox.addEventListener('change', async () => {
+  showRunAtStartup(await api.setRunAtStartup(runAtStartupBox.checked));
 });
 
 // ---- Stats (lifetime, read-only; src/main/statsStore.js). Live: they tick up while open. ----
