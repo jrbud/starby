@@ -34,7 +34,7 @@
 //   category  events                              starts from                         priority
 //   sky       star-shower, shooting-star          sky timer, 10–15 min (happenings.js)  14
 //   games     tag, pong, hide-seek, catch,        dialogue / tray menu / games timer   10 (invite 5)
-//             constellation, starby-says, hoop-shot, invite
+//             constellation, starby-says, hoop-shot, memory, invite
 //             (games.js: every 30s, 30%, 2 min cooldown; hide-seek starts silently;
 //             4 min with no game → he asks no matter what)
 //   copycat   copycat                             its own timer, every 3 min (copycat.js)    3
@@ -58,6 +58,7 @@ import copycat from './copycat.js';
 import starbySays from './starbySays.js';
 import hoopShot from './hoopShot.js';
 import focus from './focus.js';
+import memory from './memory.js';
 import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
 import { dialogue } from '../dialogue/dialogue.js';
@@ -76,7 +77,8 @@ import { howTo } from '../howTo.js';
 // starby-says = a game: do what he says only if he says "starby says" first, 15s (starbySays.js).
 // hoop-shot = a game: right-drag slingshot him into a hoop, with gravity, 15s (hoopShot.js).
 // focus = "Sorry, I gotta focus": parked bottom-left, silent, until you click/grab him (focus.js).
-export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance, hush, constellation, copycat, starbySays, hoopShot, focus];
+// memory = a chill game: click the starbits in the order they light up, 3 harder sets (memory.js).
+export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance, hush, constellation, copycat, starbySays, hoopShot, focus, memory];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the rest between games, requestGame and the games timer (games.js);

@@ -49,6 +49,7 @@ export const GAMES = [
   // weight: how likely the games timer picks it (default 1). Starby Says is his favorite.
   { name: 'starby-says', label: 'Starby Says', weight: 3, ask: ['wanna play starby says?', "starby says: play with me! hehe", 'hey! play starby says with me?'] },
   { name: 'hoop-shot', label: 'Hoop Shot', ask: ['wanna play hoop shot? shoot me into the hoop!', 'slingshot me into a hoop?', 'hey! hoop shot? i\'ll be the ball!'] },
+  { name: 'memory', label: 'Memory', ask: ['wanna play a memory game?', 'memory game? watch my starbits!', "let's chill with a memory game?"] },
   { name: 'constellation', label: 'Star Quiz', ask: ['wanna do a star quiz?', "quiz time? i'll draw you a constellation!", 'hey! guess my constellation?'] },
 ];
 

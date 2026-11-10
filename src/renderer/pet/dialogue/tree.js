@@ -43,7 +43,7 @@ const mmss = (s) => {
 // Games, split in two so no menu has more than 6 answers (each list + Back ≤ 6).
 // A game added to GAMES (events/games.js) also needs adding to one of these lists.
 const ACTION_GAMES = ['tag', 'pong', 'catch', 'hoop-shot'];
-const CHILL_GAMES = ['hide-seek', 'starby-says', 'constellation'];
+const CHILL_GAMES = ['hide-seek', 'starby-says', 'constellation', 'memory'];
 const gameOptions = (names) => names
   .map((name) => GAMES.find((g) => g.name === name))
   .filter(Boolean)
