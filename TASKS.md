@@ -207,6 +207,14 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   faster each set. All 3 → 12 starbits; a wrong click or too slow → the right one lights up, "oops!", and 4 starbits
   per set cleared. Starbits are `.hit` during the game; glow / grow / shake are CSS on the PNGs.
 
+- [x] **P1-23 (Nice) Asteroid Shuffle (a chill game).** `events/shuffle.js`: a shell game. Invite "wanna play asteroid
+  shuffle?", the dialogue's **Chill** games, tray "Play asteroid shuffle". He glides to the middle; 3 asteroids hover
+  above 3 spots and drop, the middle one covering him. 8 swaps along little arcs (one over, one under; 0.55s each,
+  a touch quicker each time, ~0.36s by the last), and he moves with his asteroid. A popup above the asteroids (chat theme, not a line from him) says "Which
+  asteroid is Starby hiding behind? Click one!"; click one (12s); it lifts. **While hidden he's hushed** (no speech
+  over his asteroid) and the right-click dialogue is off (`pet.hiding`, also for hide and seek). Right → "you found me!" + 8 starbits; wrong / too slow → his asteroid lifts too. **Asteroids are a
+  PLACEHOLDER: the moon PNG** (`assets/events/moon.png`) until asteroid art exists; swap `ASTEROID_ART`.
+
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
 > stand down for modes they don't know), then hand it back. One at a time; pet.js runs the active event
