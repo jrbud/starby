@@ -42,6 +42,7 @@ function buildPetMenu() {
     { label: 'Play starby says', click: () => play('starby-says') },
     { label: 'Play hoop shot', click: () => play('hoop-shot') },
     { label: 'Play memory', click: () => play('memory') },
+    { label: 'Play asteroid shuffle', click: () => play('shuffle') },
     { type: 'separator' },
     {
       label: 'Developer',

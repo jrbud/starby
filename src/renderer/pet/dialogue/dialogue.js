@@ -649,6 +649,7 @@ export const dialogue = {
     // drag.js turns a right-click on him into this event (instead of the old native menu).
     ctx.petEl.addEventListener('pet:right-clicked', (e) => {
       if (open?.menu) return; // an event is asking you something: answer with the boxes
+      if (ctx.pet.hiding) return; // he's hiding (asteroid shuffle, hide and seek): the boxes would give him away
       // HIDDEN DEVELOPER MENU: Shift+right-click him SECRET_CLICKS times in a row (each within
       // SECRET_GAP of the last) → the 'dev' node (tree.js: admin settings, sky events...). Shift
       // right-clicks never open the normal dialogue, so the menu stays out of sight.
