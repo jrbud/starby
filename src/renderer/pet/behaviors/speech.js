@@ -6,7 +6,7 @@
 // Lines come from shuffle bags, so the same line never shows twice in a row.
 // Moods without their own pool use the happy lines.
 import { chat, lineBag, lineBags } from './chatter.js';
-import { POKES_TO_MAD, POKE_WINDOW, strikePose } from './mood.js';
+import { POKES_TO_MAD, recentPokes, strikePose } from './mood.js';
 
 const IDLE_LINES = [
   '*twinkle*',
@@ -82,7 +82,7 @@ const POKE_WARNINGS = [
 function clickLine(ctx) {
   const { pet } = ctx;
   if (pet.mood === 'happy' || pet.mood === 'playful') {
-    const pokes = ctx.events.count('click', POKE_WINDOW); // includes this click
+    const pokes = recentPokes(ctx); // includes this click (not ones made during a game like Starby Says)
     if (pokes >= 2 && pokes < POKES_TO_MAD) {
       const tier = Math.min(POKE_WARNINGS.length - 1, Math.floor(((pokes - 2) * POKE_WARNINGS.length) / Math.max(1, POKES_TO_MAD - 2)));
       if (pokes === POKES_TO_MAD - 1) strikePose(ctx, 'sad', 1.2); // grumpy look: next poke = mad
@@ -136,7 +136,12 @@ export default {
   name: 'speech',
 
   init(ctx) {
-    ctx.petEl.addEventListener('pet:clicked', () => ctx.say(clickLine(ctx), 2000));
+    ctx.petEl.addEventListener('pet:clicked', () => {
+      // pet.gameFocus (Starby Says): no click replies or poke warnings ("one more poke and i'm gonna be
+      // mad!"): they'd cover his command in the bubble and could look like a command themselves.
+      if (ctx.pet.gameFocus) return;
+      ctx.say(clickLine(ctx), 2000);
+    });
     scheduleChat(ctx);
   },
 };

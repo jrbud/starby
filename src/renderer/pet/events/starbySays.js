@@ -145,6 +145,10 @@ export default {
 
   start(ctx, end, reason) {
     endGame = end;
+    // His usual reactions are off for the game: pokes don't make him mad, throws / spins don't make
+    // him playful or dizzy, and clicks get no replies or poke warnings (mood.js, speech.js, drag.js).
+    // Otherwise "tap me 4 times" would make him mad, and a warning could look like a command.
+    ctx.pet.gameFocus = true;
     phase = 'intro';
     phaseLeft = INTRO_FOR;
     gameLeft = GAME_FOR;
@@ -199,6 +203,7 @@ export default {
 
   stop(ctx) {
     endGame = null;
+    ctx.pet.gameFocus = false; // his usual reactions are back
     phase = 'done';
     command = null;
     countdown?.hide();
