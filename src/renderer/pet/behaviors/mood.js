@@ -237,6 +237,13 @@ function onEntry(ctx, e) {
   switch (e.type) {
     case 'click':
       interacted(ctx, 'click');
+      // Focus mode (events/focus.js): clicks get a study line, never poke-anger. They don't count
+      // toward pokes afterwards either (same trick as pet.gameFocus: recentPokes skips them).
+      if (pet.mode === 'focus') {
+        focusSeenAt = ctx.clock.seconds;
+        if (pet.mood === 'sad') enter(ctx, 'happy', 'cheered up by a click');
+        break;
+      }
       // A click cheers a sad star up (speech.js then answers it with a happy line).
       if (pet.mood === 'sad') enter(ctx, 'happy', 'cheered up by a click');
       else if (pet.mood === 'mad') enter(ctx, 'mad', 'poked again');

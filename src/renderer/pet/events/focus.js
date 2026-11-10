@@ -10,11 +10,14 @@
 //           lines, dust and star clouds; a landing squash. (Not 'impact': a thrown wall hit
 //           makes starbits.js drop starbits, and focus is meant to be quiet.)
 //   parked  NOT DISTRACTING is the whole point:
-//           - he stays happy (mood.js skips the "user away" yawn in focus mode)
-//           - no movement at all: no bob, no breathing, no rotation
-//           - the 'calm' face (frames.js: idle-1 only, arms down), with a quiet flourish now and
-//             then (FLOURISH_EVERY): a wink, or sparkly glistening eyes (both keep his arms down)
-//           - pet.hushed = true (QUIET_AFTER_LANDING), so he says nothing at all
+//           - he starts happy (mood.js skips the "user away" yawn in focus mode)
+//           - mostly still, on the 'calm' face (frames.js: idle-1 only, arms down). Every
+//             IDLE_EVERY seconds a short idle animation (IDLE_ANIMS): arms up and down, looking
+//             left and right, bopping on the spot, sparkly eyes, or a wink
+//           - his MOOD still shows: mad, sad, playful... (MOOD_FACES) use mood.js's face for it,
+//             and the idle animations wait until he's happy again
+//           - pet.hushed = true (QUIET_AFTER_LANDING), so he says nothing at all, except a
+//             clicked study line or chatter after "Talk to me" (see the focus menu below)
 //           - starbit drops, game invites, sky events and dancing are paused: this event outranks
 //             them (priority 16), and starbits.js skips drops in 'focus' mode
 // Already in the corner? He skips the slingshot and just settles.
@@ -25,6 +28,15 @@
 // falls straight down. (Not drag.js's toss: that glides with no gravity and ends wherever it stops.)
 // LEFT-CLICKING him doesn't end it either: he says a study line (LINES.study, see the TODO there),
 // even while hushed.
+//
+// FOCUS MENU: right-clicking him while focusing opens his own menu (../dialogue/tree.js 'focus'):
+//   Stretch your legs / Stay still   wandering on/off: he strolls to random spots along the bottom
+//                                    of the screen (WANDER_*), pausing between walks; dragging works
+//                                    the same. "Stay still" stops him right where he is.
+//   Start a timer / Let's set goals! not built yet (TODO in tree.js)
+//   Talk to me / Quiet please        idle chatter on/off (speech.js chats while pet.focusTalk)
+//   Okay, I'm done focusing!         ends focus
+// Both toggles start off every time focus starts.
 //
 // Ends when you pick "Okay, I'm done focusing!" in the dialogue (he says hi), or a call /
 // fullscreen focus ends. The shop window (priority 20) also ends it.
@@ -59,10 +71,28 @@ const IMPACT_SPEED = { left: 1700, bottom: 1300 }; // how hard fx.js shows the c
 const QUIET_AFTER_LANDING = 0.6; // seconds after landing before he goes fully silent
 const SKIP_IF_WITHIN = 0.5; // star-sizes: already this close to the corner → no slingshot
 const EDGE = 90; // px in from the left edge: room for his speech bubbles (they'd get pushed sideways at the very edge)
-const FLOURISH_EVERY = [12, 30]; // seconds between a wink / glistening moment while parked
-const GLISTEN_CHANCE = 0.5; // otherwise a wink
-const GLISTEN_FOR = 2.4; // seconds of sparkly eyes (frames.js 'glistening')
-const WINK_FOR = 0.7; // seconds
+// Parked idle animations: after IDLE_EVERY seconds of standing calm, one of these plays, then calm
+// again. weight = how often it's picked; for = seconds.
+const IDLE_EVERY = [5, 12];
+const IDLE_ANIMS = [
+  { kind: 'arms', weight: 3, for: 2.4 }, // arms up and down (frames.js 'happy': idle-1 ↔ idle-2)
+  { kind: 'look', weight: 3, for: 2.4 }, // looks left, right, left, right ('left' / 'right')
+  { kind: 'bop', weight: 3, for: 2.4 }, // bops up and down on the spot
+  { kind: 'glisten', weight: 1, for: 2.4 }, // sparkly eyes (frames.js 'glistening')
+  { kind: 'wink', weight: 1, for: 0.7 },
+];
+const LOOK_EVERY = 0.6; // seconds per glance while looking around
+const BOP_HEIGHT = 0.05; // star-sizes
+const BOP_RATE = 2.5; // bops per second
+// Moods whose face beats the focus face (mood.js's own face for them: mad, sad, ...). He stops his
+// idle animations while he's feeling one of these.
+const MOOD_FACES = ['mad', 'sad', 'playful', 'dizzy', 'yawning', 'sleepy'];
+// "Stretch your legs": he walks to a random spot along the bottom, pauses, walks again.
+const WANDER_SPEED = 90; // px/s (an unhurried stroll)
+const WANDER_PAUSE = [3, 8]; // seconds standing still between walks (idle animations play then)
+const WANDER_MIN = 1.5; // star-sizes: shortest walk
+const STEP_RATE = 2; // steps per second (the bob while walking)
+const STEP_HEIGHT = 0.035; // star-sizes
 // Dropped after being picked up: falls straight down, speeding up.
 // Let go while focusing: he keeps the momentum your hand gave him and arcs down under gravity,
 // bouncing off the screen edges, then slides to a stop on the taskbar line.
@@ -127,7 +157,14 @@ let target = null; // { x, y } the corner
 let flyFor = 0;
 let arc = 0;
 let nextFlourishAt = 0; // parkedFor of the next wink/glisten
-let flourish = null; // { face, until }
+let unhushUntil = 0; // clock seconds: a clicked study line is showing, keep the hush off
+let wandering = false; // "Stretch your legs": walking along the bottom of the screen
+let wanderTo = null; // x he's walking to, or null while pausing
+let wanderPauseUntil = 0; // parkedFor when the next walk starts
+let walkPhase = 0; // for the step bob
+let talkative = false; // "Talk to me": idle chatter allowed
+let idleAnim = null; // { kind, start, until } (parkedFor seconds) while an idle animation plays
+let nextIdleAt = 0; // parkedFor of the next idle animation
 
 function finish(result) {
   const end = endFocus;
@@ -142,17 +179,39 @@ const corner = (ctx) => {
 
 const setPhase = (p) => { phase = p; t = 0; };
 
-// The face while parked: calm, with the occasional wink or glistening eyes.
-function parkedFace() {
-  if (flourish && parkedFor < flourish.until) return flourish.face;
-  flourish = null;
-  if (parkedFor >= nextFlourishAt) {
-    nextFlourishAt = parkedFor + rand(...FLOURISH_EVERY);
-    const glisten = Math.random() < GLISTEN_CHANCE;
-    flourish = { face: glisten ? 'glistening' : 'wink', until: parkedFor + (glisten ? GLISTEN_FOR : WINK_FOR) };
-    return flourish.face;
+// Feeling something (mad, sad...): mood.js's face for it should show, not the focus face.
+const feelingIt = (pet) => MOOD_FACES.includes(pet.mood);
+
+function pickIdleAnim() {
+  let r = Math.random() * IDLE_ANIMS.reduce((sum, a) => sum + a.weight, 0);
+  for (const a of IDLE_ANIMS) {
+    r -= a.weight;
+    if (r < 0) return a;
   }
-  return 'calm';
+  return IDLE_ANIMS[0];
+}
+
+/**
+ * While parked: calm, and every IDLE_EVERY seconds an idle animation (arms, look around, bop,
+ * glisten, wink). → { face, bob } (bob in px, negative = up).
+ */
+function parkedIdle(S) {
+  if (idleAnim && parkedFor >= idleAnim.until) idleAnim = null;
+  if (!idleAnim && parkedFor >= nextIdleAt) {
+    const a = pickIdleAnim();
+    idleAnim = { kind: a.kind, start: parkedFor, until: parkedFor + a.for };
+    nextIdleAt = idleAnim.until + rand(...IDLE_EVERY);
+  }
+  if (!idleAnim) return { face: 'calm', bob: 0 };
+  const u = parkedFor - idleAnim.start; // seconds into it
+  switch (idleAnim.kind) {
+    case 'arms': return { face: 'happy', bob: 0 };
+    case 'look': return { face: Math.floor(u / LOOK_EVERY) % 2 === 0 ? 'left' : 'right', bob: 0 };
+    case 'bop': return { face: 'calm', bob: -Math.abs(Math.sin(Math.PI * BOP_RATE * u)) * BOP_HEIGHT * S };
+    case 'glisten': return { face: 'glistening', bob: 0 };
+    case 'wink': return { face: 'wink', bob: 0 };
+    default: return { face: 'calm', bob: 0 };
+  }
 }
 
 // Let go of him (after a drag, or a swat): drop straight down from where he is.
@@ -195,16 +254,34 @@ function trackHeld(pet, dt) {
 const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 // A left-click while focusing: a study line, even though he's hushed while parked.
+// The hush has to stay OFF for as long as the line shows: pet.js hides the bubble on every frame
+// while pet.hushed is on, so just un-hushing around ctx.say() made it vanish a frame later.
 function onClick(ctx) {
   if (!endFocus) return;
+  unhushUntil = ctx.clock.seconds + STUDY_LINE_DELAY + STUDY_LINE_MS / 1000;
   ctx.after(STUDY_LINE_DELAY, () => {
     if (!endFocus) return;
-    const { pet } = ctx;
-    const wasHushed = pet.hushed;
-    pet.hushed = false; // ctx.say shows nothing while hushed
+    ctx.pet.hushed = false; // (the parked step keeps it off until unhushUntil)
     ctx.say(LINES.study(), STUDY_LINE_MS);
-    pet.hushed = wasHushed;
   }, 'focus study line');
+}
+
+// "Stretch your legs" / "Stay still" (the focus menu in ../dialogue/tree.js).
+function setWander(ctx, on) {
+  const { pet } = ctx;
+  wandering = on;
+  pet.focusWander = on; // tree.js reads this to pick the menu label
+  wanderTo = null;
+  wanderPauseUntil = parkedFor + 0.4; // set off almost right away
+  if (!on && target) target = { x: pet.x, y: target.y }; // stay right where he is
+}
+
+// "Talk to me" / "Quiet please": idle chatter on or off (speech.js chats in focus mode while
+// pet.focusTalk is on), and no hush.
+function setTalk(ctx, on) {
+  talkative = on;
+  ctx.pet.focusTalk = on;
+  if (on) ctx.pet.hushed = false;
 }
 
 function land(ctx, hit) {
@@ -221,8 +298,10 @@ function land(ctx, hit) {
   }
   pet.noDialogue = false; // landed: right-click works again
   parkedFor = 0;
-  flourish = null;
-  nextFlourishAt = rand(...FLOURISH_EVERY);
+  idleAnim = null;
+  nextIdleAt = rand(...IDLE_EVERY);
+  wanderTo = null; // wandering (if on) picks up again from here after a short breather
+  wanderPauseUntil = 1.2;
   setPhase('parked');
 }
 
@@ -237,6 +316,11 @@ export default {
       if (e.type === 'system' && e.data.type === 'fullscreen') fullscreen = Boolean(e.data.active);
     });
     ctx.petEl.addEventListener('pet:clicked', () => onClick(ctx));
+    // The focus menu (../dialogue/tree.js) calls these through its 'starby:<fn>:<arg>' actions.
+    if (typeof window !== 'undefined' && window.starby) {
+      window.starby.focusWander = (arg) => { if (endFocus) setWander(ctx, arg !== 'off'); };
+      window.starby.focusTalk = (arg) => { if (endFocus) setTalk(ctx, arg !== 'off'); };
+    }
   },
 
   // Every tick: a call / fullscreen starts focus mode (if it isn't on already).
@@ -252,6 +336,12 @@ export default {
     reason = why;
     returnTo = why === 'call' || why === 'fullscreen' ? { x: pet.x, y: pet.y } : null;
     setPhase('talk');
+    // Every focus starts parked in one spot and quiet (the focus menu turns these on).
+    wandering = false;
+    talkative = false;
+    pet.focusWander = false;
+    pet.focusTalk = false;
+    unhushUntil = 0;
     if (pet.mood !== 'happy') requestMood(ctx, 'happy', 'focus time'); // happy and supportive
     if (why === 'fullscreen') {
       talkFor = 0; // fullscreen: flip into focus right away, silently
@@ -276,8 +366,10 @@ export default {
     const { pet } = ctx;
     t += dt;
     if (pet.mode === 'drag') { trackHeld(pet, dt); return; } // held: drag.js moves him
+    // Just let go: our own throw (gravity, no glide). startDrop() reads `held` (the speed he was
+    // let go with), so only clear it AFTER this check.
+    if (pet.mode === 'toss') { startDrop(ctx); return; }
     held = null;
-    if (pet.mode === 'toss') { startDrop(ctx); return; } // just let go: our own throw (gravity, no glide)
     if (pet.mode !== 'focus') pet.mode = 'focus';
     const S = pet.size;
 
@@ -383,9 +475,11 @@ export default {
       return;
     }
 
-    // Parked: perfectly still, calm face (talking face if he's mid-line).
+    // Parked: calm face with idle animations (talking face if he's mid-line); strolling along the
+    // bottom if "Stretch your legs" is on.
     parkedFor += dt;
-    if (parkedFor >= QUIET_AFTER_LANDING) pet.hushed = true;
+    // Quiet, unless "Talk to me" is on or a clicked study line is showing (see onClick()).
+    pet.hushed = parkedFor >= QUIET_AFTER_LANDING && !talkative && ctx.clock.seconds >= unhushUntil;
     if (pet.dialogueHold) {
       // The right-click dialogue moved him out of the corner to fit its boxes; it owns where he is.
       pet.rotation = 0;
@@ -394,20 +488,67 @@ export default {
       pet.faceOverride = null;
       return;
     }
-    // Back to (and staying in) the corner: a quick glide if the dialogue had moved him.
+    // "Stretch your legs": move his spot (target) along the bottom, a step at a time.
+    let walkDir = 0;
+    if (wandering) {
+      const b = petBounds(ctx);
+      target.y = b.maxY;
+      if (wanderTo == null && parkedFor >= wanderPauseUntil) {
+        const lo = b.minX + EDGE;
+        const hi = Math.max(lo, b.maxX - EDGE);
+        let x = rand(lo, hi);
+        // Too short a walk looks like a twitch: go at least WANDER_MIN, the other way if needed.
+        if (Math.abs(x - target.x) < WANDER_MIN * S) x = target.x + (x < target.x ? 1 : -1) * WANDER_MIN * S;
+        wanderTo = Math.max(lo, Math.min(hi, x));
+        idleAnim = null; // (a walk interrupts an idle animation)
+      }
+      if (wanderTo != null) {
+        const dx = wanderTo - target.x;
+        const step = WANDER_SPEED * dt;
+        if (Math.abs(dx) <= step) {
+          target.x = wanderTo;
+          wanderTo = null;
+          wanderPauseUntil = parkedFor + rand(...WANDER_PAUSE);
+          nextIdleAt = Math.max(nextIdleAt, parkedFor + 1); // a beat before any idle animation
+        } else {
+          target.x += Math.sign(dx) * step;
+          walkDir = Math.sign(dx);
+        }
+      }
+    }
+    // Back to (and staying on) his spot: a quick glide if the dialogue had moved him.
     pet.x = approach(pet.x, target.x, dt, 9);
     pet.y = approach(pet.y, target.y, dt, 9);
     tilt = approach(tilt, 0, dt, 10); // (a thrown landing can leave him tilted)
     pet.rotation = tilt;
-    pet.bob = 0;
     pet.squash = approach(pet.squash, 1, dt, 10);
-    pet.faceOverride = ctx.isSpeaking?.() ? null : parkedFace();
+    if (walkDir) {
+      // Walking: little steps, facing the way he's going (his mood's face if he's feeling one).
+      walkPhase += dt * STEP_RATE * Math.PI;
+      pet.bob = -Math.abs(Math.sin(walkPhase)) * STEP_HEIGHT * S;
+      pet.faceOverride = feelingIt(pet) || ctx.isSpeaking?.() ? null : walkDir < 0 ? 'left' : 'right';
+      return;
+    }
+    if (feelingIt(pet)) {
+      // Mad, sad, playful...: let mood.js show that face (faceOverride beats mood faces there),
+      // and hold still instead of doing idle animations.
+      pet.faceOverride = null;
+      pet.bob = approach(pet.bob, 0, dt, 12);
+      return;
+    }
+    const idle = parkedIdle(pet.size);
+    pet.bob = idle.bob;
+    pet.faceOverride = ctx.isSpeaking?.() ? null : idle.face; // (talking face while he's mid-line)
   },
 
   stop(ctx, result) {
     const { pet } = ctx;
     endFocus = null;
-    flourish = null;
+    idleAnim = null;
+    wandering = false;
+    talkative = false;
+    pet.focusWander = false;
+    pet.focusTalk = false;
     pet.hushed = false;
     pet.dialogueHold = false;
     pet.noDialogue = false;
