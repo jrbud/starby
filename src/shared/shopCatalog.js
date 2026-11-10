@@ -13,11 +13,10 @@
 // Accessories are hand-drawn PNGs in assets/accessories/; a new one needs its art plus an
 // entry in accessories.js (anchor/position), never a code-drawn stand-in.
 //
-// ACCESSORIES & WEARING SEVERAL (not yet): `place` says where on him an accessory goes. Today
-// he wears ONE accessory at a time (state.equipped.accessory). To allow several later, store a
-// list (e.g. state.equipped.accessories) and allow at most ONE item per place: that's the rule
-// that keeps e.g. boots and sneakers from being worn together (both 'feet'), or two hats.
-// accessoriesConflict() below already implements it; the renderer already takes a list.
+// WEARING SEVERAL: he wears at most ONE accessory per `category` (one head item, one hand item,
+// ...), saved as state.equipped.accessories = { head: id, hand: id, ... } (stateSchema.js).
+// Equipping replaces what's worn in that category; the shop's "Take off" empties it.
+// accessoriesConflict() below is that rule. `place` is only where on him it's drawn.
 //
 // BALANCE: starbits.js drops one every 8–15s (~11.5s average), so a player who collects most
 // drops earns ~5 per minute. Cheapest items cost 25 (~5 min of play, the first purchase).
@@ -44,8 +43,10 @@ const SHOP_ITEMS = [
   // left/right = HIS left/right: he faces you, so his left hand is on the screen's right)
   // category: which shop dropdown lists it (head | hand | shoes | buddies | trails; the list and
   // its order live in src/renderer/shop/shop.js). Only for the shop's grouping: `place` is where
-  // he actually wears it. "None" (take it off) is listed under Head.
-  { id: 'accessory-none', slot: 'accessory', name: 'None', price: 0, value: 'none', category: 'head' },
+  // he actually wears it.
+  // "None" has no category, so the shop doesn't list it (each item has "Take off" instead). It
+  // stays because old saves own it; equipping it takes every accessory off.
+  { id: 'accessory-none', slot: 'accessory', name: 'None', price: 0, value: 'none' },
   { id: 'accessory-tophat', slot: 'accessory', name: 'Top hat', price: 70, value: 'tophat', place: 'head', category: 'head' },
   { id: 'accessory-propeller', slot: 'accessory', name: 'Toy hat', price: 60, value: 'propeller', place: 'head', category: 'head' },
   { id: 'accessory-bow', slot: 'accessory', name: 'Bow', price: 50, value: 'bow', place: 'head', category: 'head' },
@@ -63,11 +64,11 @@ function getItem(id) {
   return SHOP_ITEMS.find((item) => item.id === id) || null;
 }
 
-/** For wearing several later: two accessories can't be worn together if they share a place. */
+/** Two accessories can't be worn together if they're in the same shop category. */
 function accessoriesConflict(idA, idB) {
   const a = getItem(idA);
   const b = getItem(idB);
-  return Boolean(a && b && a.place && a.place === b.place && a.id !== b.id);
+  return Boolean(a && b && a.category && a.category === b.category && a.id !== b.id);
 }
 
 module.exports = { SHOP_ITEMS, getItem, accessoriesConflict };

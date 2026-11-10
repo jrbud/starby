@@ -24,7 +24,7 @@ function registerIpc() {
     const state = store.update((s) => {
       s.starbits = 0;
       s.owned = [...fresh.owned];
-      s.equipped = { ...fresh.equipped };
+      s.equipped = structuredClone(fresh.equipped);
     });
     const pet = getPetWindow();
     if (pet && !pet.isDestroyed()) pet.webContents.send('pet:command', { type: 'progress-reset' });
@@ -58,7 +58,26 @@ function registerIpc() {
     const s = store.get();
     if (!item) return { ok: false, reason: 'unknown item' };
     if (!s.owned.includes(item.id)) return { ok: false, reason: 'not owned' };
-    const state = store.update((st) => { st.equipped[item.slot] = item.id; });
+    const state = store.update((st) => {
+      if (item.slot === 'color') st.equipped.color = item.id;
+      // Accessories: one per shop category, so this replaces what's worn in its category.
+      // "None" (no category) takes everything off.
+      else if (!item.category) st.equipped.accessories = {};
+      else st.equipped.accessories = { ...st.equipped.accessories, [item.category]: item.id };
+    });
+    return { ok: true, state };
+  });
+
+  // Take one accessory off (its category is then empty). Colors can't be taken off.
+  ipcMain.handle('shop:unequip', (_e, itemId) => {
+    const item = getItem(itemId);
+    const s = store.get();
+    if (!item || item.slot !== 'accessory') return { ok: false, reason: 'not an accessory' };
+    if (s.equipped.accessories?.[item.category] !== item.id) return { ok: false, reason: 'not worn' };
+    const state = store.update((st) => {
+      const { [item.category]: _off, ...rest } = st.equipped.accessories;
+      st.equipped.accessories = rest;
+    });
     return { ok: true, state };
   });
 

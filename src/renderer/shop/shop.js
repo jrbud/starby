@@ -61,13 +61,17 @@ const LINES = {
   ]),
   bought: (item) => pick([`yay! ${item.name} is ours!`, `thank you!! i love ${item.name}!`]),
   equipped: () => pick(['how do i look?', 'ta-da!', 'so fancy!']),
+  takenOff: (item) => pick([`bye bye, ${item.name}!`, `${item.name} off!`, 'ahh, much lighter']),
 };
 
 const say = (text) => api.shopSay?.(text);
 
 // ---- Item state ----
 const isOwned = (item) => state.owned.includes(item.id);
-const isEquipped = (item) => state.equipped[item.slot] === item.id;
+// Accessories: one worn per category (state.equipped.accessories = { head: id, ... }).
+const isEquipped = (item) => (item.slot === 'color'
+  ? state.equipped.color === item.id
+  : state.equipped.accessories?.[item.category] === item.id);
 const missing = (item) => Math.max(0, item.price - state.starbits);
 const selectedItem = () => catalog.find((i) => i.id === selectedId) || null;
 
@@ -258,6 +262,9 @@ function renderAction() {
     btn.textContent = 'Buy';
     btn.classList.add('done');
     btn.disabled = true;
+  } else if (isEquipped(item) && item.slot === 'accessory') {
+    btn.textContent = 'Take off'; // empties that category
+    btn.classList.add('equip'); // white button art
   } else if (isEquipped(item)) {
     btn.textContent = 'Equipped';
     btn.classList.add('done');
@@ -280,6 +287,7 @@ function render() {
 
 // ---- Try-on ----
 // Selecting an accessory or a color (colorway/skin) shows it on Starby right away (not saved).
+// A tried-on accessory only swaps out the one worn in ITS category; the others stay on (pet.js).
 // Selecting anything else, or what he already has on, shows what he really has on. Closing or
 // minimizing the shop takes a try-on off again (main process → events/shop.js); only
 // Buy/Equip keep it.
@@ -305,7 +313,13 @@ function select(item) {
 
 async function onAction() {
   const item = selectedItem();
-  if (!item || isEquipped(item)) return;
+  if (!item) return;
+  if (isEquipped(item)) {
+    if (item.slot !== 'accessory') return;
+    const res = await api.unequip?.(item.id);
+    if (res?.ok) say(LINES.takenOff(item));
+    return;
+  }
   if (isOwned(item)) {
     const res = await api.equip(item.id);
     if (res.ok) {
