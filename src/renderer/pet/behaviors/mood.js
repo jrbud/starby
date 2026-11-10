@@ -211,15 +211,36 @@ function getDizzy(ctx, reason, sayLine) {
 }
 
 // ---- Reacting to what happened (event log) ----
+// pet.gameFocus (set by a game that ASKS you to poke / grab / throw / spin him, e.g. Starby Says):
+// those interactions don't change his mood (no getting mad from pokes, playful from throws or dizzy
+// from spins), they only count as "someone's here" (no yawning). The game is in charge of his mood.
+const GAME_INTERACTIONS = ['click', 'grab', 'swat', 'toss', 'slingshot', 'impact', 'land', 'dizzy'];
+let focusSeenAt = -Infinity; // session seconds of the last game-focus interaction
+
+/**
+ * Quick pokes so far (clicks within POKE_WINDOW), not counting any made during a pet.gameFocus game:
+ * tapping him for Starby Says shouldn't make the first poke after it count as the 5th.
+ * Used here (getting mad) and by speech.js (the poke warnings).
+ */
+export function recentPokes(ctx) {
+  const window = Math.min(POKE_WINDOW, ctx.clock.seconds - focusSeenAt);
+  return window > 0 ? ctx.events.count('click', window) : 0;
+}
+
 function onEntry(ctx, e) {
   const { pet } = ctx;
+  if (pet.gameFocus && GAME_INTERACTIONS.includes(e.type)) {
+    lastInteraction = ctx.clock.seconds;
+    focusSeenAt = ctx.clock.seconds;
+    return;
+  }
   switch (e.type) {
     case 'click':
       interacted(ctx, 'click');
       // A click cheers a sad star up (speech.js then answers it with a happy line).
       if (pet.mood === 'sad') enter(ctx, 'happy', 'cheered up by a click');
       else if (pet.mood === 'mad') enter(ctx, 'mad', 'poked again');
-      else if (CAN_GET_MAD.includes(pet.mood) && ctx.events.count('click', POKE_WINDOW) >= POKES_TO_MAD) {
+      else if (CAN_GET_MAD.includes(pet.mood) && recentPokes(ctx) >= POKES_TO_MAD) {
         enter(ctx, 'mad', 'poked'); // speech.js answers this click with a mad line
       }
       break;
