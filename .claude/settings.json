@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "attribution": { "commit": "", "pr": "" },
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash(npm start)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git fetch*)",
+      "Bash(git branch*)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(git merge*)",
+      "Bash(git rebase*)",
+      "Bash(git reset*)",
+      "Bash(npm install*)",
+      "Bash(npm run dist*)",
+      "Edit(./CLAUDE.md)",
+      "Edit(./TASKS.md)",
+      "Edit(./package.json)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(taskkill /IM electron.exe*)",
+      "Bash(taskkill /F /IM electron.exe*)",
+      "Write(./assets/**)",
+      "Edit(./assets/**)"
+    ]
+  }
+}
