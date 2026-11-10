@@ -2,8 +2,8 @@
 //
 //   - Left: wallet (top-left), the display box Starby stands in, and one Buy / Equip button
 //     that acts on the selected item.
-//   - Right: "Colors" and "Accessories" dropdowns (both open when the shop opens) listing the
-//     items. Price (with the starbit icon) only on items you don't own yet.
+//   - Right: "Colors" plus one dropdown per accessory category (Head, Hand, Shoes, Buddies,
+//     Trails; all open when the shop opens) listing the items. Price (with the starbit icon) only on items you don't own yet.
 //   - Starby talks for the shop: picking an item you don't own, or pressing a grey Buy button
 //     (not enough starbits), makes him say something (window.sprite.shopSay → pet window).
 //
@@ -17,15 +17,28 @@ import { accessoryDef } from '../pet/accessories.js';
 const api = window.sprite;
 
 const ASSETS = '../../../assets'; // relative to src/renderer/shop/index.html
+// Dropdowns, in order. Accessories are split by their `category` (src/shared/shopCatalog.js).
+// A new category = one line here plus `category: '<key>'` on its items.
 const SECTIONS = [
-  { slot: 'color', title: 'Colors', open: true },
-  { slot: 'accessory', title: 'Accessories', open: true },
+  { key: 'color', title: 'Colors', open: true, match: (i) => i.slot === 'color' },
+  ...[
+    ['head', 'Head'],
+    ['hand', 'Hand'],
+    ['shoes', 'Shoes'],
+    ['buddies', 'Buddies'],
+    ['trails', 'Trails'], // nothing in it yet
+  ].map(([cat, title]) => ({
+    key: `accessory-${cat}`,
+    title,
+    open: true,
+    match: (i) => i.slot === 'accessory' && i.category === cat,
+  })),
 ];
 
 let catalog = [];
 let state = null;
 let selectedId = null;
-const openSlots = new Set(SECTIONS.filter((s) => s.open).map((s) => s.slot));
+const openSlots = new Set(SECTIONS.filter((s) => s.open).map((s) => s.key));
 
 const $ = (id) => document.getElementById(id);
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
@@ -167,8 +180,8 @@ function itemRow(item) {
   return row;
 }
 
-function sectionEl({ slot, title }) {
-  const open = openSlots.has(slot);
+function sectionEl({ key, title, match }) {
+  const open = openSlots.has(key);
   const section = document.createElement('div');
   section.className = `section${open ? '' : ' closed'}`;
 
@@ -183,14 +196,21 @@ function sectionEl({ slot, title }) {
   arrow.textContent = open ? '▲' : '▼';
   toggle.append(label, arrow);
   toggle.onclick = () => {
-    if (openSlots.has(slot)) openSlots.delete(slot);
-    else openSlots.add(slot);
+    if (openSlots.has(key)) openSlots.delete(key);
+    else openSlots.add(key);
     renderLists();
   };
 
   const items = document.createElement('div');
   items.className = 'items';
-  catalog.filter((i) => i.slot === slot).forEach((item) => items.appendChild(itemRow(item)));
+  const list = catalog.filter(match);
+  list.forEach((item) => items.appendChild(itemRow(item)));
+  if (!list.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty';
+    empty.textContent = 'Nothing here yet!';
+    items.appendChild(empty);
+  }
 
   section.append(toggle, items);
   return section;

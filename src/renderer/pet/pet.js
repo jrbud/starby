@@ -266,7 +266,7 @@ function anchorOnScreen(name) {
   };
 }
 
-// Balloon, UFO and star trail (./floaters.js): behind him, following with a lag.
+// Balloon, UFO and star tail (./floaters.js): behind him, following with a lag.
 const floaters = createFloaters({
   stage, petEl, art: accessoryArt, size: () => SIZE, anchor: anchorOnScreen, center,
 });
