@@ -13,18 +13,17 @@
 // Accessories are hand-drawn PNGs in assets/accessories/; a new one needs its art plus an
 // entry in accessories.js (anchor/position), never a code-drawn stand-in.
 //
-// ACCESSORIES & WEARING SEVERAL (not yet): `place` says where on him an accessory goes. Today
-// he wears ONE accessory at a time (state.equipped.accessory). To allow several later, store a
-// list (e.g. state.equipped.accessories) and allow at most ONE item per place: that's the rule
-// that keeps e.g. boots and sneakers from being worn together (both 'feet'), or two hats.
-// accessoriesConflict() below already implements it; the renderer already takes a list.
+// WEARING SEVERAL: he wears at most ONE accessory per `category` (one head item, one hand item,
+// ...), saved as state.equipped.accessories = { head: id, hand: id, ... } (stateSchema.js).
+// Equipping replaces what's worn in that category; the shop's "Take off" empties it.
+// accessoriesConflict() below is that rule. `place` is only where on him it's drawn.
 //
 // BALANCE: starbits.js drops one every 8–15s (~11.5s average), so a player who collects most
 // drops earns ~5 per minute. Cheapest items cost 25 (~5 min of play, the first purchase).
 // Accessories are bought with starbits like colors (only "None" is free):
 //   40–50   small things: lollipop, bow, tie                       (~8–10 min of play)
 //   60–70   hats and shoes: propeller hat, sneakers, boots, top hat (~12–14 min)
-//   80–90   floating extras: balloon, star trail                   (~16–18 min)
+//   80–90   floating extras: balloon, star tail                (~16–18 min)
 //   100–120 the showpieces: halo, UFO                        (~20–24 min)
 // Everything (colors 60 + accessories 780) costs 840 starbits, about 2.8 hours of play.
 // For demos use the shop's demo shortcut (P4-3).
@@ -42,29 +41,34 @@ const SHOP_ITEMS = [
 
   // Accessories (place: head | feet | neck | leftHand | rightHand | companion | trail;
   // left/right = HIS left/right: he faces you, so his left hand is on the screen's right)
+  // category: which shop dropdown lists it (head | hand | shoes | buddies | trails; the list and
+  // its order live in src/renderer/shop/shop.js). Only for the shop's grouping: `place` is where
+  // he actually wears it.
+  // "None" has no category, so the shop doesn't list it (each item has "Take off" instead). It
+  // stays because old saves own it; equipping it takes every accessory off.
   { id: 'accessory-none', slot: 'accessory', name: 'None', price: 0, value: 'none' },
-  { id: 'accessory-tophat', slot: 'accessory', name: 'Top hat', price: 70, value: 'tophat', place: 'head' },
-  { id: 'accessory-propeller', slot: 'accessory', name: 'Toy hat', price: 60, value: 'propeller', place: 'head' },
-  { id: 'accessory-bow', slot: 'accessory', name: 'Bow', price: 50, value: 'bow', place: 'head' },
-  { id: 'accessory-halo', slot: 'accessory', name: 'Halo', price: 100, value: 'halo', place: 'head' },
-  { id: 'accessory-tie', slot: 'accessory', name: 'Tie', price: 50, value: 'tie', place: 'neck' },
-  { id: 'accessory-sneakers', slot: 'accessory', name: 'Shoes', price: 60, value: 'sneakers', place: 'feet' },
-  { id: 'accessory-boots', slot: 'accessory', name: 'Boots', price: 60, value: 'boots', place: 'feet' },
-  { id: 'accessory-lollipop', slot: 'accessory', name: 'Lollipop', price: 40, value: 'lollipop', place: 'leftHand' },
-  { id: 'accessory-balloon', slot: 'accessory', name: 'Balloon', price: 80, value: 'balloon', place: 'rightHand' },
-  { id: 'accessory-ufo', slot: 'accessory', name: 'UFO', price: 120, value: 'ufo', place: 'companion' },
-  { id: 'accessory-startail', slot: 'accessory', name: 'Star trail', price: 90, value: 'startail', place: 'trail' },
+  { id: 'accessory-tophat', slot: 'accessory', name: 'Top hat', price: 70, value: 'tophat', place: 'head', category: 'head' },
+  { id: 'accessory-propeller', slot: 'accessory', name: 'Toy hat', price: 60, value: 'propeller', place: 'head', category: 'head' },
+  { id: 'accessory-bow', slot: 'accessory', name: 'Bow', price: 50, value: 'bow', place: 'head', category: 'head' },
+  { id: 'accessory-halo', slot: 'accessory', name: 'Halo', price: 100, value: 'halo', place: 'head', category: 'head' },
+  { id: 'accessory-tie', slot: 'accessory', name: 'Tie', price: 50, value: 'tie', place: 'neck', category: 'hand' },
+  { id: 'accessory-lollipop', slot: 'accessory', name: 'Lollipop', price: 40, value: 'lollipop', place: 'leftHand', category: 'hand' },
+  { id: 'accessory-balloon', slot: 'accessory', name: 'Balloon', price: 80, value: 'balloon', place: 'rightHand', category: 'hand' },
+  { id: 'accessory-startail', slot: 'accessory', name: 'Star tail', price: 90, value: 'startail', place: 'trail', category: 'hand' },
+  { id: 'accessory-sneakers', slot: 'accessory', name: 'Shoes', price: 60, value: 'sneakers', place: 'feet', category: 'shoes' },
+  { id: 'accessory-boots', slot: 'accessory', name: 'Boots', price: 60, value: 'boots', place: 'feet', category: 'shoes' },
+  { id: 'accessory-ufo', slot: 'accessory', name: 'UFO', price: 120, value: 'ufo', place: 'companion', category: 'buddies' },
 ];
 
 function getItem(id) {
   return SHOP_ITEMS.find((item) => item.id === id) || null;
 }
 
-/** For wearing several later: two accessories can't be worn together if they share a place. */
+/** Two accessories can't be worn together if they're in the same shop category. */
 function accessoriesConflict(idA, idB) {
   const a = getItem(idA);
   const b = getItem(idB);
-  return Boolean(a && b && a.place && a.place === b.place && a.id !== b.id);
+  return Boolean(a && b && a.category && a.category === b.category && a.id !== b.id);
 }
 
 module.exports = { SHOP_ITEMS, getItem, accessoriesConflict };

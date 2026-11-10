@@ -97,9 +97,9 @@ const pet = {
   hushed: false, // true during video calls / fullscreen apps (events/hush.js): ctx.say shows nothing
   // colorSet = folder in assets/sprite/ for the equipped color ('sunny' for 'color-sunny',
   // or the item's `set`, e.g. 'bubblegum' for color-pink).
-  // accessories = what he's wearing, as accessory values (e.g. ['tophat']). A list so several
-  // can be worn at once later; for now the save holds one (see shopCatalog.js / stateSchema.js).
-  look: { color: '#ffd84a', colorSet: DEFAULT_SET, accessory: 'none', accessories: [] },
+  // accessories = what he's wearing, as accessory values (e.g. ['tophat', 'lollipop']): at most
+  // one per shop category (see shopCatalog.js / stateSchema.js).
+  look: { color: '#ffd84a', colorSet: DEFAULT_SET, accessories: [] },
 };
 
 // Usable screen area: the whole display minus the taskbar, wherever the taskbar is (bottom,
@@ -195,13 +195,17 @@ function logStateChanges(prev, next) {
     log('starbits', { delta: next.starbits - prev.starbits, total: next.starbits });
   }
   for (const id of next.owned) if (!prev.owned.includes(id)) log('buy', { item: id });
-  for (const slot of Object.keys(next.equipped)) {
-    if (next.equipped[slot] !== prev.equipped[slot]) log('equip', { slot, item: next.equipped[slot] });
+  if (next.equipped.color !== prev.equipped.color) log('equip', { slot: 'color', item: next.equipped.color });
+  const was = prev.equipped.accessories || {};
+  const now = next.equipped.accessories || {};
+  for (const cat of new Set([...Object.keys(was), ...Object.keys(now)])) {
+    if (now[cat] !== was[cat]) log('equip', { slot: cat, item: now[cat] || null });
   }
 }
 
-// Shop try-on (events/shop.js → ctx.previewAccessory): an accessory value shown INSTEAD of the
-// equipped one while you browse the shop, or null for "what he's really wearing". Never saved.
+// Shop try-on (events/shop.js → ctx.previewAccessory): an accessory value shown while you browse
+// the shop, replacing whatever he wears in that item's category (others stay on), or null for
+// "what he's really wearing". Never saved.
 let previewAccessory = null;
 let lastState = null;
 
@@ -230,15 +234,19 @@ function applyLook(state) {
   const byId = (id) => ctx.catalog.find((item) => item.id === id);
   const tryColor = previewColorId && byId(previewColorId)?.slot === 'color' ? previewColorId : null;
   const colorId = tryColor || state.equipped.color || `color-${DEFAULT_SET}`;
-  const accessory = previewAccessory ?? byId(state.equipped.accessory)?.value ?? pet.look.accessory;
+  // Worn accessories: one per category. A try-on replaces the one in its own category.
+  let worn = Object.values(state.equipped.accessories || {}).map(byId).filter(Boolean);
+  const trying = previewAccessory
+    && ctx.catalog.find((item) => item.slot === 'accessory' && item.value === previewAccessory);
+  if (trying) worn = [...worn.filter((item) => item.category !== trying.category), trying];
+  // Catalog order = drawing order (shoes and tie under, then hats...), whatever order they were put on.
+  worn.sort((a, b) => ctx.catalog.indexOf(a) - ctx.catalog.indexOf(b));
   pet.look = {
     color: byId(colorId)?.value ?? pet.look.color,
     // Each shop color is a PNG set: assets/sprite/<set>/. An item can name its folder with
     // `set` (e.g. color-pink → 'bubblegum'); otherwise it's the id minus "color-".
     colorSet: byId(colorId)?.set ?? colorId.replace(/^color-/, ''),
-    accessory,
-    // A list, so wearing several later only changes how this list is filled.
-    accessories: accessory && accessory !== 'none' ? [accessory] : [],
+    accessories: worn.map((item) => item.value).filter((v) => v !== 'none'),
   };
   // Load that color's frames in the background (missing files fall back to sunny meanwhile).
   frames.loadAll(pet.look.colorSet);
@@ -266,7 +274,7 @@ function anchorOnScreen(name) {
   };
 }
 
-// Balloon, UFO and star trail (./floaters.js): behind him, following with a lag.
+// Balloon, UFO and star tail (./floaters.js): behind him, following with a lag.
 const floaters = createFloaters({
   stage, petEl, art: accessoryArt, size: () => SIZE, anchor: anchorOnScreen, center,
 });

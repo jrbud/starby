@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('sprite', {
   getCatalog: () => ipcRenderer.invoke('shop:catalog'),
   buy: (itemId) => ipcRenderer.invoke('shop:buy', itemId),
   equip: (itemId) => ipcRenderer.invoke('shop:equip', itemId),
+  unequip: (itemId) => ipcRenderer.invoke('shop:unequip', itemId), // take one accessory off
   openShop: () => ipcRenderer.send('shop:open'),
   // Shop window only: title-bar buttons, where the display box is, and lines for Starby to say.
   minimizeShop: () => ipcRenderer.send('shop:minimize'),
