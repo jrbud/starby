@@ -100,7 +100,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   no countdown, no starbit drops, debug mood label hidden; `pet.hiding` tells `starbits.js` / `moodLabel.js`).
   He only hides just past an **edge of the usable screen** (behind the taskbar, or past the left / right / top
   edge); no windows. "Behind the edge" is a CSS clip on the pet element, so a peek shows only the part sticking
-  out. Every 4–9s he peeks out ~30px for 1.5s, and **each peek comes from a new random edge spot** (he moves
+  out. Every 1.5–3.5s he peeks out ~30px for 1.8s (about twice as often as before), and **each peek comes from a new random edge spot** (he moves
   there while fully hidden), so he isn't where you saw him hide. Touch him (or grab him) while he peeks → found:
   "you found me!" + 10 starbits. Not found in 150s → he comes out and wins. On the game buttons, the games timer
   (he hides on his own, P1-15) and the menu ("Play hide & seek"); never in invites (`invite: false`).
