@@ -1,4 +1,4 @@
-# sprite.exe
+# starby.exe
 
 A tiny star that lives on your (Windows) desktop. Hackathon build, so see `claude.md` for scope and rules
 (placeholder assets only, read-only system access).
@@ -61,6 +61,7 @@ src/
                             copycat.js = its own category: every 3 min he copies your cursor's movement;
                             starbySays.js = Starby Says (do it only if he says "starby says");
                             hoopShot.js = slingshot him into a hoop (right-drag, gravity);
+                            memory.js = memory game: click starbits in the order they light up;
                             games.js = list of games, game buttons, rest, games timer, 3-2-1-GO;
                             prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements

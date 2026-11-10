@@ -200,6 +200,13 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   (`button-hover.png` panel, `button-idle.png` buttons), Sour Gummy, shop yellow; `.hit` so it's clickable.
   DevTools: `starby.howTo()`, `starby.howToReset()`.
 
+- [x] **P1-22 (Nice) Memory (a chill game).** `events/memory.js`: invite "wanna play a memory game?", the dialogue's
+  **Chill** games (`dialogue/tree.js` CHILL_GAMES), tray "Play memory". He glides to the middle and one starbit of
+  every colour (team PNGs) pops out in a ring around him. He lights some up in order (each grows, glows and shakes),
+  then you click them in the same order (6s per click). **3 sets, harder each time:** 3 / 5 / 7 starbits, shown
+  faster each set. All 3 → 12 starbits; a wrong click or too slow → the right one lights up, "oops!", and 4 starbits
+  per set cleared. Starbits are `.hit` during the game; glow / grow / shake are CSS on the PNGs.
+
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
 > stand down for modes they don't know), then hand it back. One at a time; pet.js runs the active event

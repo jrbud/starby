@@ -41,6 +41,7 @@ function buildPetMenu() {
     { label: 'Play constellation quiz', click: () => play('constellation') },
     { label: 'Play starby says', click: () => play('starby-says') },
     { label: 'Play hoop shot', click: () => play('hoop-shot') },
+    { label: 'Play memory', click: () => play('memory') },
     { type: 'separator' },
     {
       label: 'Developer',
