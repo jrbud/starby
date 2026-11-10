@@ -25,12 +25,17 @@ function menuWindowSize(win = null) {
   return { width: Math.round(MENU_WIDTH * s), height: Math.round(MENU_HEIGHT * s) };
 }
 
+// WINDOWS QUIRK: with display scaling (125 %, 150 %...) Windows rounds a window's size to whole
+// PHYSICAL pixels, so getBounds() can come back a pixel off from what we asked for. Treat that as
+// "already the right size", or every check would resize + re-center it and the window would creep.
+const SIZE_SLACK = 2; // px
+
 // Resize around the window's center, then nudge it back on screen if it now sticks out.
 function apply(win) {
   if (!win || win.isDestroyed()) return;
   const { width, height } = menuWindowSize(win);
   const b = win.getBounds();
-  if (b.width === width && b.height === height) return;
+  if (Math.abs(b.width - width) <= SIZE_SLACK && Math.abs(b.height - height) <= SIZE_SLACK) return;
   const area = workAreaOf(win);
   let x = Math.round(b.x + (b.width - width) / 2);
   let y = Math.round(b.y + (b.height - height) / 2);
@@ -42,11 +47,18 @@ function apply(win) {
 
 /** Call once per menu window after creating it: it then follows the UI scale setting. */
 function trackMenuWindow(win) {
+  lastMenuScale = settingsStore.get().menuScale; // it was just sized for this
   windows.add(win);
   win.on('closed', () => windows.delete(win));
 }
 
-settingsStore.onChange(() => {
+// Only when MENU SIZE itself changed. Every other setting change (dragging any slider saves many
+// times a second) must leave the windows alone: re-checking the size on each one is what made the
+// Settings window move while you dragged a slider on a scaled display.
+let lastMenuScale = null; // set when a menu window opens (trackMenuWindow), not at load time
+settingsStore.onChange((s) => {
+  if (s.menuScale === lastMenuScale) return;
+  lastMenuScale = s.menuScale;
   for (const win of windows) apply(win);
 });
 
