@@ -8,7 +8,7 @@
 //              (a body point), overlapping him a little, never his face.
 //   float      the balloon: floats above him on a string tied to his hand (./floaters.js)
 //   companion  the UFO: flies around near him, always behind him (./floaters.js)
-//   trail      the star trail: trails behind whichever way he's moving (./floaters.js)
+//   trail      the star tail: trails behind whichever way he's moving (./floaters.js)
 //
 // ANCHORS follow his pose: POSES below says where his head, hands, chest and feet are in every
 // frame file, measured from the art (largest-blob analysis, checked by eye). Most frames are the

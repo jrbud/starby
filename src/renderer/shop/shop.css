@@ -147,7 +147,7 @@ button {
   margin-top: 6px;
 }
 
-/* "Colors ▲" / "Accessories ▼": click to open/close the list under it. */
+/* "Colors ▲" / "Head ▼": click to open/close the list under it. */
 .section-toggle {
   display: inline-flex;
   align-items: center;
@@ -183,6 +183,12 @@ button {
 }
 .section.closed .items {
   display: none;
+}
+/* An empty dropdown (e.g. Trails, until it has items). */
+.items .empty {
+  margin: 0;
+  opacity: 0.6;
+  font-size: calc(14px * var(--font-scale, 1));
 }
 
 /* Item rows: tan button art (button-tan-idle → button-tan-hover on hover). The selected row uses

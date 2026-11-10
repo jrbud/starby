@@ -2,8 +2,8 @@
 //
 //   - Left: wallet (top-left), the display box Starby stands in, and one Buy / Equip button
 //     that acts on the selected item.
-//   - Right: "Colors" and "Accessories" dropdowns (both open when the shop opens) listing the
-//     items. Price (with the starbit icon) only on items you don't own yet.
+//   - Right: "Colors" plus one dropdown per accessory category (Head, Hand, Shoes, Buddies,
+//     Trails; all open when the shop opens) listing the items. Price (with the starbit icon) only on items you don't own yet.
 //   - Starby talks for the shop: picking an item you don't own, or pressing a grey Buy button
 //     (not enough starbits), makes him say something (window.sprite.shopSay → pet window).
 //
@@ -17,15 +17,28 @@ import { accessoryDef } from '../pet/accessories.js';
 const api = window.sprite;
 
 const ASSETS = '../../../assets'; // relative to src/renderer/shop/index.html
+// Dropdowns, in order. Accessories are split by their `category` (src/shared/shopCatalog.js).
+// A new category = one line here plus `category: '<key>'` on its items.
 const SECTIONS = [
-  { slot: 'color', title: 'Colors', open: true },
-  { slot: 'accessory', title: 'Accessories', open: true },
+  { key: 'color', title: 'Colors', open: true, match: (i) => i.slot === 'color' },
+  ...[
+    ['head', 'Head'],
+    ['hand', 'Hand'],
+    ['shoes', 'Shoes'],
+    ['buddies', 'Buddies'],
+    ['trails', 'Trails'], // nothing in it yet
+  ].map(([cat, title]) => ({
+    key: `accessory-${cat}`,
+    title,
+    open: true,
+    match: (i) => i.slot === 'accessory' && i.category === cat,
+  })),
 ];
 
 let catalog = [];
 let state = null;
 let selectedId = null;
-const openSlots = new Set(SECTIONS.filter((s) => s.open).map((s) => s.slot));
+const openSlots = new Set(SECTIONS.filter((s) => s.open).map((s) => s.key));
 
 const $ = (id) => document.getElementById(id);
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
@@ -48,13 +61,17 @@ const LINES = {
   ]),
   bought: (item) => pick([`yay! ${item.name} is ours!`, `thank you!! i love ${item.name}!`]),
   equipped: () => pick(['how do i look?', 'ta-da!', 'so fancy!']),
+  takenOff: (item) => pick([`bye bye, ${item.name}!`, `${item.name} off!`, 'ahh, much lighter']),
 };
 
 const say = (text) => api.shopSay?.(text);
 
 // ---- Item state ----
 const isOwned = (item) => state.owned.includes(item.id);
-const isEquipped = (item) => state.equipped[item.slot] === item.id;
+// Accessories: one worn per category (state.equipped.accessories = { head: id, ... }).
+const isEquipped = (item) => (item.slot === 'color'
+  ? state.equipped.color === item.id
+  : state.equipped.accessories?.[item.category] === item.id);
 const missing = (item) => Math.max(0, item.price - state.starbits);
 const selectedItem = () => catalog.find((i) => i.id === selectedId) || null;
 
@@ -167,8 +184,8 @@ function itemRow(item) {
   return row;
 }
 
-function sectionEl({ slot, title }) {
-  const open = openSlots.has(slot);
+function sectionEl({ key, title, match }) {
+  const open = openSlots.has(key);
   const section = document.createElement('div');
   section.className = `section${open ? '' : ' closed'}`;
 
@@ -183,14 +200,21 @@ function sectionEl({ slot, title }) {
   arrow.textContent = open ? '▲' : '▼';
   toggle.append(label, arrow);
   toggle.onclick = () => {
-    if (openSlots.has(slot)) openSlots.delete(slot);
-    else openSlots.add(slot);
+    if (openSlots.has(key)) openSlots.delete(key);
+    else openSlots.add(key);
     renderLists();
   };
 
   const items = document.createElement('div');
   items.className = 'items';
-  catalog.filter((i) => i.slot === slot).forEach((item) => items.appendChild(itemRow(item)));
+  const list = catalog.filter(match);
+  list.forEach((item) => items.appendChild(itemRow(item)));
+  if (!list.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty';
+    empty.textContent = 'Nothing here yet!';
+    items.appendChild(empty);
+  }
 
   section.append(toggle, items);
   return section;
@@ -238,6 +262,9 @@ function renderAction() {
     btn.textContent = 'Buy';
     btn.classList.add('done');
     btn.disabled = true;
+  } else if (isEquipped(item) && item.slot === 'accessory') {
+    btn.textContent = 'Take off'; // empties that category
+    btn.classList.add('equip'); // white button art
   } else if (isEquipped(item)) {
     btn.textContent = 'Equipped';
     btn.classList.add('done');
@@ -260,6 +287,7 @@ function render() {
 
 // ---- Try-on ----
 // Selecting an accessory or a color (colorway/skin) shows it on Starby right away (not saved).
+// A tried-on accessory only swaps out the one worn in ITS category; the others stay on (pet.js).
 // Selecting anything else, or what he already has on, shows what he really has on. Closing or
 // minimizing the shop takes a try-on off again (main process → events/shop.js); only
 // Buy/Equip keep it.
@@ -285,7 +313,13 @@ function select(item) {
 
 async function onAction() {
   const item = selectedItem();
-  if (!item || isEquipped(item)) return;
+  if (!item) return;
+  if (isEquipped(item)) {
+    if (item.slot !== 'accessory') return;
+    const res = await api.unequip?.(item.id);
+    if (res?.ok) say(LINES.takenOff(item));
+    return;
+  }
   if (isOwned(item)) {
     const res = await api.equip(item.id);
     if (res.ok) {

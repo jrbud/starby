@@ -369,7 +369,7 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - **balloon:** floats just above him on a string tied to his right hand, drifting behind his
       movement. The string is a code-drawn line (team-approved exception, noted in `claude.md`).
     - **UFO:** loops near him.
-    - **star trail:** streams behind whichever way he moves.
+    - **star tail:** streams behind whichever way he moves.
   - **`pet.js`:** the canvas now has room around his box for things that stick out (only the box is
     clickable), and draws worn accessories after his frame. `anchorOnScreen()` maps a body point through
     his spin and squash, so the string stays tied to his hand.
