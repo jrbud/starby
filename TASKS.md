@@ -171,7 +171,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   command's action counts. After a done command he waits until he's landed (+0.6s) before the next. Last the 15s →
   win, 8 starbits; lose → nothing taken. (There's no "open the shop" command: the shop takes him over and would
   end the game.) He isn't taken over (no `pet.mode`), so grabbing and
-  throwing work as usual.
+  throwing work as usual. **His usual reactions are off during the game** (`pet.gameFocus`): pokes don't make him mad,
+  throws/spins don't make him playful or dizzy, and clicks get no replies or poke warnings (mood.js, speech.js,
+  drag.js); taps during the game don't count toward getting mad afterwards.
 - [x] **P1-19 (Nice) Hoop Shot.** `events/hoopShot.js`, a game (invite "wanna play hoop shot?", game buttons,
   menu "Play hoop shot"). He flies to a launch spot on his side; a hoop appears on the far side (random height).
   **Right- or left-click and drag** him back like a slingshot, with the same look as the normal slingshot
