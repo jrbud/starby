@@ -52,6 +52,8 @@ function buildPetMenu() {
         { type: 'separator' },
         { label: 'Start star shower now', click: () => dev('happening', 'star-shower') },
         { label: 'Start shooting star now', click: () => dev('happening', 'shooting-star') },
+        { label: 'Start black hole now', click: () => dev('happening', 'black-hole') },
+        { label: 'A friend visits now', click: () => dev('friendVisit') },
         { label: 'Start copycat now', click: () => play('copycat') },
         { label: 'Starby invites you to a game', click: () => dev('invite') },
         { label: 'Open dialogue box', click: () => dev('dialogue') },

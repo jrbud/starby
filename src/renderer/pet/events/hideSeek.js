@@ -32,8 +32,8 @@ import { readyToPlay, markPlayed, restLeft } from './games.js';
 const GAME_FOR = 150; // seconds before he gives up and comes out
 const RUN_SPEED = 950; // px/s running to his first spot
 const DUCK_SPEED = 220; // px/s sliding into / out of cover
-const HIDE_FOR = [4, 9]; // seconds fully hidden between peeks
-const PEEK_FOR = 1.5; // seconds peeking
+const HIDE_FOR = [1.5, 3.5]; // seconds fully hidden between peeks (was 4–9: he peeks out about twice as often now)
+const PEEK_FOR = 1.8; // seconds peeking (a bit longer, so a peek is easier to catch)
 const PEEK_PX = 30; // px of him that show when he peeks
 const CATCH_PAD = 6; // px around his visible part that still counts as touching him
 const FOUND_REWARD = 10;

@@ -100,7 +100,7 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   no countdown, no starbit drops, debug mood label hidden; `pet.hiding` tells `starbits.js` / `moodLabel.js`).
   He only hides just past an **edge of the usable screen** (behind the taskbar, or past the left / right / top
   edge); no windows. "Behind the edge" is a CSS clip on the pet element, so a peek shows only the part sticking
-  out. Every 4–9s he peeks out ~30px for 1.5s, and **each peek comes from a new random edge spot** (he moves
+  out. Every 1.5–3.5s he peeks out ~30px for 1.8s (about twice as often as before), and **each peek comes from a new random edge spot** (he moves
   there while fully hidden), so he isn't where you saw him hide. Touch him (or grab him) while he peeks → found:
   "you found me!" + 10 starbits. Not found in 150s → he comes out and wins. On the game buttons, the games timer
   (he hides on his own, P1-15) and the menu ("Play hide & seek"); never in invites (`invite: false`).
@@ -171,7 +171,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   command's action counts. After a done command he waits until he's landed (+0.6s) before the next. Last the 15s →
   win, 8 starbits; lose → nothing taken. (There's no "open the shop" command: the shop takes him over and would
   end the game.) He isn't taken over (no `pet.mode`), so grabbing and
-  throwing work as usual.
+  throwing work as usual. **His usual reactions are off during the game** (`pet.gameFocus`): pokes don't make him mad,
+  throws/spins don't make him playful or dizzy, and clicks get no replies or poke warnings (mood.js, speech.js,
+  drag.js); taps during the game don't count toward getting mad afterwards.
 - [x] **P1-19 (Nice) Hoop Shot.** `events/hoopShot.js`, a game (invite "wanna play hoop shot?", game buttons,
   menu "Play hoop shot"). He flies to a launch spot on his side; a hoop appears on the far side (random height).
   **Right- or left-click and drag** him back like a slingshot, with the same look as the normal slingshot
@@ -223,6 +225,25 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   through walls; he can't leave the maze except via its entrance/exit pockets). Touch a wall = zap, back to the
   start; 3 zaps = out. 45s moon timer. 5 bonus starbits in the maze, kept whatever happens. Out the exit → 10 +
   bonus. DevTools: `starby.mazeInfo()`.
+
+- [x] **P1-25 (Nice) Black Hole (a sky event).** `events/blackHole.js`, on the 10–15 min sky timer with Star Shower and
+  Shooting Star (`HAPPENINGS`, category `'sky'`, priority 14). A black hole opens on screen (≥380px from him) for 10–15s
+  and pulls him in, harder up close (walking / throws fight it, so throws only get so far). You can grab him, but only
+  for 1.2s before he slips ("it's too strong!"), so keep grabbing and dragging him away. Saved → it collapses: "phew,
+  thank you... i'm not a fan of being spaghetti" + 5 starbits. Sucked in → he spins in, it closes, he's gone 5s (hidden,
+  hushed), then it opens elsewhere and spits him out flying: "oh wow... it's been years". **Black hole art is a
+  PLACEHOLDER: the moon PNG** darkened with a purple glow and spinning (CSS on the PNG); swap `HOLE_ART`. Dev: tray →
+  Developer → "Start black hole now".
+
+- [x] **P1-26 (Nice) A friend comes to visit.** `events/friend.js`, its own category (`'friend'`, priority 14) with
+  its own timer (every 20–40 min, when nothing else is running and you're around). Another Starby (a colour set and
+  a worn accessory he isn't wearing, drawn with `frames.js` / `accessories.js`, team art) hops in and says hi. Starby
+  asks "my friend came to visit! wanna meet them?" (event menu). **Yes** → "this is my ROLE, NAME, from PLACE, and
+  they're a JOB!" (random from lists); they wander for 2–5 min, chat now and then (team talkbox art), click them to
+  hear them, **right-click them to ask them to leave early**, then "i've got things to do! bye!" and hop off.
+  **No** → "yeah, they're not that cool anyway", Starby throws them: 3 edge bounces, then out past the edge. No
+  answer (15s) → they shrug and leave. While they visit, games / invites / dances don't start. Dev: tray → Developer
+  → "A friend visits now" (`starby.friendVisit()`).
 
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors

@@ -55,7 +55,7 @@ src/
       events/               scripted sequences that take over the star (index.js = runner; tag.js;
                             pong.js; invite.js = he asks you to play a random game;
                             categories: sky / games / dance (table at the top of index.js);
-                            happenings.js = 10–15 min sky timer (starShower.js, shootingStar.js);
+                            happenings.js = 10–15 min sky timer (starShower.js, shootingStar.js, blackHole.js);
                             hideSeek.js = hide and seek; catchGame.js = catch; dance.js = dancing to music;
                             constellation.js = constellation quiz (shapes in constellations.js);
                             copycat.js = its own category: every 3 min he copies your cursor's movement;
@@ -64,6 +64,7 @@ src/
                             memory.js = memory game: click starbits in the order they light up;
                             shuffle.js = asteroid shuffle: find which asteroid he's hiding behind;
                             maze.js = drag him through a maze without touching the walls;
+                            friend.js = a friend (another Starby) comes to visit;
                             games.js = list of games, game buttons, rest, games timer, 3-2-1-GO;
                             prompt.js = popup with buttons; countdown.js = top-right timer)
       clickThrough.js       toggles click-through when hovering `.hit` elements

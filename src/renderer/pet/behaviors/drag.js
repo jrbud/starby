@@ -479,7 +479,7 @@ export default {
 
     if (landedPending) {
       landedPending = false;
-      if (turns >= DIZZY_TURNS * TAU) {
+      if (turns >= DIZZY_TURNS * TAU && !pet.gameFocus) { // (pet.gameFocus: a game asked for the spin, e.g. Starby Says)
         dizzyUntil = ctx.clock.seconds + DIZZY_SECONDS;
         ctx.say(pick(DIZZY_LINES), 2500);
         ctx.log('dizzy', { turns: Math.round(turns / TAU) });
