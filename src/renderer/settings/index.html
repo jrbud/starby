@@ -18,9 +18,9 @@
     <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-hover.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/button-white-dark.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/button-red-hover.png" />
-    <!-- Slider art (settings.css): the line track and the blue starbit handle. -->
+    <!-- Slider art (settings.css): the line track and the yellow starbit handle. -->
     <link rel="preload" as="image" href="../../../assets/menuIcons/line.png" />
-    <link rel="preload" as="image" href="../../../assets/starbits/blue1.png" />
+    <link rel="preload" as="image" href="../../../assets/starbits/yellow1.png" />
   </head>
   <body class="menu-window">
     <!-- The background art (assets/backgrounds/settings.png) has "SETTINGS" written on it. -->
@@ -56,7 +56,7 @@
     <!-- UI sizes, 75–150 % (settingsStore menuScale / chatScale / fontScale; settings.js saves them
          when you let go of the slider). Menu size: the shop/settings windows + the right-click menu's
          answer boxes. Chat size: speech + thought bubbles. Font size: text in bubbles and menus. -->
-    <details class="group" data-key="ui" open>
+    <details class="group" data-key="ui">
       <summary>
         <span class="group-title">UI</span>
       </summary>
@@ -93,7 +93,7 @@
          on; saved as settingsStore.sfxMuted, reversed). "All sounds" = master volume (sfxVolume);
          below it, one slider + on/off box per category, built by settings.js from SOUND_CATEGORIES
          in shared/sfx.js. Letting go of a slider plays a sample. -->
-    <details class="group" data-key="sounds" open>
+    <details class="group" data-key="sounds">
       <summary>
         <span class="group-title">Sounds</span>
         <input id="sfx-on" type="checkbox" class="art-check header-toggle" aria-label="Sounds on" title="All sounds on/off" />
@@ -116,9 +116,9 @@
 
 
 
-    <!-- Collapsible: click the heading (or Enter/Space). Open/closed is remembered (settings.js).
+    <!-- Collapsible: click the heading (or Enter/Space). Every section starts collapsed each time Settings opens (settings.js).
          The box in the header turns starbit spawning on/off (settingsStore.starbitSpawning). -->
-    <details class="group" data-key="starbits" open>
+    <details class="group" data-key="starbits">
       <summary>
         <span class="group-title">Starbits</span>
         <input id="starbit-spawning" type="checkbox" class="art-check header-toggle" aria-label="Starbits spawning" title="Starbits spawning on/off" />
@@ -133,6 +133,11 @@
       <label class="switch-row">
         <span class="switch-name">Shooting animation</span>
         <input id="starbit-shoot" type="checkbox" class="art-check" />
+      </label>
+      <!-- The starbit count card at the top right when you collect one (settingsStore.starbitShowCount). -->
+      <label class="switch-row">
+        <span class="switch-name">Show count on collect</span>
+        <input id="starbit-show-count" type="checkbox" class="art-check" />
       </label>
     </section>
 
