@@ -8,7 +8,15 @@
 //   shuffle  SWAPS times, two asteroids swap places along little arcs (one over the top, one under),
 //            SWAP_FOR seconds each, a touch quicker as it goes (SPEED_UP), never so fast you can't
 //            follow. He stays hidden behind his asteroid and moves with it.
-//   pick     "where am i?" Click an asteroid (PICK_FOR seconds). It lifts to show what's behind it.
+//   pick     a popup above the asteroids (NOT a line from him: his speech bubble would sit right over
+//            his asteroid and give him away): "Which asteroid is Starby hiding behind? Click one!" In
+//            the chat theme (the team's purple button art, Sour Gummy in the app's yellow). Click an
+//            asteroid (PICK_FOR seconds); it lifts to show what's behind it.
+//
+// WHILE HE'S HIDDEN (from the drop until you pick) nothing can give him away: pet.hushed is set, so
+// he says nothing at all (no speech bubble over his asteroid, no chatter), and pet.hiding makes the
+// right-click dialogue ignore right-clicks (../dialogue/dialogue.js) and stops starbit drops / the
+// mood label. He talks again once he's revealed.
 //   result   right → "you found me!" + REWARD starbits. Wrong → his asteroid lifts too, to show where
 //            he was. Then the asteroids fly away and the game ends.
 //
@@ -45,10 +53,11 @@ const LIFT = 95; // px an asteroid lifts to reveal
 const LIFT_FOR = 0.35; // seconds to lift
 const RESULT_FOR = 2.6; // seconds the result shows before the game ends
 const REWARD = 8;
+const PROMPT_TEXT = 'Which asteroid is Starby hiding behind? Click one!';
+const PROMPT_ART = '../../../assets/menuIcons/button-hover.png'; // chat-theme frame (like the dialogue's boxes)
 
 const LINES = {
   intro: lineBag(["i'll hide behind one! keep your eyes on me!", 'watch closely... i\'m hiding!', 'follow me if you can!']),
-  pick: lineBag(['where am i?', 'which one am i behind?', 'find me!']),
   right: lineBag(['you found me!', 'yay, you got it!', 'how did you keep up?!']),
   wrong: lineBag(['nope! i was over here', 'hehe, wrong one!', 'so close! i was here']),
   slow: lineBag(['too slow! i was here', 'here i am!']),
@@ -68,6 +77,8 @@ let picked = null; // rock index clicked (judged at the tick)
 let lifts = []; // { rock, t } asteroids lifting
 let outcome = null;
 let hopped = false; // the happy hop when you find him (once)
+let hushedByUs = false; // we set pet.hushed (so only we clear it)
+let promptEl = null;
 let played = false;
 let styled = false;
 
@@ -86,6 +97,15 @@ function injectStyles() {
     }
     .shuffle-rock.pickable { cursor: pointer; }
     .shuffle-rock.pickable:hover { filter: drop-shadow(0 0 10px rgba(255, 232, 163, 0.9)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35)); }
+    /* The "pick one" popup: the chat theme (purple button art as a border-image, Sour Gummy, yellow). */
+    .shuffle-prompt {
+      position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); max-width: 320px;
+      padding: 10px 18px 11px; text-align: center; white-space: normal; pointer-events: none;
+      font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif; font-size: 17px; font-weight: 700; line-height: 1.25;
+      color: #ffe8a3; border: 12px solid transparent;
+      border-image: url('${PROMPT_ART}') 120 fill / 12px stretch;
+      filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3));
+    }
   `;
   document.head.appendChild(style);
 }
@@ -125,6 +145,31 @@ function buildRocks(ctx) {
 function removeRocks() {
   for (const r of rocks) r.el.remove();
   rocks = [];
+}
+
+// The "pick one" popup, centered above the row of asteroids (never above HIM: that'd give him away).
+function showPrompt(ctx) {
+  injectStyles();
+  if (!promptEl) {
+    promptEl = document.createElement('div');
+    promptEl.className = 'shuffle-prompt';
+    promptEl.textContent = PROMPT_TEXT;
+  }
+  promptEl.style.left = `${slots[1].x}px`;
+  promptEl.style.top = `${slots[1].y - SIZE / 2 - 24}px`;
+  if (!promptEl.parentNode) ctx.stage.appendChild(promptEl);
+  promptEl.style.display = '';
+}
+
+function hidePrompt() {
+  if (promptEl) promptEl.style.display = 'none';
+}
+
+// Hidden: no speech at all (pet.hushed, see pet.js ctx.say) so nothing pops up over his asteroid.
+function hush(ctx, on) {
+  const { pet } = ctx;
+  if (on && !pet.hushed) { pet.hushed = true; hushedByUs = true; }
+  if (!on && hushedByUs) { pet.hushed = false; hushedByUs = false; }
 }
 
 function setPickable(on) {
@@ -206,6 +251,8 @@ export default {
       phaseLeft -= TICK_SECONDS;
       if (picked !== null || phaseLeft <= 0) {
         setPickable(false);
+        hidePrompt();
+        hush(ctx, false); // he can talk again: he's about to be revealed
         if (picked === null) outcome = 'slow';
         else outcome = picked === starRock ? 'right' : 'wrong';
         if (picked !== null) lift(ctx, picked);
@@ -262,7 +309,8 @@ export default {
       const k = ease(1 - Math.max(0, phaseLeft) / DROP_FOR);
       rocks.forEach((r, i) => { r.x = slots[i].x; r.y = slots[i].y - HOVER * (1 - k); place(r); });
       if (phaseLeft <= 0) {
-        pet.hiding = true; // covered: no starbit drops / mood label giving him away
+        pet.hiding = true; // covered: no starbit drops / mood label / dialogue giving him away
+        hush(ctx, true); // ...and not a word from him until he's found
         phase = 'wait';
         phaseLeft = BEFORE_SHUFFLE;
       }
@@ -287,7 +335,7 @@ export default {
           phaseLeft = PICK_FOR;
           picked = null;
           setPickable(true);
-          ctx.say(LINES.pick(), 3000);
+          showPrompt(ctx); // a popup above the asteroids, not a line from him (that'd show where he is)
         } else {
           ctx.after(SWAP_PAUSE, () => { if (phase === 'shuffle') nextSwap(); }, 'shuffle: next swap');
         }
@@ -322,6 +370,8 @@ export default {
     endGame = null;
     phase = 'done';
     pet.hiding = false;
+    hush(ctx, false);
+    hidePrompt();
     removeRocks();
     swap = null;
     lifts = [];
