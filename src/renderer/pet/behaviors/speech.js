@@ -123,8 +123,10 @@ const forMood = (bags, pet) => (bags[pet.mood] || bags.happy)();
 
 function scheduleChat(ctx) {
   ctx.after(rand(...CHAT_EVERY), () => {
-    // Only chat while relaxed (not while held, fleeing, etc.).
-    if (ctx.pet.mode === 'idle' || ctx.pet.mode === 'walk') {
+    // Only chat while relaxed (not while held, fleeing, etc.). Also in focus mode once you've
+    // picked "Talk to me" in its menu (events/focus.js sets pet.focusTalk).
+    const { mode, focusTalk } = ctx.pet;
+    if (mode === 'idle' || mode === 'walk' || (mode === 'focus' && focusTalk)) {
       // ignoreQuiet: these pools already fit the mood (asleep → "zzz"), so they're allowed while asleep.
       chat(ctx, forMood(IDLE_BY_MOOD, ctx.pet), 3000, { gap: CHAT_GAP, ignoreQuiet: true });
     }
@@ -140,6 +142,8 @@ export default {
       // pet.gameFocus (Starby Says): no click replies or poke warnings ("one more poke and i'm gonna be
       // mad!"): they'd cover his command in the bubble and could look like a command themselves.
       if (ctx.pet.gameFocus) return;
+      // Focus mode: events/focus.js answers clicks with a study line instead (no pokes, no warnings).
+      if (ctx.pet.mode === 'focus') return;
       ctx.say(clickLine(ctx), 2000);
     });
     scheduleChat(ctx);

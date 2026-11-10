@@ -481,7 +481,8 @@ function openDialogue(ctx, id = null) {
   root.style.display = '';
   startBoil();
   open = null;
-  const node = id || (active && !CALM.includes(active) ? 'busy' : 'start');
+  // Focus mode has its own menu (tree.js 'focus'); games / sky events get 'busy'.
+  const node = id || (active === 'focus' ? 'focus' : active && !CALM.includes(active) ? 'busy' : 'start');
   showNode(ctx, node);
   takeSpeech(takeLine); // his speech bubble goes away; new lines come here
   setCatching(ctx, true); // a click anywhere else cancels

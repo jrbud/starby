@@ -29,7 +29,8 @@
 //     show: (ctx) => true,             // optional: only show this answer when it returns true
 //   }
 //
-// 'start' is the node right-clicking opens. 'busy' opens instead while a game / sky event is on.
+// 'start' is the node right-clicking opens. 'busy' opens instead while a game / sky event is on,
+// and 'focus' while he's in focus mode.
 // To write the chat: fill in the 'chat' node and add your own nodes, linking them with `next`.
 import { GAMES, restLeft } from '../events/games.js';
 
@@ -79,9 +80,34 @@ export const TREE = {
       { label: 'Wanna shop?', action: 'shop', say: 'ooh, shopping!' },
       { label: 'Wanna play a game?', next: 'games' },
       { label: 'Sorry, I gotta focus', action: 'focus', show: (ctx) => !focusing(ctx) },
-      { label: "Okay, I'm done focusing!", action: 'unfocus', show: focusing },
+      { label: "Okay, I'm done focusing!", action: 'unfocus', show: focusing }, // (focusing opens 'focus' instead)
       { label: 'Never mind', action: 'close' },
       { label: 'Settings', next: 'settings' },
+    ],
+  },
+
+  // ---- Focus menu ----
+  // Right-clicking him WHILE he's in focus mode opens this instead of 'start' (dialogue.js).
+  // The toggles read pet.focusWander / pet.focusTalk, which events/focus.js keeps up to date, and
+  // switch them through window.starby.focusWander / focusTalk (set up in events/focus.js).
+  focus: {
+    line: ['oh! hi! need something?', 'hm? what is it?'],
+    options: [
+      // Walk around along the bottom of the screen (dragging still works; focus keeps going)...
+      { label: 'Stretch your legs', action: 'starby:focusWander:on', show: (ctx) => !ctx.pet.focusWander },
+      // ...or stand still in one spot again (the usual focus mode).
+      { label: 'Stay still', action: 'starby:focusWander:off', show: (ctx) => Boolean(ctx.pet.focusWander) },
+      // TODO: not built yet; for now this just closes the menu.
+      { label: 'Start a timer', action: 'close' },
+      // TODO: not built yet; for now this just closes the menu.
+      { label: "Let's set goals!", action: 'close' },
+      // Lets him chat now and then (speech.js idle chatter) instead of staying quiet...
+      { label: 'Talk to me', action: 'starby:focusTalk:on', show: (ctx) => !ctx.pet.focusTalk },
+      // ...and back to quiet.
+      { label: 'Quiet please', action: 'starby:focusTalk:off', show: (ctx) => Boolean(ctx.pet.focusTalk) },
+      // 5th shown, so it sits in the same box as 'start''s Never mind (5th once filtered).
+      { label: 'Never mind', action: 'close' },
+      { label: "Okay, I'm done focusing!", action: 'unfocus' },
     ],
   },
 
