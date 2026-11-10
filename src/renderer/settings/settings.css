@@ -255,15 +255,19 @@ output {
   font-weight: 600;
 }
 
-/* Every slider (Starby size, UI size, fling power, sounds, starbit size): the team's art instead of
+/* Every slider (Starby size, UI sizes, fling power, sounds, starbit size): the team's art instead of
    the browser's. Track = the hand-drawn line (assets/menuIcons/line.png, stretched to the slider's
-   width); the handle you drag = a blue starbit (assets/starbits/blue1.png).
+   width); the handle you drag = a yellow starbit (assets/starbits/yellow1.png).
    The line is drawn by the .art-slider wrapper settings.js puts around each slider (not by the
    slider's own track), so it can be MIRRORED without mirroring the starbit: each slider gets
-   flip-h / flip-v / flip-hv in turn, so they don't all look the same. */
+   flip-h / flip-v / flip-hv in turn, so they don't all look the same.
+   FILL: the line from the left end up to the starbit is the same line art in --fill-color (the PNG
+   used as a mask over a flat color, so it keeps the hand-drawn shape), cut off at the starbit.
+   settings.js keeps --p (0–1, where the slider is) up to date on each wrapper. */
 :root {
   --track-h: 20px; /* line thickness */
   --thumb: 26px; /* starbit size */
+  --fill-color: var(--accent); /* the line's color left of the starbit */
 }
 .art-slider {
   position: relative;
@@ -282,14 +286,37 @@ output {
   background: url('../../../assets/menuIcons/line.png') center / 100% 100% no-repeat;
   pointer-events: none;
 }
+/* The filled part: same line, same flip, in --fill-color, clipped to end under the starbit's middle
+   (the starbit travels from thumb/2 to width − thumb/2). Mirrored left-to-right (flip-h/-hv), the
+   clip is taken from the other side so that after the flip it's still the LEFT part. */
+.art-slider::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--track-h);
+  transform: translateY(-50%) scale(var(--fx, 1), var(--fy, 1));
+  background-color: var(--fill-color);
+  -webkit-mask: url('../../../assets/menuIcons/line.png') center / 100% 100% no-repeat;
+  --fill-w: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p, 0));
+  clip-path: inset(0 calc(100% - var(--fill-w)) 0 0);
+  pointer-events: none;
+}
+.art-slider.flip-h::after,
+.art-slider.flip-hv::after {
+  clip-path: inset(0 0 0 calc(100% - var(--fill-w)));
+}
 .art-slider.flip-h { --fx: -1; }
 .art-slider.flip-v { --fy: -1; }
 .art-slider.flip-hv { --fx: -1; --fy: -1; }
 /* A muted sound slider: dim its line too (the slider itself dims the starbit). */
-.art-slider:has(> input.is-muted)::before { opacity: 0.45; }
+.art-slider:has(> input.is-muted)::before,
+.art-slider:has(> input.is-muted)::after { opacity: 0.45; }
 
 input[type="range"] {
-  position: relative; /* above the wrapper's line */
+  position: relative;
+  z-index: 1; /* the starbit on top of the wrapper's line AND its fill (::after comes later, so it would paint over it) */
   -webkit-appearance: none;
   appearance: none;
   display: block;
@@ -310,7 +337,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: var(--thumb);
   height: var(--thumb);
   margin-top: calc((var(--track-h) - var(--thumb)) / 2); /* centered on the line */
-  background: url('../../../assets/starbits/blue1.png') center / contain no-repeat;
+  background: url('../../../assets/starbits/yellow1.png') center / contain no-repeat;
   border: 0;
   transition: transform 110ms ease-out;
 }
@@ -361,6 +388,7 @@ button {
 /* Restore default + Reset progress, side by side. */
 .reset-row {
   display: flex;
+  justify-content: space-between; /* Restore default at the left edge, Reset progress at the right */
   gap: 12px;
   align-items: stretch; /* if one label wraps, both buttons grow to the same height */
 }

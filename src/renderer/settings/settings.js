@@ -4,15 +4,9 @@ import { flingTuning } from '../shared/flingTuning.js';
 import { STARBIT_COLORS, starbitImage, enabledColors, STARBIT_SIZE, clampStarbitSize } from '../shared/starbitArt.js';
 import { sfx, SOUND_CATEGORIES } from '../shared/sfx.js';
 
-// ---- Collapsible sections (<details>): remember open/closed per section in this window's
-// localStorage (a per-viewer convenience; if storage is unavailable they just start open).
-for (const section of document.querySelectorAll('details.group[data-key]')) {
-  const key = `settings:collapsed:${section.dataset.key}`;
-  try { if (localStorage.getItem(key) === '1') section.open = false; } catch { /* ignore */ }
-  section.addEventListener('toggle', () => {
-    try { localStorage.setItem(key, section.open ? '0' : '1'); } catch { /* ignore */ }
-  });
-}
+// ---- Collapsible sections (<details>): every one starts COLLAPSED each time Settings opens
+// (team decision; open/closed isn't remembered). Click a heading to open it.
+for (const section of document.querySelectorAll('details.group')) section.open = false;
 
 const api = window.sprite;
 
@@ -32,7 +26,15 @@ const colorBoxes = new Map(); // color -> checkbox
 let pendingColorSaves = 0;
 const titleCase = (s) => s[0].toUpperCase() + s.slice(1);
 
-for (const color of STARBIT_COLORS) {
+// The order the color tiles show in (Settings only; starbitArt.js's list order is untouched).
+// Any color not listed here (a new one added to starbitArt.js) goes at the end.
+const COLOR_ORDER = ['yellow', 'green', 'teal', 'blue', 'pink', 'red', 'white'];
+const tileColors = [
+  ...COLOR_ORDER.filter((c) => STARBIT_COLORS.includes(c)),
+  ...STARBIT_COLORS.filter((c) => !COLOR_ORDER.includes(c)),
+];
+
+for (const color of tileColors) {
   const label = document.createElement('label');
   label.className = 'color-option';
   // The checkbox stays (keyboard, screen readers, the change handler below) but is hidden: the
@@ -83,8 +85,12 @@ sizeSlider.min = STARBIT_SIZE.min;
 sizeSlider.max = STARBIT_SIZE.max;
 sizeSlider.step = STARBIT_SIZE.step;
 sizePreview.src = starbitImage('yellow', 1);
-// The preview shows the first enabled color, so it matches what Starby throws.
-const previewColor = (colorsOn) => enabledColors(colorsOn)[0];
+// The preview shows the first enabled color in the tiles' order (COLOR_ORDER above), so it
+// matches what Starby throws and the first checked tile.
+const previewColor = (colorsOn) => {
+  const on = enabledColors(colorsOn);
+  return tileColors.find((c) => on.includes(c)) || on[0];
+};
 
 function showSize(px) {
   const v = clampStarbitSize(px);
@@ -104,6 +110,7 @@ const SWITCHES = [
   ['starbit-spawning', 'starbitSpawning'],
   ['starbit-visible', 'starbitVisible'],
   ['starbit-shoot', 'starbitShootAnimation'],
+  ['starbit-show-count', 'starbitShowCount'],
 ].map(([id, key]) => ({ box: document.getElementById(id), key }));
 
 for (const { box, key } of SWITCHES) {
@@ -255,6 +262,21 @@ document.querySelectorAll('input[type="range"]').forEach((input, i) => {
   wrap.append(input);
 });
 
+// The colored fill left of the starbit (settings.css, .art-slider::after) needs to know where the
+// slider is: --p = 0 at the left end … 1 at the right. Updated while dragging and whenever saved
+// settings are shown (setting .value from code doesn't fire 'input').
+function syncFill(input) {
+  const min = Number(input.min) || 0;
+  const max = Number(input.max) || 100;
+  const p = max > min ? (Number(input.value) - min) / (max - min) : 0;
+  input.parentElement?.style.setProperty('--p', String(Math.max(0, Math.min(1, p))));
+}
+const syncAllFills = () => document.querySelectorAll('.art-slider > input[type="range"]').forEach(syncFill);
+document.addEventListener('input', (e) => {
+  if (e.target instanceof HTMLInputElement && e.target.type === 'range') syncFill(e.target);
+});
+syncAllFills();
+
 function show(settings) {
   showSfx(settings);
   showSwitches(settings);
@@ -265,6 +287,7 @@ function show(settings) {
   if (pendingColorSaves === 0) showColors(settings.starbitColors);
   showSize(settings.starbitSize);
   sizePreview.src = starbitImage(previewColor(settings.starbitColors), 1);
+  syncAllFills();
 }
 
 slider.addEventListener('input', () => {

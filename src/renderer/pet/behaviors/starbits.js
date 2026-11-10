@@ -616,7 +616,9 @@ function animate(ctx, d, dt) {
 // Either way the card slides back out COUNTER_SHOW_SEC after the last pickup lands.
 
 // Settings → Starbits on/off switches (followed live; see applySettings in init).
-const switches = { spawning: true, visible: true, shootAnimation: true };
+// showCount: the count card slides in on collect (Settings → Starbits → Show count on collect).
+// Off = no card; starbits then poof where they are (no flight to a card that isn't there).
+const switches = { spawning: true, visible: true, shootAnimation: true, showCount: true };
 
 const ZIP_TIME = 0.5; // s, flight time to the corner
 // px, the most the zip path can bow out sideways. Each starbit picks a random bow anywhere
@@ -759,12 +761,13 @@ function zipTarget(ctx) {
 function collect(ctx, index) {
   const [drop] = drops.splice(index, 1);
   const value = tuning.value;
-  const shoot = switches.shootAnimation;
+  const showCount = switches.showCount;
+  const shoot = switches.shootAnimation && showCount; // (nothing to fly to without the card)
   sfx.play('collect-starbit'); // one of collect-starbit-1/2/3 at random
-  slideToastIn(ctx); // shows the count before this pickup; it ticks up when it lands
+  if (showCount) slideToastIn(ctx); // shows the count before this pickup; it ticks up when it lands
   ctx.api.collectStarbits(value).then((state) => {
     if (state && Number.isFinite(state.starbits)) total = state.starbits;
-    if (!shoot) {
+    if (!shoot && showCount && toast) {
       // No flight: tick the card up as soon as the pickup is saved.
       pulseCount(toast);
       scheduleToastOut(ctx);
@@ -853,6 +856,9 @@ export default {
       switches.spawning = on(settings?.starbitSpawning);
       switches.visible = on(settings?.starbitVisible);
       switches.shootAnimation = on(settings?.starbitShootAnimation);
+      switches.showCount = on(settings?.starbitShowCount);
+      // Just switched off while the card is up: slide it away now.
+      if (!switches.showCount && toast) toast.el.classList.remove('visible');
       // Hidden starbits: one class on the stage hides every starbit and trail (see pet.css);
       // the count card isn't a .starbits element, so it still shows.
       ctx.stage.classList.toggle('starbits-hidden', !switches.visible);
