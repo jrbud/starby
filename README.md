@@ -1,4 +1,4 @@
-# sprite.exe
+# starby.exe
 
 A tiny star that lives on your (Windows) desktop. Hackathon build, so see `claude.md` for scope and rules
 (placeholder assets only, read-only system access).
