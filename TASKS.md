@@ -226,6 +226,15 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   start; 3 zaps = out. 45s moon timer. 5 bonus starbits in the maze, kept whatever happens. Out the exit → 10 +
   bonus. DevTools: `starby.mazeInfo()`.
 
+- [x] **P1-25 (Nice) Black Hole (a sky event).** `events/blackHole.js`, on the 10–15 min sky timer with Star Shower and
+  Shooting Star (`HAPPENINGS`, category `'sky'`, priority 14). A black hole opens on screen (≥380px from him) for 10–15s
+  and pulls him in, harder up close (walking / throws fight it, so throws only get so far). You can grab him, but only
+  for 1.2s before he slips ("it's too strong!"), so keep grabbing and dragging him away. Saved → it collapses: "phew,
+  thank you... i'm not a fan of being spaghetti" + 5 starbits. Sucked in → he spins in, it closes, he's gone 5s (hidden,
+  hushed), then it opens elsewhere and spits him out flying: "oh wow... it's been years". **Black hole art is a
+  PLACEHOLDER: the moon PNG** darkened with a purple glow and spinning (CSS on the PNG); swap `HOLE_ART`. Dev: tray →
+  Developer → "Start black hole now".
+
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
 > stand down for modes they don't know), then hand it back. One at a time; pet.js runs the active event
