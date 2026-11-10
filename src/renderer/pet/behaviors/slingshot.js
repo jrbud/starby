@@ -87,7 +87,13 @@ function release(ctx) {
   wobble = { x: d >= 0 ? d : d / (1 + SQUASH_SOFT * d), v: 0 };
   launch(ctx, { vx, vy, spin: (Math.random() < 0.5 ? -1 : 1) * rand(...LAUNCH_SPIN) * tension });
   sfx.play('sling');
-  ctx.log('slingshot', { pull: Math.round(dist), angle: Math.round((Math.atan2(-py, -px) * 180) / Math.PI) });
+  // speed: the "hand" speed, same scale as a throw's ('toss' in drag.js), so mood.js can treat a
+  // slingshot like a throw (wakes him, makes him playful, counts toward getting dizzy).
+  ctx.log('slingshot', {
+    pull: Math.round(dist),
+    angle: Math.round((Math.atan2(-py, -px) * 180) / Math.PI),
+    speed: Math.round(Math.hypot(vx, vy)),
+  });
 }
 
 export default {

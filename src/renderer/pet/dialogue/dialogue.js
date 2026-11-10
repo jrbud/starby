@@ -55,6 +55,7 @@ import { strikePose } from '../behaviors/mood.js';
 import { TICK_SECONDS } from '../core/clock.js';
 import { createTalkbox, loadTalkbox, talkboxReady, takeSpeech, releaseSpeech, onSpeechBubbleShown } from '../talkbox.js';
 import { sfx } from '../../shared/sfx.js';
+import { menuScale, chatScale, fontScale } from '../uiScale.js';
 
 // ---- Tuning ----
 export const MAX_OPTIONS = 6; // answers per node (tree.js keeps to this; extras are dropped)
@@ -150,8 +151,8 @@ function injectStyles() {
       filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.28));
     }
     .dlg-say {
-      max-width: 320px; padding: 17px 24px 19px; isolation: isolate; text-align: center; text-transform: lowercase;
-      font-size: 20px; font-weight: 700; line-height: 1.25; transform-origin: 50% 100%;
+      max-width: calc(320px * var(--font-scale, 1)); padding: 17px 24px 19px; isolation: isolate; text-align: center; text-transform: lowercase;
+      font-size: calc(20px * var(--font-scale, 1)); font-weight: 700; line-height: 1.25; transform-origin: 50% 100%;
     }
     .dlg-frame {
       position: absolute; inset: 0; z-index: -1; pointer-events: none;
@@ -162,7 +163,7 @@ function injectStyles() {
     .dialogue-option {
       position: relative; isolation: isolate; display: block; cursor: pointer;
       border: 0; background: none; margin: 0; padding: 12px 21px 13px;
-      font: inherit; font-size: 18.5px; font-weight: 700; color: var(--dialogue-yellow);
+      font: inherit; font-size: calc(18.5px * var(--font-scale, 1)); font-weight: 700; color: var(--dialogue-yellow);
       text-align: center; white-space: nowrap; transition: transform 110ms ease-out;
       text-transform: lowercase; /* every choice is lowercase (tree, invites, quiz answers) */
     }
@@ -342,7 +343,8 @@ const resolve = (ctx, line) => {
 function makeSay() {
   const base = { w: 0, h: 0, slot: { x: 0, y: 0 }, from: { x: 0, y: 0 }, kind: 'wait', start: 0, dur: 0, tailFrac: 0.5 };
   if (talkboxReady()) {
-    const tb = createTalkbox({ fontSize: TALK_FONT, maxText: TALK_MAX, padX: 16, padY: 9, className: 'dlg-slot' }); // not a button: clicking it = clicking away
+    const fs = fontScale(); // Font size setting: bigger text, wraps proportionally wider
+    const tb = createTalkbox({ fontSize: TALK_FONT * fs, maxText: TALK_MAX * fs, padX: 16, padY: 9, className: 'dlg-slot' }); // not a button: clicking it = clicking away
     root.appendChild(tb.el);
     return { ...base, el: tb.el, tb, talk: true };
   }
@@ -391,7 +393,17 @@ function makeBox(ctx, option, from) {
   return b;
 }
 
-const measure = (b) => { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; };
+// Settings → UI (../uiScale.js): each box is laid out at its natural size (bw × bh) and scaled
+// when drawn: his line by Chat size, the answers by Menu size. w × h = its size on screen, which
+// is what the layout works with. (Font size is applied before measuring: --font-scale, TALK_FONT.)
+const scaleOf = (b) => (b === say ? chatScale() : menuScale());
+const measure = (b) => {
+  const s = scaleOf(b);
+  b.bw = b.el.offsetWidth;
+  b.bh = b.el.offsetHeight;
+  b.w = b.bw * s;
+  b.h = b.bh * s;
+};
 
 // Show node `id`; its boxes burst out from `origin` (an offset from his middle).
 // `id` is a node id in TREE, or a node object (event menus: { line, options, menu: true }).
@@ -404,6 +416,7 @@ function showNode(ctx, id, origin = { x: 0, y: 0 }) {
     console.warn(`dialogue: node '${id}' has ${options.length} answers; only ${MAX_OPTIONS} fit (tree.js)`);
     options = options.slice(0, MAX_OPTIONS);
   }
+  root.style.setProperty('--font-scale', String(fontScale())); // Font size setting (the CSS above)
   if (!say) say = makeSay();
   setSayText(ctx, resolve(ctx, node.line));
   // prompt.mp3: he's asking you something (every dialogue step, and event menus like
@@ -557,7 +570,17 @@ function runAction(ctx, action) {
 // ---- Drawing ----
 function draw(b, anchor, now) {
   const st = stateOf(b, now);
-  b.el.style.transform = `translate(${(anchor.x + st.x - b.w / 2).toFixed(1)}px, ${(anchor.y + st.y - b.h / 2).toFixed(1)}px) scale(${st.s.toFixed(3)})`;
+  // Scaled around its transform-origin (answers: middle; his line: the tail, so it pops from there).
+  // At its UI scale u its middle must land on anchor + (st.x, st.y): translate by that, minus the
+  // origin, minus u × (middle − origin). The animation's own scale (st.s) goes on top, around the origin.
+  const u = scaleOf(b);
+  const bw = b.bw ?? b.w;
+  const bh = b.bh ?? b.h;
+  const ox = (b === say ? say.tailFrac : 0.5) * bw;
+  const oy = (b === say ? 1 : 0.5) * bh;
+  const tx = anchor.x + st.x - ox - u * (bw / 2 - ox);
+  const ty = anchor.y + st.y - oy - u * (bh / 2 - oy);
+  b.el.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${(st.s * u).toFixed(3)})`;
   b.el.style.opacity = st.o.toFixed(3);
   // Clickable once it's (nearly) in place; never while flying back in.
   const clickable = b !== say && (b.kind === 'shown' || (b.kind === 'in' && st.p > 0.6));

@@ -10,6 +10,11 @@ const path = require('path');
 const DEFAULTS = {
   flingPower: 50, // 0–100: how hard throws fly and how bouncy the walls are (50 = original feel)
   starbySize: 100, // Starby's size on screen in px (Settings slider, 50–150; pet.js applies it live)
+  // Settings → UI (sliders, 75–150 %; 100 = as designed):
+  menuScale: 100, // shop/settings windows (windows/menuScale.js) + the right-click/event menus' answer boxes
+  chatScale: 100, // speech + thought bubbles (incl. his line in the right-click menu)
+  fontScale: 100, // text in the bubbles and menu boxes (the bubbles grow to fit)
+  // (pet-window side of all three: renderer/pet/uiScale.js)
   // Starbit colors switched ON in Settings (names from renderer/shared/starbitArt.js).
   // Default: every color except white. Must match DEFAULT_STARBIT_COLORS in starbitArt.js.
   starbitColors: ['blue', 'green', 'pink', 'red', 'teal', 'yellow'],
@@ -36,6 +41,10 @@ const DEFAULTS = {
 // Number settings are kept within 0–100 unless listed here as [min, max].
 const RANGES = {
   starbySize: [50, 150], // keep in sync with SIZE_MIN / SIZE_MAX in src/renderer/pet/pet.js
+  // UI sliders: keep in sync with renderer/settings/index.html and renderer/pet/uiScale.js
+  menuScale: [75, 150],
+  chatScale: [75, 150],
+  fontScale: [75, 150],
   // Sound sliders go up to 200 % (shared/sfx.js boosts past full volume). Keep in sync with the
   // sliders' max in renderer/settings (index.html master, settings.js categories).
   sfxVolume: [0, 150], // master; the categories below go to 200
@@ -52,6 +61,7 @@ const LIST_MAX = 32;
 let settings = null;
 let filePath = null;
 let saveTimer = null;
+const listeners = []; // main-process code that reacts to changes (onChange)
 
 function load() {
   filePath = path.join(app.getPath('userData'), 'settings.json');
@@ -99,11 +109,17 @@ function set(patch) {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('settings:changed', settings);
   }
+  for (const fn of listeners) fn(settings);
   return settings;
+}
+
+/** Main-process listener for settings changes (renderers use 'settings:changed'). */
+function onChange(fn) {
+  listeners.push(fn);
 }
 
 function reset() {
   return set({ ...DEFAULTS, starbitColors: [...DEFAULTS.starbitColors] });
 }
 
-module.exports = { get, set, reset, DEFAULTS };
+module.exports = { get, set, reset, onChange, DEFAULTS };

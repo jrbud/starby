@@ -21,6 +21,12 @@ body {
   height: 100%;
 }
 
+/* Settings → UI → Font size: --font-scale is set by ../shared/menuZoom.js (1 = 100 %). Text that
+   doesn't set its own size inherits this; every font-size in the pages' CSS is × it as well. */
+html {
+  font-size: calc(16px * var(--font-scale, 1));
+}
+
 body.menu-window {
   margin: 0;
   overflow: hidden;

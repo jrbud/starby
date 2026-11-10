@@ -130,6 +130,27 @@ starbySlider.addEventListener('input', () => {
   api.setSettings({ starbySize: Number(starbySlider.value) });
 });
 
+// ---- UI section: Menu size, Chat size, Font size (%). Saved when you LET GO, not while dragging:
+// Menu size resizes this very window, and resizing under the cursor mid-drag makes the slider jump.
+const UI_SLIDERS = [
+  ['menu-scale', 'menuScale'],
+  ['chat-scale', 'chatScale'],
+  ['font-scale', 'fontScale'],
+].map(([id, key]) => ({ slider: document.getElementById(id), out: document.getElementById(`${id}-value`), key }));
+
+for (const { slider: s, out, key } of UI_SLIDERS) {
+  s.addEventListener('input', () => { out.textContent = `${s.value}%`; });
+  s.addEventListener('change', () => api.setSettings({ [key]: Number(s.value) }));
+}
+
+function showUiScales(settings) {
+  for (const { slider: s, out, key } of UI_SLIDERS) {
+    const v = Number(settings[key]) || 100;
+    s.value = v;
+    out.textContent = `${v}%`;
+  }
+}
+
 // ---- Sounds: on/off box in the "Sounds" header (all sounds), "All sounds" master volume, then one
 // slider + on/off box per category. (shared/sfx.js plays every sound at master × category;
 // categories: SOUND_CATEGORIES there.) The header box is the reverse of the saved sfxMuted:
@@ -223,10 +244,22 @@ const categoryRows = SOUND_CATEGORIES.map((cat) => {
   };
 });
 
+// ---- Slider art: wrap every slider so its hand-drawn line can be mirrored (settings.css,
+// .art-slider). Each one gets the next way of flipping, so neighbors never look the same.
+// (After the sound category rows above are built, so their sliders are included.)
+const FLIPS = ['', 'flip-h', 'flip-v', 'flip-hv'];
+document.querySelectorAll('input[type="range"]').forEach((input, i) => {
+  const wrap = document.createElement('span');
+  wrap.className = `art-slider ${FLIPS[i % FLIPS.length]}`.trim();
+  input.replaceWith(wrap);
+  wrap.append(input);
+});
+
 function show(settings) {
   showSfx(settings);
   showSwitches(settings);
   showStarbySize(settings.starbySize);
+  showUiScales(settings);
   slider.value = settings.flingPower;
   valueOut.textContent = settings.flingPower;
   if (pendingColorSaves === 0) showColors(settings.starbitColors);

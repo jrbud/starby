@@ -207,15 +207,27 @@ function renderLists() {
 
 // Long names ("Basketball shoes") don't fit next to a price in the narrow rows: shrink just
 // those names, a step at a time, until they fit (down to a readable minimum).
+// Sizes follow Settings → UI → Font size (--font-scale, set by ../shared/menuZoom.js), and
+// everything is re-fitted when it changes.
+// Still too long at the smallest size (big Font size): back to full size on 2 lines (.wrap in
+// shop.css), and the row grows taller to fit them.
 function fitNames() {
+  const fs = Number(getComputedStyle(document.documentElement).getPropertyValue('--font-scale')) || 1;
   for (const name of document.querySelectorAll('.item-name')) {
-    let px = 18;
-    while (name.scrollWidth > name.clientWidth && px > 12) {
+    name.classList.remove('wrap');
+    name.style.fontSize = ''; // start from the CSS size (18px × font scale)
+    let px = 18 * fs;
+    while (name.scrollWidth > name.clientWidth && px > 12 * fs) {
       px -= 1;
       name.style.fontSize = `${px}px`;
     }
+    if (name.scrollWidth > name.clientWidth) {
+      name.style.fontSize = '';
+      name.classList.add('wrap');
+    }
   }
 }
+window.addEventListener('fontscale', fitNames);
 
 function renderAction() {
   const btn = $('action');
