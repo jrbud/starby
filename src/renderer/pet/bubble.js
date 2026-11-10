@@ -14,6 +14,7 @@
 // takeSpeech), so new lines go into ITS talkbox and this bubble stays hidden.
 import { createTalkbox, loadTalkbox, registerSpeechBubble, speechTakenBy, speechBubbleShown, speechMuted } from './talkbox.js';
 import { sfx } from '../shared/sfx.js';
+import { chatScale, fontScale } from './uiScale.js';
 
 const GAP = 3; // px between the tail tip and his head (or feet, when flipped)
 // Thought cloud (dreams): its trailing dots come from his upper-LEFT, so the dots' tip sits here
@@ -66,15 +67,25 @@ export function createBubble(el, opts = {}) {
     const r = petEl.getBoundingClientRect();
     const a = area();
     const think = tb.style === 'think';
-    let left = (think ? pw * THINK_TIP.x : pw / 2) - tb.tailFrac * tb.w; // tail tip over his middle (cloud: his upper-left)
-    let top = think ? ph * THINK_TIP.y - tb.h : -tb.h - GAP;
+    // Chat size setting (./uiScale.js): the bubble is drawn at tb.w × tb.h and scaled by s around its
+    // tail, so everything below works with its on-screen size W × H.
+    const s = chatScale();
+    const W = tb.w * s;
+    const H = tb.h * s;
+    let left = (think ? pw * THINK_TIP.x : pw / 2) - tb.tailFrac * W; // tail tip over his middle (cloud: his upper-left)
+    let top = think ? ph * THINK_TIP.y - H : -H - GAP;
     const flipped = r.top + top < a.top + EDGE; // no room above → below him, tail up
     if (flipped) top = ph + GAP;
     const screenLeft = r.left + left;
     if (screenLeft < a.left + EDGE) left += a.left + EDGE - screenLeft;
-    else if (screenLeft + tb.w > a.right - EDGE) left -= screenLeft + tb.w - (a.right - EDGE);
+    else if (screenLeft + W > a.right - EDGE) left -= screenLeft + W - (a.right - EDGE);
     tb.setFlipped(flipped);
-    tb.el.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px)`;
+    // Scaling around the tail (transform-origin) moves the box's corner by origin × (1 − s): undo that.
+    const ox = tb.tailFrac * tb.w;
+    const oy = flipped ? 0 : tb.h;
+    const tx = left - ox * (1 - s);
+    const ty = top - oy * (1 - s);
+    tb.el.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${s})`;
     tb.el.style.transformOrigin = `${(tb.tailFrac * 100).toFixed(1)}% ${flipped ? '0%' : '100%'}`;
     raf = requestAnimationFrame(place); // follow him (and the screen edges) while it shows
   }
@@ -88,7 +99,18 @@ export function createBubble(el, opts = {}) {
   // Put a filled talkbox up for `ms` (`fill(tb)` sets its text or content; false = art not ready).
   // style: 'speech' (his lines) or 'think' (the thought cloud, for dreams).
   function show(fill, ms, fallbackText, style = 'speech') {
-    if (!boxes[style]) boxes[style] = createTalkbox({ fontSize: FONT, maxText: MAX_TEXT, padX: 9, padY: 6, style });
+    // Font size setting (./uiScale.js): bigger text, and lines wrap at a proportionally wider width
+    // (so the same words share a line); the bubble grows to fit. Remake the talkbox when it changed.
+    const fs = fontScale();
+    if (boxes[style] && boxes[style].fontScale !== fs) {
+      if (tb === boxes[style]) tb = null;
+      boxes[style].remove();
+      delete boxes[style];
+    }
+    if (!boxes[style]) {
+      boxes[style] = createTalkbox({ fontSize: FONT * fs, maxText: MAX_TEXT * fs, padX: 9, padY: 6, style });
+      boxes[style].fontScale = fs;
+    }
     const box = boxes[style];
     if (fill(box)) {
       tb = box;

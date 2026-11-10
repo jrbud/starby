@@ -6,7 +6,9 @@ const { BrowserWindow } = require('electron');
 const path = require('path');
 const { bringToFront } = require('./bringToFront');
 // Window size + page zoom, shared with the shop window (see menuSize.js).
-const { MENU_SCALE, MENU_WIDTH, MENU_HEIGHT } = require('./menuSize');
+const { MENU_SCALE } = require('./menuSize');
+// ...times the "UI size" setting (menuScale.js).
+const { menuWindowSize, trackMenuWindow } = require('./menuScale');
 
 let settingsWindow = null;
 
@@ -18,8 +20,7 @@ function openSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     // Same size as the shop: the background art's aspect ratio (2324×2596). The page scrolls.
-    width: MENU_WIDTH,
-    height: MENU_HEIGHT,
+    ...menuWindowSize(),
     useContentSize: true,
     title: 'sprite.exe — settings',
     frame: false,
@@ -41,6 +42,7 @@ function openSettingsWindow() {
     },
   });
 
+  trackMenuWindow(settingsWindow); // resizes live with the UI size slider
   settingsWindow.once('ready-to-show', () => bringToFront(settingsWindow));
   settingsWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'settings', 'index.html'));
   settingsWindow.on('closed', () => { settingsWindow = null; });

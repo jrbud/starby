@@ -21,7 +21,9 @@ const path = require('path');
 const { getPetWindow } = require('./petWindow');
 const { bringToFront } = require('./bringToFront');
 // Window size + page zoom, shared with the settings window (see menuSize.js).
-const { MENU_SCALE, MENU_WIDTH, MENU_HEIGHT } = require('./menuSize');
+const { MENU_SCALE } = require('./menuSize');
+// ...times the "UI size" setting (menuScale.js).
+const { menuWindowSize, trackMenuWindow } = require('./menuScale');
 
 let shopWindow = null;
 let displayRect = null; // { x, y, width, height } of the display box, in shop-page CSS px
@@ -45,6 +47,8 @@ function parkPet() {
   const content = shopWindow.getContentBounds();
   const petBounds = pet.getBounds();
   // displayRect is in the shop page's CSS px; the page is zoomed (menuSize.js), so × zoom = DIPs.
+  // (The UI size setting's extra CSS zoom, renderer/shared/menuZoom.js, is already in displayRect:
+  // getBoundingClientRect reports zoomed positions.)
   const zoom = shopWindow.webContents.getZoomFactor() || MENU_SCALE;
   sendToPet({
     type: 'shop-park',
@@ -85,8 +89,7 @@ function openShopWindow() {
   }
 
   shopWindow = new BrowserWindow({
-    width: MENU_WIDTH,
-    height: MENU_HEIGHT,
+    ...menuWindowSize(),
     useContentSize: true,
     title: 'sprite.exe — shop',
     frame: false,
@@ -108,6 +111,7 @@ function openShopWindow() {
     },
   });
 
+  trackMenuWindow(shopWindow); // resizes live with the UI size slider
   shopWindow.once('ready-to-show', raiseShop);
   shopWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'shop', 'index.html'));
   shopWindow.on('focus', keepPetAbove); // clicking the shop raises it: keep Starby above it

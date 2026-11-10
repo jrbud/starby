@@ -30,6 +30,8 @@
 //   sleepy → happy            picked up and shaken, or THROWN (released at ≥WAKE_THROW_SPEED; a
 //                             real throw then also makes him playful). Clicks, the cursor or just
 //                             setting him down don't wake him; he keeps sleeping where he lands.
+//   A SLINGSHOT (slingshot.js logs 'slingshot' { speed }) counts as a throw everywhere above:
+//   it wakes him, makes him playful, and counts toward the 3 throws that make him dizzy.
 //
 // Everything is logged as 'mood' { from, to, reason }. In DevTools: starby.setMood('sleepy').
 import { chat, lineBag } from './chatter.js';
@@ -229,12 +231,13 @@ function onEntry(ctx, e) {
       if (pet.mood === 'mad') enter(ctx, 'mad', 'swatted');
       break;
     case 'toss':
+    case 'slingshot': // slingshot.js: a slingshot counts as a throw ({ speed } on the same scale)
       // Thrown while asleep: wakes him up (then the throw counts like any other, so a real
       // throw also makes him playful).
       if (pet.mood === 'sleepy' && e.data.speed >= WAKE_THROW_SPEED && setMood(ctx, 'happy', 'thrown awake')) {
         ctx.say(LINES.wake(), 2500);
       }
-      interacted(ctx, 'toss');
+      interacted(ctx, e.type);
       if (CAN_GET_PLAYFUL.includes(pet.mood) && e.data.speed >= PLAYFUL_SPEED) enter(ctx, 'playful', 'thrown');
       break;
     case 'impact': // drag.js: hit a screen edge during a throw { side, speed }
@@ -242,7 +245,10 @@ function onEntry(ctx, e) {
       if (pet.mood === 'playful') enter(ctx, 'playful', 'hit the edge');
       break;
     case 'land':
-      if (ctx.events.count('toss', DIZZY_TOSS_WINDOW) >= DIZZY_TOSSES) getDizzy(ctx, 'thrown too much', true);
+      // Throws and slingshots both count.
+      if (ctx.events.count('toss', DIZZY_TOSS_WINDOW) + ctx.events.count('slingshot', DIZZY_TOSS_WINDOW) >= DIZZY_TOSSES) {
+        getDizzy(ctx, 'thrown too much', true);
+      }
       break;
     case 'dizzy': // drag.js: spun 3+ turns; it already said its own dizzy line
       getDizzy(ctx, 'spun', false);

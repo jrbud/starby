@@ -54,11 +54,12 @@ button {
   align-items: center;
   gap: 7px;
   min-width: 118px;
-  height: 42px; /* art ratio ~2.7:1 */
-  padding: 0 18px;
+  min-height: 42px; /* art ratio ~2.7:1; min-height: grows if big text (Font size) wraps */
+  padding: 4px 18px;
+  box-sizing: border-box;
   background: url('../../../assets/menuIcons/button-idle.png') center / 100% 100% no-repeat;
   color: var(--yellow); /* light text on the dark purple art */
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
 }
 .wallet .starbit-icon {
@@ -90,12 +91,13 @@ button {
   align-self: flex-start;
   margin: 16px 0 0 45px; /* centered under the 220px box: (220 - 130) / 2 */
   width: 130px;
-  height: 46px; /* art ratio ~2.4:1 */
-  padding: 0 0 2px;
+  min-height: 46px; /* art ratio ~2.4:1; min-height: a label that wraps (big Font size) makes it taller */
+  padding: 6px 10px 8px; /* keeps 2 lines inside the art's drawn border */
+  line-height: 1.1;
   border: 0;
   background: url('../../../assets/menuIcons/button-white-light.png') center / 100% 100% no-repeat;
   color: var(--ink);
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   font-weight: 800;
 }
 .action-button.buy {
@@ -154,7 +156,7 @@ button {
   background: none;
   border: 0;
   color: var(--yellow);
-  font-size: 28px;
+  font-size: calc(28px * var(--font-scale, 1));
   font-weight: 800;
   /* Dark outline (the art's border color) around the text, its underline and the ▲/▼ arrow:
      a 1.5px shadow in 8 directions. */
@@ -170,7 +172,7 @@ button {
   text-underline-offset: 3px;
 }
 .section-toggle .arrow {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale, 1));
 }
 
 .items {
@@ -190,12 +192,12 @@ button {
   align-items: center;
   gap: 7px;
   width: 100%;
-  height: 42px;
-  padding: 0 12px; /* clear of the art's drawn border */
+  min-height: 42px; /* grows when a long name wraps to 2 lines (shop.js fitNames) */
+  padding: 6px 12px; /* clear of the art's drawn border */
   border: 0;
   background: url('../../../assets/menuIcons/button-tan-idle.png') center / 100% 100% no-repeat;
   color: var(--ink);
-  font-size: 18px; /* rows got narrower with the scroll spacing: longest names still fit */
+  font-size: calc(18px * var(--font-scale, 1)); /* rows got narrower with the scroll spacing: longest names still fit */
   text-align: left;
 }
 .item:hover,
@@ -222,7 +224,7 @@ button {
   align-items: center;
   justify-content: center;
   font-family: 'Segoe UI Symbol', 'Segoe UI', sans-serif;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   line-height: 1;
   -webkit-text-stroke: 0.5px rgba(1, 0, 33, 0.35); /* keeps pale colors (Moonbeam) visible */
 }
@@ -232,13 +234,22 @@ button {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  line-height: 1.15;
+}
+/* Still too long at the smallest size (shop.js fitNames): 2 lines, and the row grows taller. */
+.item-name.wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .price {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 17px;
+  font-size: calc(17px * var(--font-scale, 1));
 }
 .price .starbit-icon {
   width: 16px;
