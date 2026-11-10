@@ -2,6 +2,7 @@
 // SHARED FILE — to add a behavior, create a file in ./behaviors and register it in
 // ./behaviors/index.js; to add an event (a scripted sequence like tag), add it to
 // ./events/index.js. You shouldn't need to edit this file for either.
+import { loadingMoon } from './loadingMoon.js'; // first, so the loading moon shows as early as possible
 import { drawSprite } from '../shared/sprite.js';
 import { createBubble } from './bubble.js';
 import { initClickThrough, setPinned } from './clickThrough.js';
@@ -356,14 +357,18 @@ function render(now, dt) {
 
 // ---- Boot ----
 async function boot() {
+  // Loading moon (./loadingMoon.js): boot fills it to 30%, the intro's title art the rest.
   ctx.catalog = await api.getCatalog();
   applyState(await api.getState());
   api.onStateChanged(applyState);
+  loadingMoon.reach(0.1);
 
   // Load his standing frames before he first appears (no flash of an empty or old star);
   // the rest of the faces keep loading in the background.
   await frames.loadEssentials(pet.look.colorSet);
+  loadingMoon.reach(0.2);
   await frames.loadEssentials(DEFAULT_SET);
+  loadingMoon.reach(0.3);
   frames.loadAll(DEFAULT_SET).then(() => accessoryArt.loadAll()); // accessories appear once loaded
 
   // His size is a setting: apply it now and whenever the Settings slider moves.

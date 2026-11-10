@@ -24,6 +24,7 @@ import { launch } from '../behaviors/drag.js';
 import { petBounds, rand } from '../behaviors/motion.js';
 import { lineBag } from '../behaviors/chatter.js';
 import { sfx } from '../../shared/sfx.js';
+import { loadingMoon } from '../loadingMoon.js';
 
 // ---- Tuning ----
 const TITLE_DIR = '../../../assets/title'; // relative to src/renderer/pet/index.html
@@ -94,12 +95,14 @@ function loadImage(src) {
   });
 }
 
-// Load the 4 title frames one at a time, each shrunk to w×h right away.
+// Load the 4 title frames one at a time, each shrunk to w×h right away. These huge PNGs are most
+// of the in-app loading time, so each one fills the loading moon (../loadingMoon.js) from 30% to 100%.
 async function loadTitleFrames(w, h) {
   const frames = [];
   for (const src of TITLE_FILES) {
     const img = await loadImage(src);
     frames.push(await createImageBitmap(img, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' }));
+    loadingMoon.reach(0.3 + 0.7 * (frames.length / TITLE_FILES.length));
   }
   return frames;
 }
@@ -220,6 +223,8 @@ export default {
     try {
       const frames = await withTimeout(loadTitleFrames(w, h), LOAD_TIMEOUT_MS);
       if (phase !== 'loading') { frames.forEach((f) => f.close?.()); return; } // stopped meanwhile
+      await loadingMoon.finish(); // full moon, fade out; then the title (no-op on a replay)
+      if (phase !== 'loading') { frames.forEach((f) => f.close?.()); return; } // stopped meanwhile
       // launch.mp3 leads the title by LAUNCH_SOUND_LEAD_MS so its hit lands with the slam.
       sfx.play('launch');
       await new Promise((r) => setTimeout(r, LAUNCH_SOUND_LEAD_MS));
@@ -228,6 +233,7 @@ export default {
       phase = 'title';
     } catch (err) {
       console.warn('[intro] title art not shown:', err.message);
+      await loadingMoon.finish();
       if (phase === 'loading') launchStarby(ctx); // no title: just launch him
     }
   },
