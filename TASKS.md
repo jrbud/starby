@@ -235,6 +235,16 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   PLACEHOLDER: the moon PNG** darkened with a purple glow and spinning (CSS on the PNG); swap `HOLE_ART`. Dev: tray →
   Developer → "Start black hole now".
 
+- [x] **P1-26 (Nice) A friend comes to visit.** `events/friend.js`, its own category (`'friend'`, priority 14) with
+  its own timer (every 20–40 min, when nothing else is running and you're around). Another Starby (a colour set and
+  a worn accessory he isn't wearing, drawn with `frames.js` / `accessories.js`, team art) hops in and says hi. Starby
+  asks "my friend came to visit! wanna meet them?" (event menu). **Yes** → "this is my ROLE, NAME, from PLACE, and
+  they're a JOB!" (random from lists); they wander for 2–5 min, chat now and then (team talkbox art), click them to
+  hear them, **right-click them to ask them to leave early**, then "i've got things to do! bye!" and hop off.
+  **No** → "yeah, they're not that cool anyway", Starby throws them: 3 edge bounces, then out past the edge. No
+  answer (15s) → they shrug and leave. While they visit, games / invites / dances don't start. Dev: tray → Developer
+  → "A friend visits now" (`starby.friendVisit()`).
+
 > **Events vs. behaviors.** Behaviors (`behaviors/`) are always-on habits. Events (`events/`) are scripted
 > sequences that take over the star at high priority, usually by setting their own `pet.mode` (behaviors
 > stand down for modes they don't know), then hand it back. One at a time; pet.js runs the active event
