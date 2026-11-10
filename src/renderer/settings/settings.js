@@ -324,5 +324,104 @@ resetProgressBtn.addEventListener('click', async () => {
   await api.resetProgress();
 });
 
+// ---- Stats (lifetime, read-only; src/main/statsStore.js). Live: they tick up while open. ----
+const num = (v) => (Number(v) || 0).toLocaleString();
+function duration(seconds) {
+  const m = Math.floor((Number(seconds) || 0) / 60);
+  const d = Math.floor(m / 1440);
+  const h = Math.floor((m % 1440) / 60);
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${m % 60}m`;
+  return `${m}m`;
+}
+const date = (iso) => {
+  const d = iso ? new Date(iso) : null;
+  return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+};
+// [title, rows: [label, key, format]]
+const STAT_GROUPS = [
+  ['Starbits', [
+    ['Collected', 'starbitsCollected', num],
+    ['Spent', 'starbitsSpent', num],
+    ['Items bought', 'itemsBought', num],
+  ]],
+  ['Games', [
+    ['Played', 'gamesPlayed', num],
+    ['Won', 'gamesWon', num],
+    ['Best win streak', 'bestWinStreak', num],
+  ]],
+  ['Playing with Starby', [
+    ['Throws', 'throws', num],
+    ['Slingshots', 'slingshots', num],
+    ['Wall hits', 'wallHits', num],
+    ['Pokes', 'pokes', num],
+    ['Times dizzy', 'timesDizzy', num],
+    ['Times mad', 'timesMad', num],
+    ['Naps', 'naps', num],
+    ['Dances', 'dances', num],
+  ]],
+  ['Together', [
+    ['Friends since', 'firstMet', date],
+    ['Days visited', 'daysVisited', num],
+    ['Time together', 'secondsTogether', duration],
+  ]],
+];
+// Game names as players know them (events/games.js labels; that file isn't loaded in this window).
+const GAME_LABELS = {
+  tag: 'Tag', pong: 'Pong', 'hide-seek': 'Hide & Seek', catch: 'Catch', 'starby-says': 'Starby Says',
+  'hoop-shot': 'Hoop Shot', maze: 'Maze', shuffle: 'Asteroid Shuffle', memory: 'Memory', constellation: 'Star Quiz',
+};
+const gameLabel = (name) => GAME_LABELS[name] || name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+const statsGroupsEl = document.getElementById('stats-groups');
+const statOutputs = new Map(); // key → [output, format]
+
+function statsGroup(title) {
+  const section = document.createElement('section');
+  section.className = 'setting stats-list';
+  const h = document.createElement('h3');
+  h.className = 'stats-subtitle';
+  h.textContent = title;
+  section.append(h);
+  statsGroupsEl.append(section);
+  return section;
+}
+function statRow(parent, label, value = '0') {
+  const row = document.createElement('div');
+  row.className = 'label-row';
+  const name = document.createElement('span');
+  name.className = 'label';
+  name.textContent = label;
+  const out = document.createElement('output');
+  out.textContent = value;
+  row.append(name, out);
+  parent.append(row);
+  return out;
+}
+
+for (const [title, rows] of STAT_GROUPS) {
+  const section = statsGroup(title);
+  for (const [label, key, format] of rows) statOutputs.set(key, [statRow(section, label), format]);
+}
+const perGameEl = statsGroup('Per game'); // rows filled in by showStats (only games you've played)
+
+function showStats(stats) {
+  if (!stats) return;
+  for (const [key, [out, format]] of statOutputs) out.textContent = format(stats[key]);
+  // Per game: "3 won / 7 played", most played first.
+  perGameEl.querySelectorAll('.label-row, .stats-empty').forEach((el) => el.remove());
+  const games = Object.entries(stats.games || {}).filter(([, g]) => g.played > 0)
+    .sort((a, b) => b[1].played - a[1].played);
+  if (!games.length) {
+    const p = document.createElement('p');
+    p.className = 'stats-empty';
+    p.textContent = 'no games yet!';
+    perGameEl.append(p);
+  }
+  for (const [name, g] of games) statRow(perGameEl, gameLabel(name), `${num(g.won)} won / ${num(g.played)} played`);
+}
+api.getStats?.().then(showStats);
+api.onStatsChanged?.(showStats);
+
 api.onSettingsChanged(show);
 api.getSettings().then(show);

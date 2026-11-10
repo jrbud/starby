@@ -8,6 +8,7 @@ const { openSettingsWindow } = require('./windows/settingsWindow');
 const settingsStore = require('./settingsStore');
 const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
 const adminSettingsStore = require('./adminSettingsStore');
+const statsStore = require('./statsStore');
 const { buildPetMenu } = require('./tray');
 const { createDefaultState } = require('../shared/stateSchema');
 const { getPetWindow } = require('./windows/petWindow');
@@ -34,8 +35,16 @@ function registerIpc() {
   // ---- Starbits ----
   ipcMain.handle('starbits:collect', (_e, amount = 1) => {
     const n = Math.max(0, Math.floor(Number(amount) || 0));
+    statsStore.add({ starbitsCollected: n }); // lifetime stats (statsStore.js)
     return store.update((s) => { s.starbits += n; });
   });
+
+  // ---- Lifetime stats (statsStore.js; shown in Settings → Stats) ----
+  statsStore.get(); // load now: counts today in "days visited" (and sets "first met" once)
+  ipcMain.handle('stats:get', () => statsStore.get());
+  ipcMain.handle('stats:add', (_e, patch) => statsStore.add(patch)); // e.g. { throws: 1 }
+  ipcMain.handle('stats:game', (_e, name, outcome) => statsStore.game(name, outcome)); // 'start' | 'won' | 'lost'
+  ipcMain.handle('stats:time', (_e, seconds) => statsStore.time(seconds));
 
   // ---- Shop ----
   ipcMain.handle('shop:catalog', () => SHOP_ITEMS);
@@ -50,6 +59,7 @@ function registerIpc() {
       st.starbits -= item.price;
       st.owned.push(item.id);
     });
+    statsStore.add({ starbitsSpent: item.price, itemsBought: 1 }); // lifetime stats
     return { ok: true, state };
   });
 

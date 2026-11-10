@@ -18,6 +18,13 @@ contextBridge.exposeInMainWorld('sprite', {
   // Starbits
   collectStarbits: (amount = 1) => ipcRenderer.invoke('starbits:collect', amount),
 
+  // Lifetime stats (src/main/statsStore.js): starbits collected, games played/won, throws, slingshots
+  getStats: () => ipcRenderer.invoke('stats:get'),
+  onStatsChanged: (cb) => subscribe('stats:changed', cb),
+  addStats: (patch) => ipcRenderer.invoke('stats:add', patch), // e.g. { throws: 1 }
+  recordGame: (name, outcome) => ipcRenderer.invoke('stats:game', name, outcome), // 'start' | 'won' | 'lost'
+  addTimeTogether: (seconds) => ipcRenderer.invoke('stats:time', seconds),
+
   // Shop
   getCatalog: () => ipcRenderer.invoke('shop:catalog'),
   buy: (itemId) => ipcRenderer.invoke('shop:buy', itemId),

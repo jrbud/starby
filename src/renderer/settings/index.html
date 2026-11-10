@@ -165,6 +165,18 @@
       </div>
     </details>
 
+    <!-- Lifetime stats (read-only; src/main/statsStore.js, filled in by settings.js). Not touched by
+         Restore default or Reset progress. -->
+    <details class="group" data-key="stats">
+      <summary>
+        <span class="group-title">Stats</span>
+      </summary>
+      <div class="group-body">
+    <!-- Rows are built by settings.js from STAT_GROUPS; per-game rows from what's been played. -->
+    <div id="stats-groups" class="stats-groups"></div>
+      </div>
+    </details>
+
     <div class="reset-row">
       <button id="reset" type="button">Restore default</button>
       <!-- Wipes starbits + shop progress after a few confirm clicks (settings.js). -->

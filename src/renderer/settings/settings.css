@@ -249,6 +249,26 @@ input.art-check:checked:focus-visible {
   pointer-events: none;
 }
 
+/* Stats: small groups (Starbits, Games, Together...), one row per number, tighter than the sliders. */
+.stats-groups {
+  display: grid;
+  gap: 4px;
+}
+.stats-list {
+  gap: 6px;
+}
+.stats-subtitle {
+  margin: 0 0 2px;
+  font-size: calc(18px * var(--font-scale, 1));
+  font-weight: 700;
+  color: var(--accent);
+}
+.stats-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: calc(16px * var(--font-scale, 1));
+}
+
 output {
   font-variant-numeric: tabular-nums;
   color: var(--accent);

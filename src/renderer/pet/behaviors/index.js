@@ -37,5 +37,6 @@ import charm from './charm.js'; // daily gift, "nice catch!", starbit milestones
 import fidget from './fidget.js'; // little bored fidgets (spin, bop, look around, stretch)
 import goodbye from './goodbye.js'; // quitting: a goodbye line, a star burst, he shrinks away
 import fx from './fx.js'; // hand-drawn effects: wall hits, swats, star bursts
+import stats from './stats.js'; // lifetime stats: counts throws, slingshots, games (Settings → Stats)
 
-export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, dream, charm, fidget, goodbye, fx];
+export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, dream, charm, fidget, goodbye, fx, stats];
