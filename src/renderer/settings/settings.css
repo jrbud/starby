@@ -49,7 +49,7 @@ body {
   padding: 12px 14px;
   display: grid;
   gap: 6px;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
 }
 
 .label-row {
@@ -99,7 +99,7 @@ label,
 }
 
 .group-title {
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -255,14 +255,79 @@ output {
   font-weight: 600;
 }
 
+/* Every slider (Starby size, UI size, fling power, sounds, starbit size): the team's art instead of
+   the browser's. Track = the hand-drawn line (assets/menuIcons/line.png, stretched to the slider's
+   width); the handle you drag = a blue starbit (assets/starbits/blue1.png).
+   The line is drawn by the .art-slider wrapper settings.js puts around each slider (not by the
+   slider's own track), so it can be MIRRORED without mirroring the starbit: each slider gets
+   flip-h / flip-v / flip-hv in turn, so they don't all look the same. */
+:root {
+  --track-h: 20px; /* line thickness */
+  --thumb: 26px; /* starbit size */
+}
+.art-slider {
+  position: relative;
+  display: block;
+  flex: 1; /* in the size / sound rows: take the room beside the preview / on-off box */
+  min-width: 0;
+}
+.art-slider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--track-h);
+  transform: translateY(-50%) scale(var(--fx, 1), var(--fy, 1));
+  background: url('../../../assets/menuIcons/line.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.art-slider.flip-h { --fx: -1; }
+.art-slider.flip-v { --fy: -1; }
+.art-slider.flip-hv { --fx: -1; --fy: -1; }
+/* A muted sound slider: dim its line too (the slider itself dims the starbit). */
+.art-slider:has(> input.is-muted)::before { opacity: 0.45; }
+
 input[type="range"] {
+  position: relative; /* above the wrapper's line */
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
   width: 100%;
-  accent-color: var(--accent);
+  height: var(--thumb); /* room for the starbit, so it isn't clipped */
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: var(--track-h);
+  background: transparent; /* the line is the wrapper's (see above) */
+  border: 0;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc((var(--track-h) - var(--thumb)) / 2); /* centered on the line */
+  background: url('../../../assets/starbits/blue1.png') center / contain no-repeat;
+  border: 0;
+  transition: transform 110ms ease-out;
+}
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(1.15) rotate(12deg); /* a little wiggle when you grab it */
+}
+input[type="range"]:focus {
+  outline: none;
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  filter: drop-shadow(0 0 3px var(--accent)); /* keyboard focus */
 }
 
 .detail {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale, 1));
   color: var(--muted);
 }
 
@@ -280,12 +345,13 @@ button {
 /* Reset to default: team art, button-white-light.png → button-white-dark.png on hover. */
 #reset {
   width: 170px;
-  height: 56px; /* art ratio ~2.4:1 (stretched a little for the label) */
-  padding: 0 0 2px;
+  min-height: 56px; /* art ratio ~2.4:1; min-height: a label that wraps (big Font size) makes it taller */
+  padding: 6px 12px 8px; /* keeps 2 lines inside the art's drawn border */
   border: 0;
   border-radius: 0;
   background: url('../../../assets/menuIcons/button-white-light.png') center / 100% 100% no-repeat;
   font-weight: 700;
+  line-height: 1.1;
 }
 #reset:hover,
 #reset:focus-visible {
@@ -296,15 +362,15 @@ button {
 .reset-row {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: stretch; /* if one label wraps, both buttons grow to the same height */
 }
 
 /* Reset progress: red art (button-red-idle → button-red-hover), stretched to the same size as the
    Restore default button. The label changes with each confirm click (settings.js). */
 #reset-progress {
   width: 170px;
-  height: 56px;
-  padding: 0 10px 2px;
+  min-height: 56px; /* grows like Restore default */
+  padding: 6px 12px 8px;
   border: 0;
   border-radius: 0;
   background: url('../../../assets/menuIcons/button-red-idle.png') center / 100% 100% no-repeat;
@@ -340,7 +406,7 @@ input:focus-visible {
 /* What's in the category, e.g. "throws, slingshots, crashes". */
 .sound-hint {
   display: block;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale, 1));
   font-weight: 400;
   opacity: 0.7;
 }

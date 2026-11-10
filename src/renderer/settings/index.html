@@ -6,6 +6,8 @@
     <title>sprite.exe — settings</title>
     <link rel="stylesheet" href="../shared/menuFrame.css" />
     <link rel="stylesheet" href="settings.css" />
+    <!-- Zooms the page to the window for the UI size setting (before the page's own scripts). -->
+    <script src="../shared/menuZoom.js"></script>
     <!-- Checkbox art, loaded up front so the first hover/click doesn't flicker. -->
     <link rel="preload" as="image" href="../../../assets/menuIcons/unchecked-box-hover.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/checked-box-idle.png" />
@@ -16,6 +18,9 @@
     <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-hover.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/button-white-dark.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/button-red-hover.png" />
+    <!-- Slider art (settings.css): the line track and the blue starbit handle. -->
+    <link rel="preload" as="image" href="../../../assets/menuIcons/line.png" />
+    <link rel="preload" as="image" href="../../../assets/starbits/blue1.png" />
   </head>
   <body class="menu-window">
     <!-- The background art (assets/backgrounds/settings.png) has "SETTINGS" written on it. -->
@@ -39,6 +44,7 @@
     </section>
 
 
+
     <section class="setting">
       <div class="label-row">
         <label for="fling-power">Fling power</label>
@@ -46,6 +52,42 @@
       </div>
       <input id="fling-power" type="range" min="0" max="100" step="1" value="50" />
     </section>
+
+    <!-- UI sizes, 75–150 % (settingsStore menuScale / chatScale / fontScale; settings.js saves them
+         when you let go of the slider). Menu size: the shop/settings windows + the right-click menu's
+         answer boxes. Chat size: speech + thought bubbles. Font size: text in bubbles and menus. -->
+    <details class="group" data-key="ui" open>
+      <summary>
+        <span class="group-title">UI</span>
+      </summary>
+      <div class="group-body">
+
+    <section class="setting">
+      <div class="label-row">
+        <label for="menu-scale">Menu size</label>
+        <output id="menu-scale-value" for="menu-scale">100%</output>
+      </div>
+      <input id="menu-scale" type="range" min="75" max="150" step="5" value="100" />
+    </section>
+
+    <section class="setting">
+      <div class="label-row">
+        <label for="chat-scale">Chat size</label>
+        <output id="chat-scale-value" for="chat-scale">100%</output>
+      </div>
+      <input id="chat-scale" type="range" min="75" max="150" step="5" value="100" />
+    </section>
+
+    <section class="setting">
+      <div class="label-row">
+        <label for="font-scale">Font size</label>
+        <output id="font-scale-value" for="font-scale">100%</output>
+      </div>
+      <input id="font-scale" type="range" min="75" max="150" step="5" value="100" />
+    </section>
+
+      </div>
+    </details>
 
     <!-- Sounds (played by shared/sfx.js). The box in the header turns ALL sounds on/off (checked =
          on; saved as settingsStore.sfxMuted, reversed). "All sounds" = master volume (sfxVolume);
