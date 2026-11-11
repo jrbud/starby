@@ -212,18 +212,20 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
 - [x] **P1-23 (Nice) Asteroid Shuffle (a chill game).** `events/shuffle.js`: a shell game. Invite "wanna play asteroid
   shuffle?", the dialogue's **Chill** games, tray "Play asteroid shuffle". He glides to the middle; 3 asteroids hover
   above 3 spots and drop, the middle one covering him. 8 swaps along little arcs (one over, one under; 0.55s each,
-  a touch quicker each time, ~0.36s by the last), and he moves with his asteroid. A popup above the asteroids (chat theme, not a line from him) says "Which
-  asteroid is Starby hiding behind? Click one!"; click one (12s); it lifts. **While hidden he's hushed** (no speech
-  over his asteroid) and the right-click dialogue is off (`pet.hiding`, also for hide and seek). Right → "you found me!" + 8 starbits; wrong / too slow → his asteroid lifts too. **Asteroids are a
+  a touch quicker each time, ~0.36s by the last), and he moves with his asteroid. All messages are in an on-screen box above the asteroids (chat theme, never his
+  speech bubble): the intro, "Which asteroid is Starby hiding behind? Click one!" and the result. Click one (12s); it
+  lifts (no hover glow). **Chat is off for the whole game:** he's hushed and the right-click dialogue is off
+  (`pet.hiding`, also used by hide and seek). Right → "you found me!" + 8 starbits; wrong / too slow → his asteroid lifts too. **Asteroids are a
   PLACEHOLDER: the moon PNG** (`assets/events/moon.png`) until asteroid art exists; swap `ASTEROID_ART`.
 
 - [x] **P1-24 (Nice) Maze (an action game).** `events/maze.js`: drag Starby through a maze without touching the walls
   ("operation" style). Invite "wanna try my maze?", the dialogue's **Action** games, tray "Play maze". A new random
-  maze each time (7×4 cells of 104px, fewer on small screens; one way through), walls = the team's `line.png` stroke
+  maze each time (12×7 cells of 92px, fewer on small screens; one way through; tight: ~12px of wiggle room), walls = the team's `line.png` stroke
   in yellow with the purple outline (CSS masks), exit marked by the starbit cluster. Left-drag him (a window capture
-  listener keeps drag.js from picking him up; he follows the cursor in 4px collision-checked steps, so he can't skip
+  listener keeps drag.js from picking him up; he follows the cursor in 4px collision-checked steps (while held he spins a little and wobbles round a 6px circle
+  about the cursor, to make steering harder), so he can't skip
   through walls; he can't leave the maze except via its entrance/exit pockets). Touch a wall = zap, back to the
-  start; 3 zaps = out. 45s moon timer. 5 bonus starbits in the maze, kept whatever happens. Out the exit → 10 +
+  start; 3 zaps = out. 90s moon timer. 8 bonus starbits in the maze, kept whatever happens. Out the exit → 15 +
   bonus. DevTools: `starby.mazeInfo()`.
 
 - [x] **P1-25 (Nice) Black Hole (a sky event).** `events/blackHole.js`, on the 10–15 min sky timer with Star Shower and

@@ -1,9 +1,10 @@
 // MAZE — an action game ("operation" style): drag Starby through a maze without touching the walls.
 //
-//   setup   a new random maze appears in the middle of the usable screen (COLS × ROWS cells) and he
+//   setup   a new random maze (COLS × ROWS = 12 × 7 cells, fewer on a small screen) appears in the middle and he
 //           flies to its entrance on the left. "drag me through the maze! don't touch the walls!"
 //   play    LEFT-click and drag him: he follows the cursor (never jumping through a wall: he moves in
-//           small steps and each step is checked). Let go and he waits where he is; grab him again.
+//           small steps and each step is checked). While held he spins a little and wobbles round a
+//           small circle about the cursor (HELD_SPIN / WOBBLE_*), so steering is a bit harder. Let go and he waits where he is; grab him again.
 //           GAME_FOR seconds on the moon timer (./countdown.js).
 //   walls   touching one = a ZAP: "bzzt!", he shakes, flies back to the entrance and you lose a zap
 //           (ZAPS in all). Out of zaps → game over.
@@ -38,24 +39,30 @@ import { STARBIT_COLORS, starbitImage } from '../../shared/starbitArt.js';
 import { sfx } from '../../shared/sfx.js';
 
 // ---- Tuning ----
-const COLS = 7; // maze size in cells (fewer if the screen is small)
-const ROWS = 4;
-const CELL = 104; // px per cell: corridors are about twice his collision width, so it's a bit tight
+const COLS = 12; // maze size in cells (fewer if the screen is small): big and winding
+const ROWS = 7;
+const CELL = 92; // px per cell: with HIT_R that leaves ~12px of wiggle room each side, so it's tight
 const WALL = 12; // px: wall thickness (outline included)
 const WALL_OUTLINE = 2; // px of purple showing around the yellow
-const HIT_R = 22; // px: his collision radius (a bit smaller than his 64px box, so it feels fair)
+const HIT_R = 28; // px: his collision radius (a bit smaller than his drawn body, so it still feels fair)
 const STEP = 4; // px per collision-checked step while following the cursor
-const GAME_FOR = 45; // seconds
+const GAME_FOR = 90; // seconds (a bigger maze needs longer)
 const ZAPS = 3; // touches before game over
-const BONUS = 5; // bonus starbits in the maze
+const BONUS = 8; // bonus starbits in the maze
 const BONUS_SIZE = 26; // px
 const BONUS_R = 30; // px: his center this close to a bonus starbit collects it
 const GOAL_SIZE = 46; // px: the exit marker (starbit cluster)
 const RETURN_SPEED = 900; // px/s flying back to the entrance after a zap
+// While you hold him he spins a little and WOBBLES: he drifts round in a small circle about the
+// cursor, so you have to steer around that too (a bit harder). Let go and he settles upright.
+const HELD_SPIN = 2.2; // rad/s he turns while held (about a third of a turn a second)
+const WOBBLE_R = 6; // px: radius of the little circle he drifts round (eats about half the ~12px wiggle room)
+const WOBBLE_SPEED = 3.2; // rad/s round that circle
+const SETTLE_SPEED = 8; // 1/s: tipping back upright after you let go
 const ZAP_FOR = 0.5; // seconds he shakes after a zap
 const INTRO_FOR = 2.2; // seconds before you can start
 const RESULT_FOR = 2.6; // seconds the result shows before the game ends
-const WIN_REWARD = 10;
+const WIN_REWARD = 15; // a bigger, harder maze: a bigger reward
 const YELLOW = '#ffe8a3'; // the app's yellow
 const OUTLINE = '#2d2335'; // the app's dark purple outline
 const LINE_ART = '../../../assets/menuIcons/line.png'; // team art; relative to src/renderer/pet/index.html
@@ -85,6 +92,8 @@ let bonuses = []; // { el, x, y, got }
 let bonusGot = 0;
 let zapsLeft = ZAPS;
 let dragging = false;
+let rot = 0; // his angle (kept here: drag.js straightens him every frame when he isn't held by it)
+let wobbleT = 0; // seconds into the held wobble
 let grabOffset = { x: 0, y: 0 }; // cursor → his center, where you grabbed him
 let mouse = { x: 0, y: 0 };
 let hitWall = false; // spotted in update, acted on at the tick
@@ -340,6 +349,8 @@ export default {
     played = false;
     phase = 'setup';
     pet.mode = 'maze'; // behaviors stand down
+    rot = 0;
+    wobbleT = 0;
     pet.rotation = 0;
     cancelJump();
     requestMood(ctx, 'playful', 'maze');
@@ -405,15 +416,26 @@ export default {
     };
 
     if (phase === 'setup') {
+      rot = 0;
       pet.rotation = 0;
       if (toStart()) { phase = 'intro'; phaseLeft = INTRO_FOR; }
       return;
     }
     if (phase === 'zapped') {
+      rot = 0; // (the zap shake replaces the spin)
       pet.rotation = Math.sin(phaseLeft * 60) * 0.25; // shaking from the zap
       return;
     }
-    pet.rotation = 0;
+    // Held: spinning a little. Otherwise: settling back upright (to the nearest full turn).
+    if (phase === 'play' && dragging) {
+      rot += HELD_SPIN * dt;
+      wobbleT += dt;
+    } else {
+      const upright = Math.round(rot / (2 * Math.PI)) * 2 * Math.PI;
+      rot = upright + (rot - upright) * Math.exp(-SETTLE_SPEED * dt);
+      if (Math.abs(rot - upright) < 0.01) rot = 0;
+    }
+    pet.rotation = rot;
     if (phase === 'return') {
       if (toStart()) phase = 'play';
       return;
@@ -422,7 +444,11 @@ export default {
 
     // Follow the cursor in small steps, checking each one, so he can't skip through a wall.
     const c = centerOf(pet);
-    const target = { x: mouse.x + grabOffset.x, y: mouse.y + grabOffset.y };
+    // Where he's heading: under the cursor (where you grabbed him), drifting round the little wobble circle.
+    const target = {
+      x: mouse.x + grabOffset.x + Math.cos(wobbleT * WOBBLE_SPEED) * WOBBLE_R,
+      y: mouse.y + grabOffset.y + Math.sin(wobbleT * WOBBLE_SPEED) * WOBBLE_R,
+    };
     const dx = target.x - c.x;
     const dy = target.y - c.y;
     const dist = Math.hypot(dx, dy);
@@ -464,6 +490,7 @@ export default {
     letGo(ctx);
     removeAll();
     countdown?.hide();
+    rot = 0;
     pet.rotation = 0;
     if (pet.mode === 'maze') pet.mode = 'idle';
     if (played) markPlayed(ctx); // shared rest between games
