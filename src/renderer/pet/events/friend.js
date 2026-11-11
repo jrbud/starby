@@ -60,6 +60,7 @@ const FLY_STOP = 30; // px/s: slower than this and they've landed
 const FLY_MAX = 2200; // px/s: fastest throw
 const WALL_KEEP = 0.6; // speed kept bouncing off a screen edge
 const UPRIGHT_SPEED = 8; // 1/s: tipping back upright after landing
+const IMPACT_FX_SPEED = 350; // px/s into an edge: at least this hard → the wall-hit effect (behaviors/fx.js)
 
 const FRIEND_LINES = {
   hi: lineBag(['hi!!', 'hiya!', 'hello hello!', 'hey there!']),
@@ -91,6 +92,7 @@ let hopT = 0;
 let bob = 0;
 let rot = 0;
 let spin = 0;
+let squash = 1; // squashed on a hard wall hit, eased back (like Starby's)
 let bounces = 0;
 let chatLeft = 0;
 let visitLeft = 0;
@@ -200,7 +202,7 @@ function drawFriend(ctx, now) {
   if (!el) return;
   const S = ctx.pet.size;
   el.style.transform = `translate(${fx.toFixed(1)}px, ${(fy + bob).toFixed(1)}px)`;
-  canvas.style.transform = `translateY(${-S / 2}px) rotate(${rot}rad) translateY(${S / 2}px)`;
+  canvas.style.transform = `translateY(${-S / 2}px) rotate(${rot}rad) translateY(${S / 2}px) scale(${1 / Math.sqrt(squash)}, ${squash})`;
   const picked = frames.pick(face, friend.set, (now - faceSince) / 1000);
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, canvas.width, canvas.height);
@@ -283,6 +285,14 @@ function keepInside(ctx, x, y) {
   fy = Math.max(a.top, Math.min(a.bottom - S, y));
 }
 
+// Hit a screen edge hard enough: the same crash lines / dust / star clouds (and sound) as Starby's
+// wall hits, at the friend's box (behaviors/fx.js listens for 'friend-impact'), plus a squash.
+function impact(ctx, side, speed) {
+  if (speed < IMPACT_FX_SPEED) return;
+  ctx.log('friend-impact', { side, speed: Math.round(speed), x: fx, y: fy, size: ctx.pet.size });
+  squash = 0.72;
+}
+
 // One frame of gliding after a throw: friction, spin, and bouncing off the edges (walls).
 // Returns true once they've slowed to a stop.
 function flyStep(ctx, dt) {
@@ -295,10 +305,10 @@ function flyStep(ctx, dt) {
   fy += vy * dt;
   rot += spin * dt;
   spin *= k;
-  if (fx < a.left) { fx = a.left; vx = Math.abs(vx) * WALL_KEEP; spin = -spin; }
-  if (fx > a.right - S) { fx = a.right - S; vx = -Math.abs(vx) * WALL_KEEP; spin = -spin; }
-  if (fy < a.top) { fy = a.top; vy = Math.abs(vy) * WALL_KEEP; }
-  if (fy > a.bottom - S) { fy = a.bottom - S; vy = -Math.abs(vy) * WALL_KEEP; }
+  if (fx < a.left) { impact(ctx, 'left', Math.abs(vx)); fx = a.left; vx = Math.abs(vx) * WALL_KEEP; spin = -spin; }
+  if (fx > a.right - S) { impact(ctx, 'right', Math.abs(vx)); fx = a.right - S; vx = -Math.abs(vx) * WALL_KEEP; spin = -spin; }
+  if (fy < a.top) { impact(ctx, 'top', Math.abs(vy)); fy = a.top; vy = Math.abs(vy) * WALL_KEEP; }
+  if (fy > a.bottom - S) { impact(ctx, 'bottom', Math.abs(vy)); fy = a.bottom - S; vy = -Math.abs(vy) * WALL_KEEP; }
   return Math.hypot(vx, vy) < FLY_STOP;
 }
 
@@ -450,6 +460,7 @@ export default {
     if (phase === 'done' || !el) return;
     const S = ctx.pet.size;
     const a = areaOf(ctx);
+    squash += (1 - squash) * Math.min(1, dt * 10); // ease back after a wall hit
     // Held (being carried) or flying after a throw: that's all they do this frame.
     if (held?.moved || flying) {
       if (flying && flyStep(ctx, dt)) {
@@ -502,10 +513,10 @@ export default {
       rot += spin * dt;
       const out = bounces >= BOUNCES; // after enough bounces they fly out past the edge
       if (!out) {
-        if (fx < a.left) { fx = a.left; vx = Math.abs(vx) * BOUNCE_KEEP; bounces++; }
-        if (fx > a.right - S) { fx = a.right - S; vx = -Math.abs(vx) * BOUNCE_KEEP; bounces++; }
-        if (fy < a.top) { fy = a.top; vy = Math.abs(vy) * BOUNCE_KEEP; bounces++; }
-        if (fy > a.bottom - S) { fy = a.bottom - S; vy = -Math.max(Math.abs(vy) * BOUNCE_KEEP, 700); bounces++; }
+        if (fx < a.left) { impact(ctx, 'left', Math.abs(vx)); fx = a.left; vx = Math.abs(vx) * BOUNCE_KEEP; bounces++; }
+        if (fx > a.right - S) { impact(ctx, 'right', Math.abs(vx)); fx = a.right - S; vx = -Math.abs(vx) * BOUNCE_KEEP; bounces++; }
+        if (fy < a.top) { impact(ctx, 'top', Math.abs(vy)); fy = a.top; vy = Math.abs(vy) * BOUNCE_KEEP; bounces++; }
+        if (fy > a.bottom - S) { impact(ctx, 'bottom', Math.abs(vy)); fy = a.bottom - S; vy = -Math.max(Math.abs(vy) * BOUNCE_KEEP, 700); bounces++; }
       } else if (fx < a.left - S * 2 || fx > a.right + S || fy < a.top - S * 2 || fy > a.bottom + S) {
         phase = 'done';
         finish('thrown-out');

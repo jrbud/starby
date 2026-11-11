@@ -6,6 +6,9 @@
 //                                      wall (behind), two small twinkling star clouds drifting away
 //   pong hit     events/pong.js 'pong-hit'  the same wall-hit effect on the side the paddle hit him
 //                                      (left = your paddle, right = the AI's)
+//   friend hit   events/friend.js 'friend-impact'  the same wall-hit effect where the visiting friend
+//                                      bounced off a screen edge ({ side, speed, x, y, size }: the
+//                                      friend's box instead of his)
 //   swat         drag.js 'swat'        small crash lines on the side your hand came from
 //   woken up     mood.js (shaken / thrown awake)  a small burst of star clouds
 //   shop         pet.js 'buy' / 'equip'           a bigger burst of star clouds
@@ -48,15 +51,17 @@ let lastExplode = -Infinity;
 const centerOf = (pet) => ({ x: pet.x + pet.size / 2, y: pet.y + pet.bob + pet.size / 2 });
 
 // ---- Wall hit ----
-function wallHit(ctx, { side, speed }) {
+// { side, speed } for him; optionally { x, y, size }: the box that hit the wall if it's not him
+// (the visiting friend, events/friend.js).
+function wallHit(ctx, { side, speed, x, y, size }) {
   const wall = WALLS[side];
   if (!wall) return;
   const { pet } = ctx;
-  const S = pet.size;
+  const S = size ?? pet.size;
   const k = Math.max(0, Math.min(1, (speed - SOFT) / (HARD - SOFT))); // 0 = soft, 1 = hardest
   const big = 1 + 0.3 * k;
-  const cx = pet.x + S / 2;
-  const cy = pet.y + S / 2;
+  const cx = (x ?? pet.x) + S / 2;
+  const cy = (y ?? pet.y) + S / 2;
   const n = wall.inward;
   const along = { x: Math.abs(n.y), y: Math.abs(n.x) }; // direction along the wall
   // The point on the wall where he hit (middle of the side of his box touching it), kept on the
@@ -174,6 +179,7 @@ export default {
       // 'slam': events/focus.js slingshotting into the corner (same look, no starbit drops).
       if (e.type === 'impact' || e.type === 'slam') wallHit(ctx, e.data);
       else if (e.type === 'pong-hit') wallHit(ctx, e.data); // { side: 'left' | 'right', speed }
+      else if (e.type === 'friend-impact') wallHit(ctx, e.data); // the friend's box { side, speed, x, y, size }
       else if (e.type === 'swat') swat(ctx);
       else if (e.type === 'mood' && e.data.to === 'happy' && /shaken awake|thrown awake/.test(e.data.reason || '')) {
         burst(ctx, 4, 0.5, 0.55);
