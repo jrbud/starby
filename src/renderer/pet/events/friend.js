@@ -6,7 +6,9 @@
 //   yes      Starby: "this is my ROLE, NAME, from PLACE, and they're a JOB!" (random picks from the
 //            lists below). The friend hangs around for VISIT_FOR (2–5 minutes): wanders, hops, says
 //            things now and then. Click them and they say something; RIGHT-click them to ask them
-//            to leave early. When it's time: "i've got things to do! bye!" and they hop off screen.
+//            to leave early. DRAG them around like Starby (left-click and drag), and let go to throw
+//            them: they glide, slow down and bounce off the screen edges, then carry on wandering.
+//            They always stay inside the usable screen (walls = its edges). When it's time: "i've got things to do! bye!" and they hop off screen.
 //   no       Starby: "yeah, they're not that cool anyway" and THROWS them: they bounce off the
 //            screen edges BOUNCES times, then fly out past the edge.
 //   no answer → the friend shrugs, waves and hops off.
@@ -52,6 +54,12 @@ const THROW_SPEED = 1500; // px/s when Starby throws them
 const BOUNCES = 3; // edge bounces before they fly off
 const BOUNCE_KEEP = 0.85; // speed kept per bounce
 const SAY_MS = 2600;
+const CLICK_SLOP = 6; // px of movement before a press counts as a drag, not a click
+const FLY_DRAG = 2.2; // 1/s: how quickly a thrown friend slows down (space-like glide, like Starby)
+const FLY_STOP = 30; // px/s: slower than this and they've landed
+const FLY_MAX = 2200; // px/s: fastest throw
+const WALL_KEEP = 0.6; // speed kept bouncing off a screen edge
+const UPRIGHT_SPEED = 8; // 1/s: tipping back upright after landing
 
 const FRIEND_LINES = {
   hi: lineBag(['hi!!', 'hiya!', 'hello hello!', 'hey there!']),
@@ -90,6 +98,11 @@ let face = 'happy';
 let faceSince = 0;
 let answer = null; // 'yes' | 'no' (from the menu), acted on at the tick
 let leaveAsked = false;
+// Dragging / throwing them (like Starby): held → flying → back to wandering.
+let held = null; // { offX, offY, moved, startX, startY } while the mouse button is down on them
+let flying = false; // let go mid-drag: gliding with friction, bouncing off the edges
+let mouseHist = []; // recent [t, x, y] while held, for the throw speed
+let windowHooked = false; // the window mousemove / mouseup listeners are added once
 let el = null;
 let canvas = null;
 let g = null;
@@ -135,12 +148,50 @@ function buildFriend(ctx) {
   el.appendChild(canvas);
   el.addEventListener('mousedown', (e) => {
     e.stopPropagation();
-    if (e.button === 0 && phase === 'visit') friendSay(ctx, FRIEND_LINES.clicked());
+    if (e.button !== 0 || !(phase === 'visit' || phase === 'ask')) return;
+    held = { offX: e.clientX - fx, offY: e.clientY - fy, moved: false, startX: e.clientX, startY: e.clientY };
+    mouseHist = [[performance.now(), e.clientX, e.clientY]];
+    ctx.setPinned(true); // keep getting the mouse when it leaves them (see ../clickThrough.js)
   });
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (phase === 'visit' && !leaveAsked) askToLeave(ctx);
+  });
+  if (windowHooked) { ctx.stage.appendChild(el); return; } // (the window listeners are added once)
+  windowHooked = true;
+  window.addEventListener('mousemove', (e) => {
+    if (!held) return;
+    if (!held.moved && Math.hypot(e.clientX - held.startX, e.clientY - held.startY) > CLICK_SLOP) {
+      held.moved = true;
+      flying = false;
+      target = null;
+      bob = 0;
+      setFace('playful');
+    }
+    if (!held.moved) return;
+    const now = performance.now();
+    mouseHist.push([now, e.clientX, e.clientY]);
+    while (mouseHist.length > 2 && now - mouseHist[0][0] > 100) mouseHist.shift(); // last ~0.1s
+    keepInside(ctx, e.clientX - held.offX, e.clientY - held.offY); // carried, but never through a wall
+  });
+  window.addEventListener('mouseup', (e) => {
+    if (!held || e.button !== 0) return;
+    const wasDrag = held.moved;
+    held = null;
+    ctx.setPinned(false);
+    if (!wasDrag) { if (phase === 'visit') friendSay(ctx, FRIEND_LINES.clicked()); return; } // just a click
+    // Let go: thrown at the speed the mouse was moving.
+    const [t0, x0, y0] = mouseHist[0];
+    const [t1, x1, y1] = mouseHist[mouseHist.length - 1];
+    const dt = Math.max(0.016, (t1 - t0) / 1000);
+    vx = (x1 - x0) / dt;
+    vy = (y1 - y0) / dt;
+    const sp = Math.hypot(vx, vy);
+    if (sp > FLY_MAX) { vx *= FLY_MAX / sp; vy *= FLY_MAX / sp; }
+    spin = vx / 150;
+    flying = true;
+    ctx.log('friend-thrown-by-you', { speed: Math.round(Math.min(sp, FLY_MAX)) });
   });
   ctx.stage.appendChild(el);
 }
@@ -222,6 +273,33 @@ function moveToward(tx, ty, speed, dt) {
   fy += (dy / d) * speed * dt;
   if (Math.abs(dx) > 1) setFace(dx < 0 ? 'left' : 'right');
   return false;
+}
+
+// The usable screen's edges are walls: put them at (x, y) but never past an edge.
+function keepInside(ctx, x, y) {
+  const a = areaOf(ctx);
+  const S = ctx.pet.size;
+  fx = Math.max(a.left, Math.min(a.right - S, x));
+  fy = Math.max(a.top, Math.min(a.bottom - S, y));
+}
+
+// One frame of gliding after a throw: friction, spin, and bouncing off the edges (walls).
+// Returns true once they've slowed to a stop.
+function flyStep(ctx, dt) {
+  const a = areaOf(ctx);
+  const S = ctx.pet.size;
+  const k = Math.exp(-FLY_DRAG * dt);
+  vx *= k;
+  vy *= k;
+  fx += vx * dt;
+  fy += vy * dt;
+  rot += spin * dt;
+  spin *= k;
+  if (fx < a.left) { fx = a.left; vx = Math.abs(vx) * WALL_KEEP; spin = -spin; }
+  if (fx > a.right - S) { fx = a.right - S; vx = -Math.abs(vx) * WALL_KEEP; spin = -spin; }
+  if (fy < a.top) { fy = a.top; vy = Math.abs(vy) * WALL_KEEP; }
+  if (fy > a.bottom - S) { fy = a.bottom - S; vy = -Math.abs(vy) * WALL_KEEP; }
+  return Math.hypot(vx, vy) < FLY_STOP;
 }
 
 function hopBob(dt, rate = 9) {
@@ -372,6 +450,25 @@ export default {
     if (phase === 'done' || !el) return;
     const S = ctx.pet.size;
     const a = areaOf(ctx);
+    // Held (being carried) or flying after a throw: that's all they do this frame.
+    if (held?.moved || flying) {
+      if (flying && flyStep(ctx, dt)) {
+        flying = false;
+        target = null;
+        pauseLeft = rand(...PAUSE_FOR);
+        if (face !== 'talking') setFace('happy');
+      }
+      bob = 0;
+      drawFriend(ctx, performance.now());
+      placeBubble(ctx);
+      return;
+    }
+    // Tip back upright after a throw (to the nearest full turn, no snap).
+    if (phase !== 'thrown' && rot !== 0) {
+      const upright = Math.round(rot / (2 * Math.PI)) * 2 * Math.PI;
+      rot = upright + (rot - upright) * Math.exp(-UPRIGHT_SPEED * dt);
+      if (Math.abs(rot - upright) < 0.01) rot = 0;
+    }
     if (phase === 'arrive') {
       hopBob(dt);
       if (moveToward(target.x, target.y, HOP_SPEED, dt)) {
@@ -421,6 +518,9 @@ export default {
 
   stop(ctx) {
     endIt = null;
+    if (held) ctx.setPinned(false);
+    held = null;
+    flying = false;
     if (phase === 'ask' || leaveAsked) closeMenu(ctx);
     phase = 'done';
     removeFriend();
