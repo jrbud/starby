@@ -240,7 +240,9 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   a worn accessory he isn't wearing, drawn with `frames.js` / `accessories.js`, team art) hops in and says hi. Starby
   asks "my friend came to visit! wanna meet them?" (event menu). **Yes** → "this is my ROLE, NAME, from PLACE, and
   they're a JOB!" (random from lists); they wander for 2–5 min, chat now and then (team talkbox art), click them to
-  hear them, **right-click them to ask them to leave early**, then "i've got things to do! bye!" and hop off.
+  hear them, **right-click them to ask them to leave early**, **drag them around and throw them like Starby** (they glide,
+  slow down and bounce off the screen edges with Starby's wall-hit effect and a squash, then wander again; never past
+  an edge), then "i've got things to do! bye!" and hop off.
   **No** → "yeah, they're not that cool anyway", Starby throws them: 3 edge bounces, then out past the edge. No
   answer (15s) → they shrug and leave. While they visit, games / invites / dances don't start. Dev: tray → Developer
   → "A friend visits now" (`starby.friendVisit()`).
