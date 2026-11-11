@@ -14,7 +14,7 @@
 // CHAT IS OFF FOR THE WHOLE GAME (from the start until it ends): pet.hushed is set, so he says
 // nothing at all (no speech bubble, no chatter), and pet.hiding makes the right-click dialogue
 // ignore right-clicks (../dialogue/dialogue.js) and stops starbit drops / the mood label.
-//   result   right → the box: "You found Starby! +8 starbits" + REWARD starbits. Wrong / too slow → his
+//   result   right → the box: "You found Starby!" and REWARD starbits burst out. Wrong / too slow → his
 //            asteroid lifts too, to show where he was ("Nope! Starby was behind that one."). Then
 //            the game ends.
 //
@@ -58,7 +58,7 @@ const REWARD = 8;
 const TEXT = {
   intro: 'Starby will hide behind an asteroid. Keep your eyes on him!',
   pick: 'Which asteroid is Starby hiding behind? Click one!',
-  right: `You found Starby! +${REWARD} starbits`,
+  right: "You found Starby!", // (the starbits just burst out; the box doesn't say how many)
   wrong: 'Nope! Starby was behind that one.',
   slow: "Time's up! Starby was behind that one.",
 };
