@@ -1,117 +1,68 @@
-# starby.exe
+# Starby
 
-A tiny star that lives on your (Windows) desktop. Hackathon build, so see `claude.md` for scope and rules
-(placeholder assets only, read-only system access).
+A tiny star friend who lives on your desktop. Starby wanders around your screen, chats with you,
+drops starbits for you to collect, and loves to play games.
 
-## Run
+---
 
-```
-npm install
-npm start
-```
+## Steps to install Starby (Mac)
 
-Right-click the star → **Open shop** / **Settings…** / **Play tag** / **Play pong** / **Play hide & seek** / **Play catch** /
-**Developer** / **Quit**.
+### One-time setup: install Node.js (this also installs npm)
 
-**Developer** (for testing and demos): *Open pet DevTools* (console with the `starby.*` debug helpers), *Start
-star shower now*, *Start shooting star now*, *Starby invites
-you to a game*, *Skip game rest*, *Stop current event*. Dev triggers end whatever event is running first.
+1. Go to **https://nodejs.org** and click the big **LTS** download button.
+2. Open the downloaded file and click through the installer (**Continue → Agree → Install**). It may ask for your Mac password.
 
-Click him and
-**Play a game? [Tag] [Pong] [Hide & Seek] [Catch]** pops up too (he needs a minute's rest between games). Settings has the *Fling power* slider
-(how hard throws fly and how bouncy the screen edges are).
+### Download and run Starby
 
-> `npm start` runs `scripts/start.js`, which launches Electron with `ELECTRON_RUN_AS_NODE` removed.
-> VS Code (and terminals/tools started from it) can set that variable, which makes Electron run as
-> plain Node and crash with "Cannot read properties of undefined (reading 'requestSingleInstanceLock')".
-> If you run `electron .` directly instead of `npm start`, unset it first.
+3. Go to **https://github.com/jrbud/starby**
+4. On the right side of the page, click **Releases**.
+5. Scroll down and download the **Source code (zip)**.
+6. When it finishes downloading, double-click it to open it. It will appear in your **Downloads** folder as **starby-1.0** (the number may be different). You can move this folder to your **Desktop** to find it easily.
+7. Press **Cmd + Space**, type **Terminal**, then press **Enter**.
+8. Type `cd Desktop` and press **Enter**.
+9. Type `cd starby-1.0` and press **Enter**. Use the exact folder name from step 6.
+10. Type `npm install` and press **Enter**. This takes a minute or two and prints a lot of text. Wait until you can type again.
+11. Type `npm start` and press **Enter**. Starby will appear on your screen!
+12. Leave the Terminal window open while Starby is running. To close Starby, close Terminal or press **Ctrl + C** in it.
 
-## Layout
+### Running Starby again later
 
-```
-src/
-  main/                     Electron main process (Node)
-    main.js                 entry: wires everything together            [CORE: flag before editing]
-    store.js                persisted state → %APPDATA%/sprite-exe/state.json
-    settingsStore.js        user settings (sliders) → settings.json, separate from the state schema
-    ipc.js                  all ipcMain handlers (starbits, shop, click-through, context menu)
-    windows/
-      petWindow.js          fullscreen transparent overlay + click-through   [CORE]
-      shopWindow.js         normal shop window
-      settingsWindow.js     small settings window (Fling power slider)
-    systemReads/            READ-ONLY system reads → 'system:event' to the pet
-      clipboard.js idle.js power.js timeOfDay.js
-      activeWindow.js       TODO (needs a native module or similar)
-  preload/preload.js        the `window.sprite` API that renderers use
-  shared/                   used by main process
-    stateSchema.js          persisted-state shape + migration           [CORE]
-    shopCatalog.js          shop items (colors / accessories)        
-  renderer/
-    shared/sprite.js        draws the star with canvas primitives (used by pet + shop)
-    shared/flingTuning.js   Fling power slider (0–100) → throw speed, glide friction, wall bounce
-    pet/
-      pet.js                builds `ctx`, runs the frame + tick loop, renders
-      core/                 clock.js (10 ticks/s), scheduler.js (after/every), eventLog.js
-      events/               scripted sequences that take over the star (index.js = runner; tag.js;
-                            pong.js; invite.js = he asks you to play a random game;
-                            categories: sky / games / dance (table at the top of index.js);
-                            happenings.js = 10–15 min sky timer (starShower.js, shootingStar.js, blackHole.js);
-                            hideSeek.js = hide and seek; catchGame.js = catch; dance.js = dancing to music;
-                            constellation.js = constellation quiz (shapes in constellations.js);
-                            copycat.js = its own category: every 3 min he copies your cursor's movement;
-                            starbySays.js = Starby Says (do it only if he says "starby says");
-                            hoopShot.js = slingshot him into a hoop (right-drag, gravity);
-                            memory.js = memory game: click starbits in the order they light up;
-                            shuffle.js = asteroid shuffle: find which asteroid he's hiding behind;
-                            maze.js = drag him through a maze without touching the walls;
-                            friend.js = a friend (another Starby) comes to visit;
-                            games.js = list of games, game buttons, rest, games timer, 3-2-1-GO;
-                            prompt.js = popup with buttons; countdown.js = top-right timer)
-      clickThrough.js       toggles click-through when hovering `.hit` elements
-      bubble.js             speech bubble UI (behaviors call ctx.say)
-      behaviors/            one file per behavior, registered in behaviors/index.js
-        idle.js walk.js drag.js cursorReact.js speech.js starbits.js systemReactions.js
-    shop/                   shop window UI
-    settings/               settings window UI
-    welcome/                welcome window at launch (what Starby is, what he can see, how to play)
-```
+Do steps **7, 8, 9 and 11**. You only need `npm install` (step 10) once.
 
-## How it fits together
+### If your Mac asks for permission
 
-- **One overlay window.** The pet window covers the whole primary display, is transparent and click-through.
-  The sprite, bubble and starbits are DOM elements moving inside it. When the cursor is over the sprite
-  (`.hit`), click-through turns off so you can click or drag it.
-- **Behaviors** are small modules with `init(ctx)`, `onTick(ctx, tick)` and `update(ctx, dt)`. They coordinate
-  through `ctx.pet.mode` (`idle` | `walk` | `follow` | `flee` | `drag` | `toss` | `tag`). To add one: create a file in `behaviors/` and add it to
-  `behaviors/index.js`.
-- **Events** (`events/`) are scripted sequences, like *tag*, that take over the star at high priority: they set
-  their own `pet.mode` (behaviors stand down for modes they don't know), play out, then hand control back. One
-  runs at a time, after the behaviors each tick/frame. Start one with `ctx.startEvent('tag')` or, in DevTools,
-  `starby.startEvent('tag')`. Not to be confused with the event *log* below.
-- **Ticks vs. frames.** A session clock ticks 10 times a second from app start (`core/clock.js`). Behaviors make
-  decisions in `onTick` (start walking, hop, pause) and do smooth motion in `update`, which runs every frame.
-  The clock follows real time, so it catches up after the PC sleeps.
-- **Timed events.** `ctx.after(seconds, fn, label)` and `ctx.every(seconds, fn, label)` run things on the
-  session clock (`core/scheduler.js`). Example: `behaviors/sessionEvents.js` (time-open milestones, starbits
-  streak).
-- **Event log.** `ctx.log(type, data)` records what happened and when; `ctx.events` answers questions like
-  `last('say')`, `since(300)`, `count('click', 60)`, `total('walk')` (`core/eventLog.js`). It lives in memory
-  for the session only. pet.js logs speech, system events, starbits, purchases/equips and mode changes
-  automatically. To browse it, open DevTools on the pet window and run `starby.events.all()`.
-- **State** (starbits, owned items, equipped items) lives only in the main process. Renderers change it through
-  `window.sprite.*`, and every window gets `state:changed` after each update. That's how equipping in the shop
-  changes the on-screen sprite right away.
-- **Shop items** are data in `shopCatalog.js`. A new color is a single entry. The star has one shape (no shape
-  items). A new accessory needs hand-drawn PNG art from the team (see claude.md).
+The first time, your Mac may ask things like *"Terminal would like to access files in your Desktop
+folder"* or ask for Screen Recording / Accessibility access. Click **Allow** or **OK**. Starby only
+looks at things like which window is open so he can react to it; he never changes anything on your computer.
 
-## Suggested ownership (to avoid merge conflicts)
+---
 
-| Area | Files |
-|---|---|
-| Movement / idle / drag | `renderer/pet/behaviors/{idle,walk,drag}.js` |
-| Cursor + speech | `behaviors/{cursorReact,speech}.js`, `bubble.js` |
-| Starbits + shop | `behaviors/starbits.js`, `renderer/shop/*`, `shared/shopCatalog.js`, `renderer/shared/sprite.js` |
-| System reads | `main/systemReads/*`, `behaviors/systemReactions.js` |
+## How to play with Starby
 
-Core files (`main.js`, `windows/petWindow.js`, `shared/stateSchema.js`, `preload.js` channel names): flag before
-changing them.
+- **Carry him around:** left-click and drag Starby anywhere on your screen.
+- **Throw him:** let go while you're dragging him, and he goes flying.
+- **Talk to him:** right-click Starby to open his chat. From there you can play games, change settings and more.
+- **Collect starbits:** Starby drops little starbits now and then. Move your mouse over them to collect them.
+- **Spend starbits:** open the **Shop** to buy new colours and accessories for Starby.
+- **Keep him happy:** Starby loves games. He'll ask you to play now and then. Say yes!
+- **Watch out for limited events:** star showers, shooting stars, black holes and friends visiting can pop up at any time.
+
+### Games
+
+**Action:** Tag, Pong, Catch, Hoop Shot, Maze
+**Chill:** Hide & Seek, Starby Says, Star Quiz, Memory, Asteroid Shuffle
+
+Pick one from Starby's chat (right-click him), or wait for him to invite you.
+
+### The Starby menu
+
+Starby has a little icon in your **menu bar** (top right of your screen). Click it to open the **Shop**,
+**Settings**, start any game, or **Quit** Starby.
+
+---
+
+## Tips
+
+- Starby stays above your other windows but never blocks your clicks, except on Starby himself.
+- Too loud or too chatty? Open **Settings** to change sounds, Starby's size and more.
+- When you first open Starby, a short **How To Care for Your New Starby** guide appears. Click **Don't show again** to hide it next time.
