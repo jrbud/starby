@@ -220,11 +220,11 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
 
 - [x] **P1-24 (Nice) Maze (an action game).** `events/maze.js`: drag Starby through a maze without touching the walls
   ("operation" style). Invite "wanna try my maze?", the dialogue's **Action** games, tray "Play maze". A new random
-  maze each time (7×4 cells of 104px, fewer on small screens; one way through), walls = the team's `line.png` stroke
+  maze each time (12×7 cells of 92px, fewer on small screens; one way through; tight: ~12px of wiggle room), walls = the team's `line.png` stroke
   in yellow with the purple outline (CSS masks), exit marked by the starbit cluster. Left-drag him (a window capture
   listener keeps drag.js from picking him up; he follows the cursor in 4px collision-checked steps, so he can't skip
   through walls; he can't leave the maze except via its entrance/exit pockets). Touch a wall = zap, back to the
-  start; 3 zaps = out. 45s moon timer. 5 bonus starbits in the maze, kept whatever happens. Out the exit → 10 +
+  start; 3 zaps = out. 90s moon timer. 8 bonus starbits in the maze, kept whatever happens. Out the exit → 15 +
   bonus. DevTools: `starby.mazeInfo()`.
 
 - [x] **P1-25 (Nice) Black Hole (a sky event).** `events/blackHole.js`, on the 10–15 min sky timer with Star Shower and

@@ -1,6 +1,6 @@
 // MAZE — an action game ("operation" style): drag Starby through a maze without touching the walls.
 //
-//   setup   a new random maze appears in the middle of the usable screen (COLS × ROWS cells) and he
+//   setup   a new random maze (COLS × ROWS = 12 × 7 cells, fewer on a small screen) appears in the middle and he
 //           flies to its entrance on the left. "drag me through the maze! don't touch the walls!"
 //   play    LEFT-click and drag him: he follows the cursor (never jumping through a wall: he moves in
 //           small steps and each step is checked). Let go and he waits where he is; grab him again.
@@ -38,16 +38,16 @@ import { STARBIT_COLORS, starbitImage } from '../../shared/starbitArt.js';
 import { sfx } from '../../shared/sfx.js';
 
 // ---- Tuning ----
-const COLS = 7; // maze size in cells (fewer if the screen is small)
-const ROWS = 4;
-const CELL = 104; // px per cell: corridors are about twice his collision width, so it's a bit tight
+const COLS = 12; // maze size in cells (fewer if the screen is small): big and winding
+const ROWS = 7;
+const CELL = 92; // px per cell: with HIT_R that leaves ~12px of wiggle room each side, so it's tight
 const WALL = 12; // px: wall thickness (outline included)
 const WALL_OUTLINE = 2; // px of purple showing around the yellow
-const HIT_R = 22; // px: his collision radius (a bit smaller than his 64px box, so it feels fair)
+const HIT_R = 28; // px: his collision radius (a bit smaller than his drawn body, so it still feels fair)
 const STEP = 4; // px per collision-checked step while following the cursor
-const GAME_FOR = 45; // seconds
+const GAME_FOR = 90; // seconds (a bigger maze needs longer)
 const ZAPS = 3; // touches before game over
-const BONUS = 5; // bonus starbits in the maze
+const BONUS = 8; // bonus starbits in the maze
 const BONUS_SIZE = 26; // px
 const BONUS_R = 30; // px: his center this close to a bonus starbit collects it
 const GOAL_SIZE = 46; // px: the exit marker (starbit cluster)
@@ -55,7 +55,7 @@ const RETURN_SPEED = 900; // px/s flying back to the entrance after a zap
 const ZAP_FOR = 0.5; // seconds he shakes after a zap
 const INTRO_FOR = 2.2; // seconds before you can start
 const RESULT_FOR = 2.6; // seconds the result shows before the game ends
-const WIN_REWARD = 10;
+const WIN_REWARD = 15; // a bigger, harder maze: a bigger reward
 const YELLOW = '#ffe8a3'; // the app's yellow
 const OUTLINE = '#2d2335'; // the app's dark purple outline
 const LINE_ART = '../../../assets/menuIcons/line.png'; // team art; relative to src/renderer/pet/index.html
