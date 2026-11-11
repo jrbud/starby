@@ -19,6 +19,7 @@
 // Priority 20: opening the shop interrupts a game of tag (10).
 
 import { approach, cancelJump } from '../behaviors/motion.js';
+import { requestMood } from '../behaviors/mood.js';
 
 // What he says after Settings → "Reset progress".
 const RESET_LINES = ['My accessories... :(', 'You lost your starbits! :(', "Where'd my stuff go? :("];
@@ -97,6 +98,9 @@ export default {
     arrived = false;
     const { pet } = ctx;
     if (pet.mode !== 'drag' && pet.mode !== 'toss') pet.mode = 'shop';
+    // No drowsiness in the shop (mood.js won't let him get drowsy or fall asleep while it's open):
+    // drowsy or asleep when it opens, he wakes up.
+    if (pet.mood === 'yawning' || pet.mood === 'sleepy') requestMood(ctx, 'happy', 'shop opened');
   },
 
   update(ctx, dt) {

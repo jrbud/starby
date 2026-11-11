@@ -128,10 +128,15 @@ function sinkToNapSpot(ctx, dt) {
   pet.y += (dy / d) * step;
 }
 
-/** Switch mood. Returns false if it's already that mood (or not a real one). */
+const inShop = (ctx) => ctx.activeEvent?.() === 'shop';
+
+/** Switch mood. Returns false if it's already that mood (or not a real one), or if it's drowsy/asleep while he's in the shop. */
 function setMood(ctx, mood, reason) {
   const { pet } = ctx;
   if (!MOODS[mood] || pet.mood === mood) return false;
+  // In the shop (events/shop.js) he never gets drowsy or falls asleep, whatever asks for it
+  // (bored, "user away", Feeling sleepy?...).
+  if ((mood === 'yawning' || mood === 'sleepy') && inShop(ctx)) return false;
   const from = pet.mood;
   pet.mood = mood;
   ctx.cancel(moodTimer);
@@ -553,7 +558,7 @@ export default {
       window.starby.getSleepy = () => {
         if (pet.mood === 'sleepy') return 'already asleep';
         const active = ctx.activeEvent();
-        if (active === 'intro' || active === 'goodbye') return 'not now';
+        if (active === 'intro' || active === 'goodbye' || active === 'shop') return 'not now'; // (never asleep in the shop)
         if (active) ctx.stopEvent('feeling sleepy');
         if (pet.mode === 'drag' || pet.mode === 'toss') return 'being held';
         ctx.say(['yeah... *yawn*', 'yeah... kinda...', 'mmm... yeah... nap time'][Math.floor(Math.random() * 3)], 2500);
@@ -584,6 +589,8 @@ export default {
     trackCircle(ctx, now);
     trackRub(ctx, now);
     maybeFlourish(ctx, now);
+    // Shopping counts as being with him: the yawn clock starts over when the shop closes.
+    if (inShop(ctx)) lastInteraction = now;
 
     const relaxed = pet.mode === 'idle' || pet.mode === 'walk';
     if (pet.mood === 'happy' && relaxed && now - lastInteraction >= (isNight ? YAWN_AFTER_NIGHT : YAWN_AFTER)) {
