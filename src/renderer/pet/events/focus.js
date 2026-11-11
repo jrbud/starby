@@ -88,9 +88,9 @@ const BOP_RATE = 2.5; // bops per second
 // idle animations while he's feeling one of these.
 const MOOD_FACES = ['mad', 'sad', 'playful', 'dizzy', 'yawning', 'sleepy'];
 // "Stretch your legs": he walks to a random spot along the bottom, pauses, walks again.
-const WANDER_SPEED = 90; // px/s (an unhurried stroll)
-const WANDER_PAUSE = [3, 8]; // seconds standing still between walks (idle animations play then)
-const WANDER_MIN = 1.5; // star-sizes: shortest walk
+const WANDER_SPEED = 70; // px/s (an unhurried stroll)
+const WANDER_PAUSE = [3, 15]; // seconds standing still between walks (idle animations play then)
+const WANDER_MIN = 0.75; // star-sizes: shortest walk
 const STEP_RATE = 2; // steps per second (the bob while walking)
 const STEP_HEIGHT = 0.035; // star-sizes
 // Dropped after being picked up: falls straight down, speeding up.
@@ -118,20 +118,7 @@ const LINES = {
   callOver: lineBag(['call over? hi again!', "all done talking? i'm back!"]),
   okay: lineBag(["okay! i'll be right here!", 'you got this! i believe in you!', "okay, i'll be quiet. good luck!", 'go get it! i\'ll wait over here!']),
   back: lineBag(["yay, you're back!", 'all done? hi hi!', 'break time? yay!']),
-  // Said when you left-click him while he's focusing (see onClick()).
-  // TODO(team): write the study dialogue here, replacing the placeholder. Things to keep in mind:
-  //   - Keep lines short (about 2–8 words) and lowercase, like his other lines: the bubble is
-  //     small and he must stay NOT DISTRACTING. Long lines also need a bigger STUDY_LINE_MS.
-  //   - Supportive, never nagging or guilt-tripping ("you got this!", not "stop clicking me").
-  //   - lineBag() won't repeat a line until the rest have been said, so more lines = less repetition.
-  //   - The same lines also show for CALL / FULLSCREEN focus (reason 'call' | 'fullscreen'), where
-  //     "study" talk may not fit. If you want different lines there, check `reason` in onClick().
-  //   - Clicks still count as pokes in mood.js: several fast clicks can make him mad (then he swats
-  //     instead of being picked up, and his click lines turn mad). Decide if that's OK in focus.
-  //   - A click line from speech.js may flash first (only before he's fully hushed, right after
-  //     landing); this one replaces it STUDY_LINE_DELAY later.
-  //   - Text only; no emoji that the bubble font can't show, and no new art (CLAUDE.md art rule).
-  study: lineBag(['study dialogue here']),
+  study: lineBag(['stay focused!', 'keep  up to good work!', 'you shine bright!', 'wow so focused :o', 'me when i\'m focused', 'you\'re doing great :3', 'ok studious!', '*hums*', 'la la laa~', 'i like seeing your progress :)', 'maybe i\'ll work too... jk', 'you\'re doing great!']),
 };
 
 let endFocus = null;

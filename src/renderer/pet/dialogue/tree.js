@@ -79,7 +79,7 @@ export const TREE = {
       { label: "Let's chat!", next: 'chat' },
       { label: 'Wanna shop?', action: 'shop', say: 'ooh, shopping!' },
       { label: 'Wanna play a game?', next: 'games' },
-      { label: 'Sorry, I gotta focus', action: 'focus', show: (ctx) => !focusing(ctx) },
+      { label: 'It\'s time to focus', action: 'focus', show: (ctx) => !focusing(ctx) },
       { label: "Okay, I'm done focusing!", action: 'unfocus', show: focusing }, // (focusing opens 'focus' instead)
       { label: 'Never mind', action: 'close' },
       { label: 'Settings', next: 'settings' },
@@ -94,7 +94,7 @@ export const TREE = {
     line: ['oh! hi! need something?', 'hm? what is it?'],
     options: [
       // Walk around along the bottom of the screen (dragging still works; focus keeps going)...
-      { label: 'Stretch your legs', action: 'starby:focusWander:on', show: (ctx) => !ctx.pet.focusWander },
+      { label: 'Stretch your legs!', action: 'starby:focusWander:on', show: (ctx) => !ctx.pet.focusWander },
       // ...or stand still in one spot again (the usual focus mode).
       { label: 'Stay still', action: 'starby:focusWander:off', show: (ctx) => Boolean(ctx.pet.focusWander) },
       // TODO: not built yet; for now this just closes the menu.
