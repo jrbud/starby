@@ -88,9 +88,9 @@ const BOP_RATE = 2.5; // bops per second
 // idle animations while he's feeling one of these.
 const MOOD_FACES = ['mad', 'sad', 'playful', 'dizzy', 'yawning', 'sleepy'];
 // "Stretch your legs": he walks to a random spot along the bottom, pauses, walks again.
-const WANDER_SPEED = 90; // px/s (an unhurried stroll)
-const WANDER_PAUSE = [3, 8]; // seconds standing still between walks (idle animations play then)
-const WANDER_MIN = 1.5; // star-sizes: shortest walk
+const WANDER_SPEED = 70; // px/s (an unhurried stroll)
+const WANDER_PAUSE = [3, 15]; // seconds standing still between walks (idle animations play then)
+const WANDER_MIN = 0.75; // star-sizes: shortest walk
 const STEP_RATE = 2; // steps per second (the bob while walking)
 const STEP_HEIGHT = 0.035; // star-sizes
 // Dropped after being picked up: falls straight down, speeding up.
@@ -131,7 +131,7 @@ const LINES = {
   //   - A click line from speech.js may flash first (only before he's fully hushed, right after
   //     landing); this one replaces it STUDY_LINE_DELAY later.
   //   - Text only; no emoji that the bubble font can't show, and no new art (CLAUDE.md art rule).
-  study: lineBag(['study dialogue here']),
+  study: lineBag(['stay focused!', 'keep  up to good work!', 'you shine bright!', 'wow so focused :o', 'me when i\'m focused', 'you\'re doing great :3', 'ok studious!', '*hums*', 'la la laa~', 'i like seeing your progress :)', 'maybe i\'ll work too... jk']),
 };
 
 let endFocus = null;
