@@ -222,7 +222,8 @@ Also owns the list of `pet.mode` values: currently `'idle' | 'walk' | 'follow' |
   ("operation" style). Invite "wanna try my maze?", the dialogue's **Action** games, tray "Play maze". A new random
   maze each time (12×7 cells of 92px, fewer on small screens; one way through; tight: ~12px of wiggle room), walls = the team's `line.png` stroke
   in yellow with the purple outline (CSS masks), exit marked by the starbit cluster. Left-drag him (a window capture
-  listener keeps drag.js from picking him up; he follows the cursor in 4px collision-checked steps, so he can't skip
+  listener keeps drag.js from picking him up; he follows the cursor in 4px collision-checked steps (while held he spins a little and wobbles round a 6px circle
+  about the cursor, to make steering harder), so he can't skip
   through walls; he can't leave the maze except via its entrance/exit pockets). Touch a wall = zap, back to the
   start; 3 zaps = out. 90s moon timer. 8 bonus starbits in the maze, kept whatever happens. Out the exit → 15 +
   bonus. DevTools: `starby.mazeInfo()`.
