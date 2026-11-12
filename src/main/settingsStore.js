@@ -41,8 +41,7 @@ const DEFAULTS = {
   sfxStarbitsOn: 1,
   sfxActionVolume: 100, // throw, sling, explode
   sfxActionOn: 1,
-  sfxAppVolume: 100, // startup + exit
-  sfxAppOn: 1,
+  // (startup + exit sounds have no category: just the master volume above)
 };
 
 // Number settings are kept within 0–100 unless listed here as [min, max].
@@ -58,7 +57,6 @@ const RANGES = {
   sfxVoiceVolume: [0, 200],
   sfxStarbitsVolume: [0, 200],
   sfxActionVolume: [0, 200],
-  sfxAppVolume: [0, 200],
 };
 
 // List settings: arrays of short lowercase names (e.g. color names), nothing else.

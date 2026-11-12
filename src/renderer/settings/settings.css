@@ -478,13 +478,6 @@ input:focus-visible {
 .sound-row .sound-toggle {
   padding: 0; /* just the box; the row's label above names it */
 }
-/* What's in the category, e.g. "throws, slingshots, crashes". */
-.sound-hint {
-  display: block;
-  font-size: calc(14px * var(--font-scale, 1));
-  font-weight: 400;
-  opacity: 0.7;
-}
 .sound-row input.is-muted {
   opacity: 0.45;
 }

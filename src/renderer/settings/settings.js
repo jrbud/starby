@@ -233,7 +233,7 @@ sfxOn.addEventListener('change', () => {
   if (on) sfx.play('collect-starbit');
 });
 
-// One row per category: "Voice  80%" (+ a hint of what's in it), the slider, and an on/off box.
+// One row per category: "Voice  80%", the slider, and an on/off box.
 const categoryList = document.getElementById('sound-categories');
 const categoryRows = SOUND_CATEGORIES.map((cat) => {
   const id = `sfx-cat-${cat.id.toLowerCase()}`;
@@ -241,7 +241,7 @@ const categoryRows = SOUND_CATEGORIES.map((cat) => {
   section.className = 'setting sound-category';
   section.innerHTML = `
     <div class="label-row">
-      <label for="${id}">${cat.label} <span class="sound-hint">${cat.hint}</span></label>
+      <label for="${id}">${cat.label}</label>
       <output for="${id}"></output>
     </div>
     <div class="sound-row">
