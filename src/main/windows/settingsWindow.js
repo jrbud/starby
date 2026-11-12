@@ -5,6 +5,7 @@
 const { BrowserWindow } = require('electron');
 const path = require('path');
 const { bringToFront } = require('./bringToFront');
+const { getPetWindow } = require('./petWindow');
 // Window size + page zoom, shared with the shop window (see menuSize.js).
 const { MENU_SCALE } = require('./menuSize');
 // ...times the "UI size" setting (menuScale.js).
@@ -12,9 +13,23 @@ const { menuWindowSize, trackMenuWindow } = require('./menuScale');
 
 let settingsWindow = null;
 
+// Settings stays in front of other windows until it's closed (always-on-top), like the shop.
+// WINDOWS QUIRK: always-on-top windows are ordered by which was raised last, so raising/clicking
+// Settings would put it ABOVE the pet window and hide Starby. Every time it's raised, move the
+// pet window back on top (moveTop doesn't take focus). Same as shopWindow.js.
+function keepPetAbove() {
+  const pet = getPetWindow();
+  if (pet && !pet.isDestroyed()) pet.moveTop();
+}
+
+function raiseSettings() {
+  bringToFront(settingsWindow, { stayOnTop: true });
+  keepPetAbove();
+}
+
 function openSettingsWindow() {
   if (settingsWindow) {
-    bringToFront(settingsWindow);
+    raiseSettings();
     return settingsWindow;
   }
 
@@ -43,7 +58,8 @@ function openSettingsWindow() {
   });
 
   trackMenuWindow(settingsWindow); // resizes live with the UI size slider
-  settingsWindow.once('ready-to-show', () => bringToFront(settingsWindow));
+  settingsWindow.once('ready-to-show', raiseSettings);
+  settingsWindow.on('focus', keepPetAbove); // clicking Settings raises it: keep Starby above it
   settingsWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'settings', 'index.html'));
   settingsWindow.on('closed', () => { settingsWindow = null; });
   return settingsWindow;

@@ -11,6 +11,7 @@ const DEFAULTS = {
   showWelcome: 1, // the welcome window at launch (windows/welcomeWindow.js); 0 = "Don't show this again"
   flingPower: 50, // 0–100: how hard throws fly and how bouncy the walls are (50 = original feel)
   starbySize: 100, // Starby's size on screen in px (Settings slider, 50–150; pet.js applies it live)
+  idleChats: 1, // Settings → Starby → "Idle chats": random lines while he hangs around (renderer/pet/behaviors/speech.js)
   // Settings → UI (sliders, 75–150 %; 100 = as designed):
   menuScale: 100, // shop/settings windows (windows/menuScale.js) + the right-click/event menus' answer boxes
   chatScale: 100, // speech + thought bubbles (incl. his line in the right-click menu)
@@ -25,6 +26,10 @@ const DEFAULTS = {
   starbitVisible: 1, // show starbits on screen (off = hidden, still collectable)
   starbitShootAnimation: 1, // collected starbits zip to the count card (off = just fade)
   starbitShowCount: 1, // the count card slides in at the top right on collect (off = no card)
+  // Settings → Games (renderer/pet/events/games.js applies them):
+  gamesEnabled: 1, // the section's own box: 0 = no games at all (the two below are kept for when it's back on)
+  gameInvites: 1, // Starby starts games on his own: "wanna play?" invites + surprise hide and seek
+  gamesOff: [], // games switched OFF (event names, e.g. 'pong'): gone from his menu, invites and the tray
   // Sound effects (assets/sounds/, played via renderer/shared/sfx.js):
   sfxVolume: 70, // master "All sounds", 0–150 % (100 = as recorded)
   sfxMuted: 0, // 1 = muted (keeps sfxVolume for when you unmute)
@@ -36,8 +41,7 @@ const DEFAULTS = {
   sfxStarbitsOn: 1,
   sfxActionVolume: 100, // throw, sling, explode
   sfxActionOn: 1,
-  sfxAppVolume: 100, // startup + exit
-  sfxAppOn: 1,
+  // (startup + exit sounds have no category: just the master volume above)
 };
 
 // Number settings are kept within 0–100 unless listed here as [min, max].
@@ -53,7 +57,6 @@ const RANGES = {
   sfxVoiceVolume: [0, 200],
   sfxStarbitsVolume: [0, 200],
   sfxActionVolume: [0, 200],
-  sfxAppVolume: [0, 200],
 };
 
 // List settings: arrays of short lowercase names (e.g. color names), nothing else.
@@ -121,7 +124,7 @@ function onChange(fn) {
 }
 
 function reset() {
-  return set({ ...DEFAULTS, starbitColors: [...DEFAULTS.starbitColors] });
+  return set({ ...DEFAULTS, starbitColors: [...DEFAULTS.starbitColors], gamesOff: [] });
 }
 
 module.exports = { get, set, reset, onChange, DEFAULTS };

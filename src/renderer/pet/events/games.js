@@ -55,7 +55,34 @@ export const GAMES = [
   { name: 'constellation', label: 'Star Quiz', ask: ['wanna do a star quiz?', "quiz time? i'll draw you a constellation!", 'hey! guess my constellation?'] },
 ];
 
+// ---- Settings → Games: which games are on, and whether he starts games on his own ----
+// gamesOff (list of event names) and gameInvites (1/0) from settingsStore, followed live. A game
+// that's off is gone from the dialogue (../dialogue/tree.js), his invites, the games timer, and
+// the tray menu (src/main/tray.js reads the same setting). With invites off he never starts a game
+// himself: no "wanna play?" and no surprise hide and seek. Asking HIM to play still works.
+// gamesEnabled (the Games section's own box) off = no games at all, as if every game were off;
+// the per-game choices and gameInvites are kept for when it's switched back on.
+let gamesOff = new Set();
+let invitesOn = true;
+let gamesOn = true;
+const isOn = (v) => v === undefined || Number(v) !== 0; // missing = on (older settings files)
+function applyGameSettings(s) {
+  gamesOff = new Set(Array.isArray(s?.gamesOff) ? s.gamesOff : []);
+  invitesOn = isOn(s?.gameInvites);
+  gamesOn = isOn(s?.gamesEnabled);
+}
+if (typeof window !== 'undefined' && window.sprite) {
+  window.sprite.getSettings?.().then(applyGameSettings).catch(() => {});
+  window.sprite.onSettingsChanged?.(applyGameSettings);
+}
+/** Is this game switched on in Settings → Games? */
+export const gameEnabled = (name) => gamesOn && !gamesOff.has(name);
+/** Does he start games on his own (Settings → Games → "Starby asks you to play")? */
+export const startsGamesHimself = () => gamesOn && invitesOn;
+const enabledGames = () => GAMES.filter((g) => gameEnabled(g.name));
+
 const LINES = {
+  switchedOff: lineBag(["that one's switched off in my settings!", "can't, that game's turned off in settings"]),
   tired: lineBag(["give me a little, i'm tired", 'phew... let me catch my breath first', 'need a little break first!']),
   veryTired: lineBag(["i'm tired! ask me in a bit", '*pant pant* not yet!', 'still resting!']),
   mad: lineBag(['hmph. not playing with a poker.', "no games. i'm mad."]),
@@ -100,9 +127,10 @@ function askIfDue(ctx) {
   // Drowsy (yawning or asleep): the 4 minutes start over, so he doesn't pounce with an invite
   // the moment he wakes up. (events/index.js also holds every self-started event while drowsy.)
   if (pet.mood === 'yawning' || pet.mood === 'sleepy') { lastGameAt = now; return false; }
+  if (!startsGamesHimself()) { lastGameAt = now; return false; } // Settings → Games: he doesn't ask
   if (now - lastGameAt < MUST_ASK_AFTER || ctx.activeEvent()) return false;
   if (pet.mode === 'drag' || pet.mode === 'toss') return false; // let go of him first
-  const invitable = GAMES.filter((g) => g.invite !== false);
+  const invitable = enabledGames().filter((g) => g.invite !== false);
   if (!invitable.length) return false;
   const choices = invitable.length > 1 ? invitable.filter((g) => g.name !== lastPicked) : invitable;
   const game = choices[Math.floor(Math.random() * choices.length)];
@@ -122,10 +150,12 @@ function rollGamesTimer(ctx) {
   if (nextRollAt === null) nextRollAt = now + GAMES_TIMER.every;
   if (now < nextRollAt) return;
   nextRollAt = now + GAMES_TIMER.every;
-  if (!GAMES.length || ctx.activeEvent()) return;
+  if (!startsGamesHimself()) return; // Settings → Games: no invites, no surprise hide and seek
+  const on = enabledGames();
+  if (!on.length || ctx.activeEvent()) return;
   if (now - lastTimerStartAt < GAMES_TIMER.cooldown || now - cursorMovedAt > USER_AROUND) return;
   if (Math.random() >= GAMES_TIMER.chance) return;
-  const choices = GAMES.length > 1 ? GAMES.filter((g) => g.name !== lastPicked) : GAMES;
+  const choices = on.length > 1 ? on.filter((g) => g.name !== lastPicked) : on;
   // Weighted pick (a game's `weight`, default 1): Starby Says comes up more often.
   const total = choices.reduce((sum, g) => sum + (g.weight || 1), 0);
   let roll = Math.random() * total;
@@ -186,6 +216,7 @@ export function requestGame(ctx, name) {
   const { pet } = ctx;
   ctx.log('game-request', { game: name, mood: pet.mood });
   if (ctx.activeEvent()) return;
+  if (!gameEnabled(name)) { ctx.say(LINES.switchedOff(), 2200); return; } // (normally not offered at all)
   if (pet.mood === 'mad') { ctx.say(LINES.mad(), 2000); return; }
   if (pet.mood === 'dizzy') { ctx.say(LINES.notNow(), 2000); return; }
   ctx.startEvent(name, 'request'); // the game's canStart says "i'm tired" if he still needs a rest

@@ -34,16 +34,20 @@
     <!-- The art's grey panel; everything below scrolls inside it. -->
     <main class="menu-panel settings-scroll">
       <div class="settings-content">
-        <!-- Starby's size on screen (settingsStore.starbySize; pet.js resizes him live). -->
+    <!-- Starby: his size on screen (settingsStore.starbySize; pet.js resizes him live) and how hard
+         throws fly (flingPower). First section; starts collapsed like the others. -->
+    <details class="group" data-key="starby">
+      <summary>
+        <span class="group-title">Starby</span>
+      </summary>
+      <div class="group-body">
     <section class="setting">
-        <div class="label-row">
-            <label for="starby-size">Starby size</label>
-          <output id="starby-size-value" for="starby-size">100 px</output>
-        </div>
+      <div class="label-row">
+        <label for="starby-size">Size</label>
+        <output id="starby-size-value" for="starby-size">100 px</output>
+      </div>
       <input id="starby-size" type="range" min="50" max="150" step="5" value="100" />
     </section>
-
-
 
     <section class="setting">
       <div class="label-row">
@@ -52,6 +56,22 @@
       </div>
       <input id="fling-power" type="range" min="0" max="100" step="1" value="50" />
     </section>
+
+    <!-- Same setting as Games → "Game Prompts" (settingsStore.gameInvites): the two boxes
+         are linked (settings.js SWITCHES), ticking either one changes both. -->
+    <section class="setting switches">
+      <!-- Random things he says while walking around (settingsStore.idleChats; pet/behaviors/speech.js). -->
+      <label class="switch-row">
+        <span class="switch-name">Idle chats</span>
+        <input id="idle-chats" type="checkbox" class="art-check" />
+      </label>
+      <label class="switch-row">
+        <span class="switch-name">Game Prompts</span>
+        <input id="starby-game-invites" type="checkbox" class="art-check" />
+      </label>
+    </section>
+      </div>
+    </details>
 
     <!-- UI sizes, 75–150 % (settingsStore menuScale / chatScale / fontScale; settings.js saves them
          when you let go of the slider). Menu size: the shop/settings windows + the right-click menu's
@@ -162,6 +182,28 @@
       </div>
     </section>
 
+      </div>
+    </details>
+
+    <!-- Games: the box in the header turns ALL games on/off (settingsStore.gamesEnabled); then whether
+         Starby starts games on his own (gameInvites), and one on/off box per game (gamesOff = the
+         ones switched OFF). Game rows are built by settings.js. -->
+    <details class="group" data-key="games">
+      <summary>
+        <span class="group-title">Games</span>
+        <input id="games-on" type="checkbox" class="art-check header-toggle" aria-label="Games on" title="All games on/off" />
+      </summary>
+      <div class="group-body">
+    <section class="setting switches">
+      <label class="switch-row">
+        <span class="switch-name">Game Prompts</span>
+        <input id="game-invites" type="checkbox" class="art-check" />
+      </label>
+    </section>
+    <!-- One box per game (built by settings.js); the group's gap separates it from Game Prompts. -->
+    <section class="setting switches">
+      <div id="game-toggles"></div>
+    </section>
       </div>
     </details>
 

@@ -44,7 +44,7 @@ const GAIN = {
   throw: 0.1,
   sling: 0.07,
   startup: 0.1,
-  exit: 0.02
+  exit: 0.03
 };
 // Sounds that always share another sound's loudness: change chat above and prompt follows.
 GAIN.prompt = GAIN.chat; // his questions sound as loud as his lines
@@ -68,11 +68,11 @@ function clip(file) {
 //   master × category × GAIN.
 // Settings keys are sfx<Id>Volume (0–200 %) and sfx<Id>On (1/0), e.g. sfxVoiceVolume / sfxVoiceOn
 // (defaults in src/main/settingsStore.js). A new sound goes into one category here.
+// Startup + goodbye ('launch', 'exit') have no category: only the master volume/mute applies.
 export const SOUND_CATEGORIES = [
-  { id: 'Voice', label: 'Voice', hint: 'chatting and questions', sounds: ['chat', 'prompt'], sample: 'chat' },
-  { id: 'Starbits', label: 'Starbits', hint: 'collecting starbits', sounds: ['collect-starbit'], sample: 'collect-starbit' },
-  { id: 'Action', label: 'Action', hint: 'throws, slingshots, crashes', sounds: ['throw', 'sling', 'explode'], sample: 'throw' },
-  { id: 'App', label: 'App', hint: 'startup and goodbye', sounds: ['launch', 'exit'], sample: 'launch' },
+  { id: 'Voice', label: 'Voice', sounds: ['chat', 'prompt'], sample: 'chat' },
+  { id: 'Starbits', label: 'Starbits', sounds: ['collect-starbit'], sample: 'collect-starbit' },
+  { id: 'Action', label: 'Tossing', sounds: ['throw', 'sling', 'explode'], sample: 'throw' },
 ].map((c) => ({ ...c, volumeKey: `sfx${c.id}Volume`, onKey: `sfx${c.id}On` }));
 const categoryOf = new Map(SOUND_CATEGORIES.flatMap((c) => c.sounds.map((s) => [s, c])));
 
