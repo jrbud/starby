@@ -28,6 +28,7 @@ export const DEFAULT_SET = 'sunny';
 export const FACES = {
   happy: { files: ['idle-1', 'idle-2'], every: 0.6 }, // default: standing, content
   calm: { files: ['idle-1'] }, // content, arms down, no swapping (focus mode: not distracting)
+  armsUp: { files: ['idle-2'] }, // both arms up, held (holding hands with his friend: they raise them TOGETHER, events/friend.js)
   talking: { files: ['talk-1', 'talk-2'], every: 0.2 }, // mouth flapping
   playful: { files: ['happy-1', 'happy-2'], every: 0.35 }, // playing / thrown / tag (tongue out)
   dancing: { files: ['happy-1', 'happy-2'], every: 0.25 }, // dancing to music: swaps twice a beat (events/dance.js)
@@ -188,8 +189,8 @@ export function createFrames(px) {
 
   // GIF faces: decode, shrink each frame like a PNG, cache as '<set>/<gif>#<i>'.
   const gifsLoaded = new Set();
-  async function loadGifs(set) {
-    for (const def of gifFaces()) {
+  async function loadGifs(set, defs = gifFaces()) {
+    for (const def of defs) {
       const key = `${set}/${def.gif}`;
       if (gifsLoaded.has(key)) continue;
       gifsLoaded.add(key);
@@ -223,6 +224,16 @@ export function createFrames(px) {
     async loadAll(set = DEFAULT_SET) {
       await loadFiles(set, allFiles());
       await loadGifs(set);
+    },
+    /**
+     * Load just these faces (and their fallbacks). For a CLOSE-UP set of frames at a bigger size
+     * (pet.js prepareCloseup: events/secret.js zooms him up to the screen), so only the few faces
+     * that show up close are held in memory at that size.
+     */
+    async loadFaces(set, names) {
+      const defs = [...new Set(names.flatMap((n) => faceChain(n)))].map((n) => FACES[n]).filter(Boolean);
+      await loadFiles(set, [...new Set(defs.filter((d) => !d.gif).flatMap((d) => d.files))]);
+      await loadGifs(set, defs.filter((d) => d.gif));
     },
 
     /**

@@ -736,6 +736,27 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     stays outside his body (`CIRCLE_CLEAR`), so tight circles on top of him no longer make him dizzy.
   - **Other people's files touched:** `events/focus.js`, `frames.js`, `accessories.js` (comment only),
     `dialogue/tree.js`, `behaviors/index.js` (registered cheerleader).
+- [x] **Secret (`events/secret.js`, new).** Now and then: "psst... wanna hear a secret?" [Yes! Tell me!] [No thanks].
+  No → the short sulk. Yes → he runs to the middle of the screen, glances left/right, then SLOWLY leans up to the
+  screen (`pet.zoom` up to ~45% of the screen height, tilting in) and either tells a secret (self-disclosure,
+  a bit embarrassing) or does the spittle.gif spit-laugh (30%); then zooms back to normal super fast.
+  Auto: rolled every minute, 10%, 15 min cooldown. DevTools: `starby.secret()`, `starby.secret('tell' | 'spit')`.
+  - **Shared file `pet.js`:** new `pet.zoom` (canvas CSS-scaled around his middle; more canvas pixels while
+    zoomed), `ctx.prepareCloseup` / `ctx.releaseCloseup` (sharp close-up frames + worn accessories, dropped after),
+    balloon/ufo/trail hidden while zoomed. `bubble.js`: the bubble goes above his zoomed head and grows up to 1.6×.
+    `frames.js`: `loadFaces()`. `events/index.js`: registered.
+- [x] **Questions: frozen and centered.** Every question (right-click dialogue and event menus: invites,
+  secret, friend, star quiz) freezes him first (`pet.freeze`, applied in `pet.js` after everything else
+  each frame), lets a hop/squash settle for 0.18s, THEN pops the boxes, centered on him; near an edge he
+  slides away first (event menus too, which used to shift the boxes instead). The waiting bounces in
+  `invite.js`, `secret.js` and `constellation.js` are gone.
+- [x] **Friend holds Starby's hand (`events/friend.js`).** The friend says a line as they hop on screen, then
+  takes Starby's hand (their hand anchor locked onto his every frame). While holding, nobody raises a hand
+  alone: arms-down faces only, and `armsUp` (new face, `idle-2`) only for both at once (when they meet, and
+  on Yes). Starby asks only after the friend's line is gone. No → "they're not that cool anyway" → (gone)
+  friend: "uhhh... whattt?" → (gone) Starby spins faster and faster, swinging them by the hand, lets go
+  while they're heading up, and they bounce around and fly off; he spins down to a stop.
+  Starby is owned (`pet.mode = 'friend'`) from the arrival until they let go.
 
 ---
 
