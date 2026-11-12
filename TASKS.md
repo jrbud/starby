@@ -757,6 +757,15 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
   friend: "uhhh... whattt?" → (gone) Starby spins faster and faster, swinging them by the hand, lets go
   while they're heading up, and they bounce around and fly off; he spins down to a stop.
   Starby is owned (`pet.mode = 'friend'`) from the arrival until they let go.
+- [x] **Copycat redone (`events/copycat.js`).** He walks over to your cursor first, stops and says he's going
+  to copy you, then follows your cursor's path like a duckling: aims where it was ~0.45s ago (drifting),
+  springy chase with a little overshoot, a wobbly line, keeps a gap, gets distracted now and then and hurries
+  to catch up. Ends bored after 25s, or "where'd you go?" if the cursor leaves the screen. (The old
+  mirror-your-moves + wall-smack ending is gone.)
+- [x] **Flinch & run switched off** (`cursorReact.js` `FLINCH_ENABLED = false`; set true to bring it back).
+- [x] **Developer window:** Secret (asks first) / Secret: tell one / Secret: spit-laugh.
+- [ ] **Chat rework (planned):** "Let's chat!" shows 5 random topics each time. Script format + all current chats
+  in `chat-script.txt` (repo root): fill it in, then Claude converts it into `tree.js`.
 
 ---
 
