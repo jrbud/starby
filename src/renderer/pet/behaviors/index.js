@@ -39,6 +39,8 @@ import goodbye from './goodbye.js'; // quitting: a goodbye line, a star burst, h
 import fx from './fx.js'; // hand-drawn effects: wall hits, swats, star bursts
 import find from './find.js'; // tray → "Find Starby": he pops into the middle of the screen
 import nameChange from './nameChange.js'; // "nice to meet you, Sam!" when you change your name
+import trail from './trail.js'; // shop → Trails (rainbow / neon): tinted copies of him behind him
+import ribbon from './ribbon.js'; // shop → Trails → "Rainbow ribbon": a rainbow ribbon along his path
 import stats from './stats.js'; // lifetime stats: counts throws, slingshots, games (Settings → Stats)
 
-export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, dream, charm, fidget, goodbye, fx, find, nameChange, stats];
+export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, dream, charm, fidget, goodbye, fx, find, nameChange, trail, ribbon, stats];

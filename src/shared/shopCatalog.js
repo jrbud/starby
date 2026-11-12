@@ -23,9 +23,9 @@
 // Accessories are bought with starbits like colors (only "None" is free):
 //   40–50   small things: lollipop, bow, tie                       (~8–10 min of play)
 //   60–70   hats and shoes: propeller hat, sneakers, boots, top hat (~12–14 min)
-//   80–90   floating extras: balloon, star tail                (~16–18 min)
-//   100–120 the showpieces: halo, UFO                        (~20–24 min)
-// Everything (colors 60 + accessories 780) costs 840 starbits, about 2.8 hours of play.
+//   80–90   floating extras: balloon, star tail, neon trail, motion blur (~16–18 min)
+//   100–120 the showpieces: halo, UFO, rainbow trail, rainbow ribbon (~20–24 min)
+// Everything (colors 60 + accessories 1160) costs 1220 starbits, about 4 hours of play.
 // For demos use the shop's demo shortcut (P4-3).
 
 const SHOP_ITEMS = [
@@ -47,17 +47,25 @@ const SHOP_ITEMS = [
   // "None" has no category, so the shop doesn't list it (each item has "Take off" instead). It
   // stays because old saves own it; equipping it takes every accessory off.
   { id: 'accessory-none', slot: 'accessory', name: 'None', price: 0, value: 'none' },
-  { id: 'accessory-tophat', slot: 'accessory', name: 'Top hat', price: 70, value: 'tophat', place: 'head', category: 'head' },
-  { id: 'accessory-propeller', slot: 'accessory', name: 'Toy hat', price: 60, value: 'propeller', place: 'head', category: 'head' },
+  { id: 'accessory-tophat', slot: 'accessory', name: 'Top Hat', price: 70, value: 'tophat', place: 'head', category: 'head' },
+  { id: 'accessory-propeller', slot: 'accessory', name: 'Toy Hat', price: 60, value: 'propeller', place: 'head', category: 'head' },
   { id: 'accessory-bow', slot: 'accessory', name: 'Bow', price: 50, value: 'bow', place: 'head', category: 'head' },
   { id: 'accessory-halo', slot: 'accessory', name: 'Halo', price: 100, value: 'halo', place: 'head', category: 'head' },
   { id: 'accessory-tie', slot: 'accessory', name: 'Tie', price: 50, value: 'tie', place: 'neck', category: 'hand' },
   { id: 'accessory-lollipop', slot: 'accessory', name: 'Lollipop', price: 40, value: 'lollipop', place: 'leftHand', category: 'hand' },
   { id: 'accessory-balloon', slot: 'accessory', name: 'Balloon', price: 80, value: 'balloon', place: 'rightHand', category: 'hand' },
-  { id: 'accessory-startail', slot: 'accessory', name: 'Star tail', price: 90, value: 'startail', place: 'trail', category: 'hand' },
+  { id: 'accessory-startail', slot: 'accessory', name: 'Star Tail', price: 90, value: 'startail', place: 'trail', category: 'hand' },
   { id: 'accessory-sneakers', slot: 'accessory', name: 'Shoes', price: 60, value: 'sneakers', place: 'feet', category: 'shoes' },
   { id: 'accessory-boots', slot: 'accessory', name: 'Boots', price: 60, value: 'boots', place: 'feet', category: 'shoes' },
   { id: 'accessory-ufo', slot: 'accessory', name: 'UFO', price: 120, value: 'ufo', place: 'companion', category: 'buddies' },
+  // Trails: no art files. They're copies of Starby's own frames, tinted by code (renderer/pet/
+  // behaviors/trail.js), so no entry in accessories.js and no row icon in the shop (no stand-in drawn).
+  { id: 'accessory-rainbowtrail', slot: 'accessory', name: 'Rainbow Blur', price: 100, value: 'rainbowtrail', place: 'trail', category: 'trails' },
+  { id: 'accessory-neontrail', slot: 'accessory', name: 'Sandevistan', price: 90, value: 'neontrail', place: 'trail', category: 'trails' },
+  { id: 'accessory-blurtrail', slot: 'accessory', name: 'Motion Blur', price: 80, value: 'blurtrail', place: 'trail', category: 'trails' },
+  // The ribbon is drawn by code (renderer/pet/behaviors/ribbon.js; a team-approved exception to
+  // the art rule), not copies of Starby.
+  { id: 'accessory-ribbontrail', slot: 'accessory', name: 'Rainbow Ribbon', price: 110, value: 'ribbontrail', place: 'trail', category: 'trails' },
 ];
 
 function getItem(id) {

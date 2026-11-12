@@ -26,7 +26,7 @@ const SECTIONS = [
     ['hand', 'Hand'],
     ['shoes', 'Shoes'],
     ['buddies', 'Buddies'],
-    ['trails', 'Trails'], // nothing in it yet
+    ['trails', 'Trails'], // rainbow, neon, motion blur (pet/behaviors/trail.js) + rainbow ribbon (ribbon.js)
   ].map(([cat, title]) => ({
     key: `accessory-${cat}`,
     title,
