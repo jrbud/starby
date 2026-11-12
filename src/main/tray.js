@@ -1,6 +1,8 @@
 // Tray icon (the Windows notification area, "hidden icons" ^ next to the clock).
-// Right-clicking it shows the old right-click menu: shop, settings, games, Developer, Quit.
-// (Right-clicking Starby himself opens his dialogue box instead: src/renderer/pet/dialogue/.)
+// Right-clicking it shows a short menu: Settings, Shop, Info (the welcome window again),
+// Hide/Show Starby, Find Starby, Start with Windows, Quit.
+// (Right-clicking Starby himself opens his dialogue box instead: src/renderer/pet/dialogue/. Games,
+// Admin Settings and the dev helpers live there / in window.starby, not in this menu.)
 //
 // ICON: uses the team's existing Starby art (assets/sprite/sunny/idle-1.png), shrunk at runtime.
 // A dedicated small tray icon drawn by the team would read better at 16px; swap TRAY_ICON when
@@ -12,66 +14,81 @@ const path = require('path');
 const { Tray, Menu, nativeImage, app } = require('electron');
 const { openShopWindow } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
-const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
+const { openWelcomeWindow } = require('./windows/welcomeWindow');
+const { bringToFront } = require('./windows/bringToFront');
 const { getPetWindow } = require('./windows/petWindow');
-const settingsStore = require('./settingsStore');
+const { openDevToolsWindow } = require('./windows/devToolsWindow');
+const startup = require('./startup');
 
 const TRAY_ICON = path.join(__dirname, '..', '..', 'assets', 'sprite', 'sunny', 'idle-1.png');
 
 let tray = null;
+let infoWindow = null; // the welcome window opened from "Info" (one at a time)
+
+// "Info": the welcome window from launch. Starby is already running, so its "Let's go!" just
+// closes it (onDone does nothing).
+function openInfo() {
+  if (infoWindow && !infoWindow.isDestroyed()) {
+    bringToFront(infoWindow);
+    return;
+  }
+  infoWindow = openWelcomeWindow(() => {});
+  infoWindow.on('closed', () => { infoWindow = null; });
+}
+
+const sendToPet = (cmd) => {
+  const pet = getPetWindow();
+  if (pet && !pet.isDestroyed()) pet.webContents.send('pet:command', cmd);
+};
+
+// "Hide Starby" / "Show Starby": hides the whole pet window (him, his bubble, starbits). Whatever
+// he was doing (a game, an invite) is stopped first so nothing waits on you while he's away.
+// WINDOWS QUIRK: showInactive, not show: the pet window is focusable:false and must never take
+// keyboard focus from the app you're in (petWindow.js).
+function toggleStarby() {
+  const pet = getPetWindow();
+  if (!pet || pet.isDestroyed()) return;
+  if (pet.isVisible()) {
+    sendToPet({ type: 'starby', fn: 'stopEvent' });
+    pet.hide();
+  } else {
+    pet.showInactive();
+  }
+}
+
+// "Find Starby": shows him if hidden, then he pops into the middle of the screen
+// (renderer/pet/behaviors/find.js).
+function findStarby() {
+  const pet = getPetWindow();
+  if (!pet || pet.isDestroyed()) return;
+  if (!pet.isVisible()) pet.showInactive();
+  sendToPet({ type: 'starby', fn: 'find' });
+}
 
 /** The menu (also used by the old 'pet:context-menu' IPC channel in ipc.js). */
 function buildPetMenu() {
-  // Scripted events and debug helpers run in the pet renderer (src/renderer/pet/events/).
-  // 'starby' commands call window.starby.<fn>(...args) there (pet.js onPetCommand).
-  const send = (cmd) => {
-    const win = getPetWindow();
-    if (win && !win.isDestroyed()) win.webContents.send('pet:command', cmd);
-  };
-  const play = (name) => send({ type: 'start-event', name });
-  const dev = (fn, ...args) => send({ type: 'starby', fn, args });
-  // Games switched off in Settings → Games (settingsStore.gamesOff) aren't listed; none at all when
-  // the whole Games section is off (gamesEnabled 0).
-  const s = settingsStore.get();
-  const gamesOn = s.gamesEnabled === undefined || Number(s.gamesEnabled) !== 0;
-  const off = new Set(s.gamesOff || []);
-  const games = [
-    ['tag', 'Play tag'],
-    ['pong', 'Play pong'],
-    ['hide-seek', 'Play hide & seek'],
-    ['catch', 'Play catch'],
-    ['constellation', 'Play constellation quiz'],
-    ['starby-says', 'Play starby says'],
-    ['hoop-shot', 'Play hoop shot'],
-    ['memory', 'Play memory'],
-    ['shuffle', 'Play asteroid shuffle'],
-    ['maze', 'Play maze'],
-  ].filter(([name]) => gamesOn && !off.has(name)).map(([name, label]) => ({ label, click: () => play(name) }));
+  const pet = getPetWindow();
+  const hidden = Boolean(pet && !pet.isDestroyed() && !pet.isVisible());
+  // Same switch as Settings → App (startup.js). Greyed out when running from source (npm start).
+  const runAtStartup = startup.get();
   return Menu.buildFromTemplate([
-    { label: 'Open shop', click: () => openShopWindow() },
-    { label: 'Settings…', click: () => openSettingsWindow() },
-    { label: 'Admin Settings…', click: () => openAdminSettingsWindow() },
+    { label: 'Settings', click: () => openSettingsWindow() },
+    { label: 'Shop', click: () => openShopWindow() },
+    { label: 'Info', click: openInfo },
     { type: 'separator' },
-    ...games,
-    ...(games.length ? [{ type: 'separator' }] : []),
+    { label: hidden ? 'Show Starby' : 'Hide Starby', click: toggleStarby },
+    { label: 'Find Starby', click: findStarby },
     {
-      label: 'Developer',
-      submenu: [
-        { label: 'Open pet DevTools', click: () => getPetWindow()?.webContents.openDevTools({ mode: 'detach' }) },
-        { type: 'separator' },
-        { label: 'Start star shower now', click: () => dev('happening', 'star-shower') },
-        { label: 'Start shooting star now', click: () => dev('happening', 'shooting-star') },
-        { label: 'Start black hole now', click: () => dev('happening', 'black-hole') },
-        { label: 'A friend visits now', click: () => dev('friendVisit') },
-        { label: 'Start copycat now', click: () => play('copycat') },
-        { label: 'Starby invites you to a game', click: () => dev('invite') },
-        { label: 'Open dialogue box', click: () => dev('dialogue') },
-        { label: 'Skip game rest', click: () => dev('skipRest') },
-        { label: 'Stop current event', click: () => dev('stopEvent') },
-      ],
+      label: 'Start with Windows',
+      type: 'checkbox',
+      checked: runAtStartup.enabled,
+      enabled: runAtStartup.available,
+      click: (item) => startup.set(item.checked),
     },
     { type: 'separator' },
-    { label: 'bye starby!', click: () => app.quit() }, // quits (he says goodbye first: goodbye.js)
+    { label: 'Developer…', click: () => openDevToolsWindow() }, // all debug buttons, in their own window
+    { type: 'separator' },
+    { label: 'Quit', click: () => app.quit() }, // he still says goodbye first (goodbye.js)
   ]);
 }
 

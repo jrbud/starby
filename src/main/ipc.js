@@ -7,6 +7,7 @@ const { openShopWindow, setDisplayRect, petSay, setPreview, setPreviewColor, min
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const settingsStore = require('./settingsStore');
 const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
+const { handleDevCommand } = require('./windows/devToolsWindow');
 const adminSettingsStore = require('./adminSettingsStore');
 const statsStore = require('./statsStore');
 const startup = require('./startup');
@@ -119,6 +120,8 @@ function registerIpc() {
   ipcMain.handle('admin:set', (_e, patch) => adminSettingsStore.set(patch));
   ipcMain.handle('admin:reset', () => adminSettingsStore.reset());
   ipcMain.on('admin:open', () => openAdminSettingsWindow());
+  // Developer window buttons (only accepted from that window: windows/devToolsWindow.js).
+  ipcMain.on('dev:command', (e, cmd) => handleDevCommand(e.sender, cmd));
 
   // ---- Pet window ----
   // Renderer toggles click-through depending on whether the cursor is over the sprite.

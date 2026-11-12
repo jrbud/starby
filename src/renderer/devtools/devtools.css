@@ -1,0 +1,47 @@
+body {
+  font: 13px system-ui, sans-serif;
+  margin: 0;
+  padding: 10px 14px 20px;
+  background: #f4f4f4;
+  color: #222;
+}
+#status {
+  position: sticky;
+  top: 0;
+  margin: -10px -14px 8px;
+  padding: 8px 14px;
+  background: #222;
+  color: #fff;
+  font-family: Consolas, monospace;
+}
+fieldset {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin: 0 0 10px;
+  padding: 6px 10px 10px;
+  background: #fff;
+}
+legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+button {
+  font: inherit;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+input[type='number'] {
+  width: 64px;
+  font: inherit;
+}
+.note {
+  color: #777;
+  font-size: 12px;
+  margin: 6px 0 0;
+}
