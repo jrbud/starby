@@ -13,16 +13,25 @@
 //                             on the pokes before (escalating). Every further click restarts the 5s timer.
 //   happy/playful → playful   thrown (released at ≥500px/s). Each throw / edge hit restarts the 5s timer.
 //   happy/playful/mad → dizzy spun 3+ turns (drag.js logs 'dizzy'), 3 throws within 20s, or the
-//                             cursor circling him 3 times within 6s. Lasts 5s, then back to
-//                             playful (if he was playful) or happy.
+//                             cursor circling him 3 times within 6s, the whole loop OUTSIDE his body
+//                             (CIRCLE_CLEAR: tight little circles on top of him don't count).
+//                             Lasts 5s, then back to playful (if he was playful) or happy.
+//   dizzy → mad               thrown (≥PLAYFUL_SPEED) or spun again while he's still dizzy:
+//                             "hey! i was already dizzy!"
 //   happy → yawning           1 min without interaction, or the system 'idle' event.
 //                             Interaction = click, grab, throw, edge hit, flinch, starbits pickup,
 //                             or the cursor within 120px.
+//   happy → sad (lonely)      instead of yawning when bored: SAD_INSTEAD_CHANCE (less at night).
+//                             pet.sadKind = 'lonely'. Clicks DON'T fix it; petting, chatting
+//                             (dialogue "What's wrong?" → starby.cheerUp()) or starting a game do.
+//                             Left alone for LONELY_FOR, he gets over it and goes to nap (yawning).
+//   happy/playful → cheering  ./cheerleader.js asks (a long stretch in a work app). Lasts CHEER_FOR.
 //   yawning → happy           any interaction
 //   yawning → sleepy          reached his nap spot in pet.goal: sitting on the taskbar (below him,
 //                             kept away from the screen edges so his thought cloud / bubbles fit)
-//   any → sad                 said no to a game (events/tag.js calls requestMood). Lasts 5s, or
-//                             one click cheers him up early. Then back to happy.
+//   any → sad (sulk)          said no to a game (events/invite.js calls requestMood). Lasts 5s, or
+//                             one click cheers him up early. Then back to happy. (Already lonely?
+//                             He stays lonely: a sulk never replaces the deeper sad.)
 //   happy → playful           the cursor rests on him for HOVER_FOR seconds; staying there keeps
 //                             him playful.
 //   sleepy                    asleep: he doesn't talk at all (../talkbox.js setSpeechGate), only dreams.
@@ -38,6 +47,9 @@ import { chat, lineBag } from './chatter.js';
 import { MOODS } from './moods.js';
 import { petBounds, CORNER_WALK_SPEED, startJump, isJumping } from './motion.js';
 import { setSpeechGate } from '../talkbox.js';
+import { GAMES } from '../events/games.js';
+
+const GAME_NAMES = new Set(GAMES.map((g) => g.name)); // starting one of these cheers a sad star up
 
 // ---- Tuning ----
 // Exported: speech.js warns on the pokes leading up to it ("one more poke and i'm gonna be mad!").
@@ -49,6 +61,10 @@ const WAKE_THROW_SPEED = 300; // px/s: a throw at least this fast wakes a sleepi
 const PLAYFUL_FOR = 5; // seconds after the last throw (shown as a countdown on the mood label)
 const DIZZY_FOR = 5;
 const SAD_FOR = 5; // seconds; a click cheers him up sooner
+const SAD_INSTEAD_CHANCE = 0.3; // bored: chance he gets lonely-sad instead of sleepy...
+const SAD_INSTEAD_CHANCE_NIGHT = 0.1; // ...at night (sleepier then)
+const LONELY_FOR = 180; // seconds of lonely-sad with nobody cheering him up → he naps it off
+export const CHEER_FOR = 60; // seconds of cheerleading (./cheerleader.js)
 const HOVER_FOR = 0.8; // seconds the cursor rests on a happy star before he turns playful
 // PETTING: rub the cursor slowly back and forth over him → sparkly eyes, a tiny happy hop, a line.
 // (Fast circles still make him dizzy, see trackCircle.) A grumpy (mad) star calms down when petted.
@@ -61,7 +77,10 @@ const PET_LINES = lineBag(['hehe, that\'s nice', 'aww, pets!', '*happy twinkle*'
 const DIZZY_TOSSES = 3; // throws...
 const DIZZY_TOSS_WINDOW = 20; // ...within this many seconds
 const CIRCLE_RADIUS = 200; // cursor must circle within this distance of his center...
-const CIRCLE_MIN_RADIUS = 20; // ...but not right on top of him (angles get jumpy)
+// ...and the whole loop must go AROUND him: the cursor dipping within this many star-sizes of his
+// center (i.e. onto his body) restarts the count, so tight little circles on top of him (or a
+// rub that turns loopy) never make him dizzy.
+const CIRCLE_CLEAR = 0.6;
 const CIRCLE_TURNS = 3;
 const CIRCLE_WINDOW = 6; // seconds
 const YAWN_AFTER = 60; // seconds without interaction
@@ -86,6 +105,10 @@ const LINES = {
   roused: lineBag(["oh! hi, i'm awake", 'hm? oh, hi!', "i wasn't sleeping!"]),
   calmDown: lineBag(['hmph. fine.', "ok... i'm not mad anymore", 'we\'re good.']),
   cheerUp: lineBag(["ok, i'm feeling better!", 'i\'m all good now!', 'maybe next time!']),
+  lonely: lineBag(['*sigh*... nobody wants to hang out', "it's kinda lonely down here...", "i'm fine. totally fine. *sniff*"]),
+  lonelyCheered: lineBag(['hehe... thanks. i needed that', 'okay, i feel way better now!', "you do care! yay!"]),
+  dizzyMad: lineBag(["hey!! i was already dizzy!", "not while i'm spinning! hmph!", "ugh, my head... that's it, i'm mad"]),
+  cheerDone: lineBag(["okay, i'll let you work! you got this", 'phew! cheering is hard work', 'go team you! ...okay, break time']),
 };
 
 // ---- State ----
@@ -139,6 +162,7 @@ function setMood(ctx, mood, reason) {
   if ((mood === 'yawning' || mood === 'sleepy') && inShop(ctx)) return false;
   const from = pet.mood;
   pet.mood = mood;
+  if (mood !== 'sad') pet.sadKind = null; // (enter() sets it for sad)
   ctx.cancel(moodTimer);
   moodTimer = null;
   moodEndsAt = null;
@@ -185,9 +209,23 @@ function enter(ctx, mood, reason) {
     endIn(ctx, DIZZY_FOR, () => enter(ctx, back, 'steady again'));
   } else if (mood === 'yawning' && changed) {
     chat(ctx, LINES.yawning(), 3000, { wait: 10 });
+  } else if (mood === 'sad' && reason === 'lonely') {
+    if (!changed) return false;
+    ctx.pet.sadKind = 'lonely';
+    chat(ctx, LINES.lonely(), 3000, { wait: 8 });
+    // Nobody cheered him up: he gets over it and goes off for a nap.
+    endIn(ctx, LONELY_FOR, () => enter(ctx, 'yawning', 'napped off the lonely'));
   } else if (mood === 'sad') {
+    // A sulk (said no to a game) never replaces lonely: that one needs real cheering up.
+    if (ctx.pet.sadKind === 'lonely') return false;
+    ctx.pet.sadKind = 'sulk';
     endIn(ctx, SAD_FOR, () => {
       if (setMood(ctx, 'happy', 'cheered up')) chat(ctx, LINES.cheerUp(), 2500, { wait: 6 });
+    });
+  } else if (mood === 'cheering' && changed) {
+    endIn(ctx, CHEER_FOR, () => {
+      lastInteraction = ctx.clock.seconds; // (don't yawn the second the cheering ends)
+      if (setMood(ctx, 'happy', 'done cheering')) chat(ctx, LINES.cheerDone(), 2500, { wait: 4 });
     });
   } else if (mood === 'sleepy' && changed) {
     chat(ctx, LINES.sleepy(), 3000, { wait: 5, ignoreQuiet: true });
@@ -208,6 +246,19 @@ function interacted(ctx, kind) {
   if (ctx.pet.mood === 'yawning' && setMood(ctx, 'happy', `woke: ${kind}`)) {
     chat(ctx, LINES.roused(), 2000, { wait: 3 });
   }
+}
+
+/**
+ * Cheer a sad star up (petting, chatting, a game). Lonely gets a warmer thank-you; `line` false
+ * when the caller says its own (the dialogue's `say`, a game's opening line).
+ */
+function cheerUp(ctx, how, line = true) {
+  if (ctx.pet.mood !== 'sad') return false;
+  const lonely = ctx.pet.sadKind === 'lonely';
+  if (!setMood(ctx, 'happy', `cheered up: ${how}`)) return false;
+  lastInteraction = ctx.clock.seconds; // a fresh minute before he can get bored again
+  if (line) ctx.say((lonely ? LINES.lonelyCheered : LINES.cheerUp)(), 2500);
+  return true;
 }
 
 function getDizzy(ctx, reason, sayLine) {
@@ -249,9 +300,11 @@ function onEntry(ctx, e) {
         if (pet.mood === 'sad') enter(ctx, 'happy', 'cheered up by a click');
         break;
       }
-      // A click cheers a sad star up (speech.js then answers it with a happy line).
-      if (pet.mood === 'sad') enter(ctx, 'happy', 'cheered up by a click');
-      else if (pet.mood === 'mad') enter(ctx, 'mad', 'poked again');
+      // A click cheers a sulking star up (speech.js then answers it with a happy line). Lonely
+      // needs more than a poke: speech.js answers with a lonely line hinting at a chat instead.
+      if (pet.mood === 'sad') {
+        if (pet.sadKind !== 'lonely') enter(ctx, 'happy', 'cheered up by a click');
+      } else if (pet.mood === 'mad') enter(ctx, 'mad', 'poked again');
       else if (CAN_GET_MAD.includes(pet.mood) && recentPokes(ctx) >= POKES_TO_MAD) {
         enter(ctx, 'mad', 'poked'); // speech.js answers this click with a mad line
       }
@@ -271,6 +324,11 @@ function onEntry(ctx, e) {
         ctx.say(LINES.wake(), 2500);
       }
       interacted(ctx, e.type);
+      // Thrown while he's still dizzy: that's just mean. (mad also makes him swat the next grab.)
+      if (pet.mood === 'dizzy' && e.data.speed >= PLAYFUL_SPEED) {
+        if (enter(ctx, 'mad', 'thrown while dizzy')) ctx.say(LINES.dizzyMad(), 2500);
+        break;
+      }
       if (CAN_GET_PLAYFUL.includes(pet.mood) && e.data.speed >= PLAYFUL_SPEED) enter(ctx, 'playful', 'thrown');
       break;
     case 'impact': // drag.js: hit a screen edge during a throw { side, speed }
@@ -278,13 +336,22 @@ function onEntry(ctx, e) {
       if (pet.mood === 'playful') enter(ctx, 'playful', 'hit the edge');
       break;
     case 'land':
-      // Throws and slingshots both count.
-      if (ctx.events.count('toss', DIZZY_TOSS_WINDOW) + ctx.events.count('slingshot', DIZZY_TOSS_WINDOW) >= DIZZY_TOSSES) {
+      // Throws and slingshots both count. (Not when that last throw just made him mad: he stays mad.)
+      if (pet.mood !== 'mad' && ctx.events.count('toss', DIZZY_TOSS_WINDOW) + ctx.events.count('slingshot', DIZZY_TOSS_WINDOW) >= DIZZY_TOSSES) {
         getDizzy(ctx, 'thrown too much', true);
       }
       break;
     case 'dizzy': // drag.js: spun 3+ turns; it already said its own dizzy line
+      // Spun AGAIN while still dizzy → mad (this line replaces drag.js's dizzy one).
+      if (pet.mood === 'dizzy') {
+        if (enter(ctx, 'mad', 'spun while dizzy')) ctx.say(LINES.dizzyMad(), 2500);
+        break;
+      }
       getDizzy(ctx, 'spun', false);
+      break;
+    case 'event-start':
+      // Playing a game together cheers a sad star right up (the game says its own lines).
+      if (GAME_NAMES.has(e.data.name)) cheerUp(ctx, `game: ${e.data.name}`, false);
       break;
     case 'event-end': {
       const wins = STARBY_WINS[e.data.name];
@@ -363,6 +430,13 @@ function trackRub(ctx, now) {
   rubTurns.length = 0;
   pettedAt = now;
   if (pet.mood === 'mad') setMood(ctx, 'happy', 'petted'); // pets fix grumpiness
+  // ...and sadness (lonely too): a thank-you instead of the usual pet line.
+  if (pet.mood === 'sad') {
+    cheerUp(ctx, 'petted');
+    strikePose(ctx, 'glistening', 1.8);
+    ctx.log('petted', {});
+    return;
+  }
   strikePose(ctx, 'glistening', 1.8);
   if (!isJumping() && (pet.mode === 'idle' || pet.mode === 'walk')) startJump({ height: 0.12 * pet.size, air: 0.3 });
   ctx.say(PET_LINES(), 2200);
@@ -377,7 +451,7 @@ function trackCircle(ctx, now) {
   const dy = cursor.y - c.y;
   const r = Math.hypot(dx, dy);
   const watching = CAN_GET_DIZZY.includes(pet.mood) && pet.mode !== 'drag' && pet.mode !== 'toss';
-  if (cursor.x < -1000 || !watching || r > CIRCLE_RADIUS || r < CIRCLE_MIN_RADIUS) {
+  if (cursor.x < -1000 || !watching || r > CIRCLE_RADIUS || r < pet.size * CIRCLE_CLEAR) {
     circle.prevAngle = null;
     circle.steps = [];
     return;
@@ -503,6 +577,7 @@ function faceFor(ctx) {
   if (pet.faceOverride) return pet.faceOverride;
   if (pet.mood === 'dizzy' || pet.mood === 'yawning' || pet.mood === 'mad' || pet.mood === 'sad') return pet.mood;
   if (pose && ctx.clock.seconds < pose.until) return pose.face; // strikePose (e.g. screenshot wink)
+  if (pet.mood === 'cheering') return 'cheering'; // pom-poms stay in hand while he talks / walks
   if (pet.mode === 'dance') return 'dancing'; // events/dance.js (only runs while happy/playful)
   if (pet.mood === 'playful' || pet.mode === 'toss' || pet.mode === 'tag') return 'playful';
   if (pet.lookUp) return 'up';
@@ -552,7 +627,16 @@ export default {
         enter(ctx, mood, 'devtools');
         return pet.mood;
       };
-      window.starby.mood = () => ({ mood: pet.mood, face: pet.face, goal: pet.goal });
+      window.starby.mood = () => ({ mood: pet.mood, sadKind: pet.sadKind, face: pet.face, goal: pet.goal });
+      // starby.lonely(): straight into lonely-sad (setMood('sad') gives the short sulk).
+      window.starby.lonely = () => {
+        if (pet.mood === 'sad') setMood(ctx, 'happy', 'devtools reset');
+        enter(ctx, 'sad', 'lonely');
+        return pet.sadKind;
+      };
+      // Dialogue → "What's wrong?" branch (../dialogue/tree.js) ends with 'starby:cheerUp': the
+      // answer's own `say` is his thank-you, so no extra line here.
+      window.starby.cheerUp = () => (cheerUp(ctx, 'chatted', false) ? 'happy' : pet.mood);
       // Dialogue → Settings → "feeling sleepy?": "yeah..." and straight into the sleepy walk to his nap spot on
       // the taskbar (no waiting for a random rest first); he falls asleep when he gets there.
       window.starby.getSleepy = () => {
@@ -594,7 +678,9 @@ export default {
 
     const relaxed = pet.mode === 'idle' || pet.mode === 'walk';
     if (pet.mood === 'happy' && relaxed && now - lastInteraction >= (isNight ? YAWN_AFTER_NIGHT : YAWN_AFTER)) {
-      enter(ctx, 'yawning', isNight ? 'bored (night)' : 'bored');
+      // Bored: usually sleepy, sometimes lonely-sad instead.
+      if (Math.random() < (isNight ? SAD_INSTEAD_CHANCE_NIGHT : SAD_INSTEAD_CHANCE)) enter(ctx, 'sad', 'lonely');
+      else enter(ctx, 'yawning', isNight ? 'bored (night)' : 'bored');
     }
     if (pet.mood === 'yawning' && pet.goal && pet.mode === 'idle'
       && Math.hypot(pet.x - pet.goal.x, pet.y - pet.goal.y) <= CORNER_REACHED) {
