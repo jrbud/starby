@@ -6,8 +6,7 @@ const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
 const { openShopWindow, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const settingsStore = require('./settingsStore');
-const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
-const { handleDevCommand } = require('./windows/devToolsWindow');
+const { openDevToolsWindow, handleDevCommand } = require('./windows/devToolsWindow');
 const adminSettingsStore = require('./adminSettingsStore');
 const statsStore = require('./statsStore');
 const startup = require('./startup');
@@ -119,7 +118,7 @@ function registerIpc() {
   ipcMain.handle('admin:get', () => adminSettingsStore.get());
   ipcMain.handle('admin:set', (_e, patch) => adminSettingsStore.set(patch));
   ipcMain.handle('admin:reset', () => adminSettingsStore.reset());
-  ipcMain.on('admin:open', () => openAdminSettingsWindow());
+  ipcMain.on('admin:open', () => openDevToolsWindow('admin')); // the Developer window's Admin Settings tab
   // Developer window buttons (only accepted from that window: windows/devToolsWindow.js).
   ipcMain.on('dev:command', (e, cmd) => handleDevCommand(e.sender, cmd));
 

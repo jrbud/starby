@@ -1,19 +1,55 @@
 body {
   font: 13px system-ui, sans-serif;
   margin: 0;
-  padding: 10px 14px 20px;
+  padding: 0 14px 20px;
   background: #f4f4f4;
   color: #222;
 }
-#status {
+.note {
+  color: #777;
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+button {
+  font: inherit;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+/* ---- Top bar: tabs + status line (stays put while scrolling) ---- */
+#top {
   position: sticky;
   top: 0;
-  margin: -10px -14px 8px;
-  padding: 8px 14px;
+  z-index: 1;
+  margin: 0 -14px 10px;
   background: #222;
   color: #fff;
-  font-family: Consolas, monospace;
 }
+#tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 14px 0;
+}
+#tabs button {
+  border: none;
+  border-radius: 4px 4px 0 0;
+  background: #444;
+  color: #ddd;
+  padding: 6px 14px;
+}
+#tabs button.active {
+  background: #f4f4f4;
+  color: #222;
+  font-weight: 600;
+}
+#status {
+  margin: 0;
+  padding: 6px 14px;
+  font-family: Consolas, monospace;
+  border-top: 1px solid #f4f4f4;
+}
+
+/* ---- Actions tab ---- */
 fieldset {
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -31,17 +67,76 @@ legend {
   gap: 6px;
   align-items: center;
 }
-button {
-  font: inherit;
-  padding: 4px 10px;
-  cursor: pointer;
-}
 input[type='number'] {
   width: 64px;
   font: inherit;
 }
-.note {
+
+/* ---- Admin Settings tab (rows built by adminPanel.js) ---- */
+#settings {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+.group > summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 4px 0;
+  border-bottom: 1px solid #ccc;
+}
+.group-count {
+  margin-left: 8px;
+  font-weight: 400;
   color: #777;
   font-size: 12px;
-  margin: 6px 0 0;
+}
+.group-body {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+}
+.setting {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-left: 3px solid #ccc;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 3px;
+}
+.setting.changed {
+  border-left-color: #2a7ae2; /* moved off its default */
+}
+.label-row,
+.switch-row,
+.ends {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.label-row label,
+.switch-name {
+  font-weight: 600;
+}
+.switch-row {
+  cursor: pointer;
+}
+output {
+  font-family: Consolas, monospace;
+}
+input[type='range'] {
+  width: 100%;
+}
+.ends {
+  font-size: 11px;
+  color: #777;
+}
+.ends .default {
+  font-style: italic;
+}
+.detail {
+  margin: 0;
+  font-size: 12px;
+  color: #777;
 }

@@ -38,7 +38,8 @@ import fidget from './fidget.js'; // little bored fidgets (spin, bop, look aroun
 import goodbye from './goodbye.js'; // quitting: a goodbye line, a star burst, he shrinks away
 import fx from './fx.js'; // hand-drawn effects: wall hits, swats, star bursts
 import find from './find.js'; // tray → "Find Starby": he pops into the middle of the screen
+import nameChange from './nameChange.js'; // "nice to meet you, Sam!" when you change your name
 import stats from './stats.js'; // lifetime stats: counts throws, slingshots, games (Settings → Stats)
 import cheerleader from './cheerleader.js'; // a long stretch in a work app → he cheers you on
 
-export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, dream, charm, fidget, goodbye, fx, find, stats, cheerleader];
+export const BEHAVIORS = [idle, walk, drag, slingshot, cursorReact, mood, moodLabel, speech, starbits, systemReactions, sessionEvents, dream, charm, fidget, goodbye, fx, find, cheerleader, nameChange, stats];
