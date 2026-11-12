@@ -89,8 +89,8 @@ button {
      .done   already wearing  → white art, faded, no hover */
 .action-button {
   align-self: flex-start;
-  margin: 16px 0 0 45px; /* centered under the 220px box: (220 - 130) / 2 */
-  width: 130px;
+  margin: 16px 0 0 15px; /* centered under the 220px box: ((220 - 170) / 2 ) -10 -- the -10 is to make it feel centered*/
+  width: 170px;
   min-height: 46px; /* art ratio ~2.4:1; min-height: a label that wraps (big Font size) makes it taller */
   padding: 6px 10px 8px; /* keeps 2 lines inside the art's drawn border */
   line-height: 1.1;
