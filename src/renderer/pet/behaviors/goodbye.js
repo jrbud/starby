@@ -32,6 +32,7 @@ const LINES = [
   'until next time! *twinkle*',
   'see ya, space cadet!',
   'off to the stars! bye!',
+  'bye {name}! see you soon!',
 ];
 
 let leaving = false;

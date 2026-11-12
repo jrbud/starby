@@ -1,18 +1,20 @@
-// The Developer window (tray → "Developer…"): a plain, framed window full of buttons that trigger
+// The Developer window (tray → "Developer…"): a plain, framed window with two tabs. Actions: buttons that trigger
 // Starby's debug helpers (window.starby.* in the pet window), start events, open the pet's
-// DevTools, etc. Not styled on purpose; it's for the team, not players. Only one at a time.
+// DevTools, etc. Admin Settings: the starbits tuning sliders (was its own window; adminSettingsStore.js).
+// Not styled on purpose; it's for the team, not players. Only one at a time.
 // The page: src/renderer/devtools/. Its buttons call window.sprite.devCommand(cmd) → ipc.js
 // 'dev:command' → handleDevCommand below, which only listens to THIS window.
 const { BrowserWindow } = require('electron');
 const path = require('path');
 const { bringToFront } = require('./bringToFront');
 const { getPetWindow } = require('./petWindow');
-const { openAdminSettingsWindow } = require('./adminSettingsWindow');
 
 let devWindow = null;
 
-function openDevToolsWindow() {
+/** tab: 'actions' | 'admin' (omit = the last one used). */
+function openDevToolsWindow(tab) {
   if (devWindow) {
+    if (tab) devWindow.webContents.executeJavaScript(`window.showTab?.(${JSON.stringify(tab)})`).catch(() => {});
     bringToFront(devWindow);
     return devWindow;
   }
@@ -31,7 +33,7 @@ function openDevToolsWindow() {
     },
   });
   devWindow.once('ready-to-show', () => bringToFront(devWindow));
-  devWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'devtools', 'index.html'));
+  devWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'devtools', 'index.html'), tab ? { query: { tab } } : undefined);
   devWindow.on('closed', () => { devWindow = null; });
   return devWindow;
 }
@@ -47,9 +49,6 @@ function handleDevCommand(sender, cmd) {
   switch (cmd.type) {
     case 'pet-devtools':
       pet?.webContents.openDevTools({ mode: 'detach' });
-      break;
-    case 'admin':
-      openAdminSettingsWindow();
       break;
     case 'starby': // window.starby[fn](...args) in the pet window (pet.js onPetCommand)
       if (NAME.test(cmd.fn || '')) {

@@ -2,7 +2,7 @@
 // Right-clicking it shows a short menu: Settings, Shop, Info (the welcome window again),
 // Hide/Show Starby, Find Starby, Start with Windows, Quit.
 // (Right-clicking Starby himself opens his dialogue box instead: src/renderer/pet/dialogue/. Games,
-// Admin Settings and the dev helpers live there / in window.starby, not in this menu.)
+// Admin Settings and the dev helpers are in the Developer window: windows/devToolsWindow.js.)
 //
 // ICON: uses the team's existing Starby art (assets/sprite/sunny/idle-1.png), shrunk at runtime.
 // A dedicated small tray icon drawn by the team would read better at 16px; swap TRAY_ICON when

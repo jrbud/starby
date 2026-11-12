@@ -15,6 +15,7 @@ import { clampToScreen } from './behaviors/motion.js';
 import { createFrames, DEFAULT_SET } from './frames.js';
 import { createAccessoryArt, drawWorn, anchorAt, OVERHANG } from './accessories.js';
 import { createFloaters } from './floaters.js';
+import { fillName } from './userName.js';
 
 const api = window.sprite;
 const petEl = document.getElementById('pet');
@@ -141,6 +142,7 @@ const ctx = {
   stageWidth,
   area: workArea, // usable screen area { left, top, right, bottom } (taskbar on any side)
   say: (text, ms) => {
+    text = fillName(text); // "{name}" → what he calls you (./userName.js)
     // Hushed (a video call or a fullscreen app, see events/hush.js): no speech bubbles at all.
     if (pet.hushed) {
       log('say-muted', { text });

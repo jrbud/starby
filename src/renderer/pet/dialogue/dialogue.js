@@ -56,6 +56,7 @@ import { TICK_SECONDS } from '../core/clock.js';
 import { createTalkbox, loadTalkbox, talkboxReady, takeSpeech, releaseSpeech, onSpeechBubbleShown } from '../talkbox.js';
 import { sfx } from '../../shared/sfx.js';
 import { menuScale, chatScale, fontScale } from '../uiScale.js';
+import { fillName } from '../userName.js';
 
 // ---- Tuning ----
 export const MAX_OPTIONS = 6; // answers per node (tree.js keeps to this; extras are dropped)
@@ -359,6 +360,7 @@ function makeSay() {
 }
 
 function setSayText(ctx, text) {
+  text = fillName(text); // "{name}" → what he calls you (../userName.js)
   if (say.talk && say.tb.setText(text)) {
     say.tailFrac = say.tb.tailFrac;
     say.el.style.transformOrigin = `${(say.tailFrac * 100).toFixed(1)}% 100%`; // pops from the tail

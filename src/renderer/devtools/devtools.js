@@ -2,10 +2,29 @@
 // through window.sprite.devCommand(cmd):
 //   { type: 'starby', fn, args }   → window.starby[fn](...args) in the pet window
 //   { type: 'start-event', name }  → start that event (as if picked from his menu)
-//   { type: 'pet-devtools' }, { type: 'admin' }  → open those windows
+//   { type: 'pet-devtools' }  → open the pet window's DevTools
 // TO ADD A BUTTON: add it to SECTIONS below. A new window.starby helper works with no other changes.
+// The Admin Settings tab is adminPanel.js.
 const api = window.sprite;
 const statusEl = document.getElementById('status');
+
+// ---- Tabs: Actions / Admin Settings. Starts on ?tab=... (devToolsWindow.js opens the Admin tab for
+// "Admin Settings" in Starby's hidden menu), else the last one used (this window's localStorage). ----
+const TAB_KEY = 'devtools:tab';
+function showTab(name) {
+  if (!document.getElementById(`tab-${name}`)) name = 'actions';
+  for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === name);
+  for (const s of document.querySelectorAll('.tab')) s.hidden = s.id !== `tab-${name}`;
+  statusEl.hidden = name !== 'actions';
+  try { localStorage.setItem(TAB_KEY, name); } catch { /* ignore */ }
+}
+window.showTab = showTab; // devToolsWindow.js switches tabs on an already-open window
+for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => showTab(b.dataset.tab));
+{
+  let saved = null;
+  try { saved = localStorage.getItem(TAB_KEY); } catch { /* ignore */ }
+  showTab(new URLSearchParams(location.search).get('tab') || saved || 'actions');
+}
 
 const starby = (fn, ...args) => ({ type: 'starby', fn, args });
 const stop = starby('stopEvent');
@@ -22,7 +41,6 @@ const MOODS = ['happy', 'playful', 'mad', 'sad', 'dizzy', 'yawning', 'sleepy'];
 const SECTIONS = [
   ['Tools', [
     ['Open pet DevTools', { type: 'pet-devtools' }],
-    ['Admin Settings', { type: 'admin' }],
     ['Find Starby', starby('find')],
     ['Stop current event', stop],
   ]],
@@ -80,6 +98,9 @@ const SECTIONS = [
     ['Milestone (100)', starby('milestone', 100)],
     ['Milestone (1000)', starby('milestone', 1000)],
   ]],
+  ['Name', [
+    ['Name change reaction (Sam)', starby('nameChange', 'Sam')],
+  ], 'Only his reaction: your saved name doesn\'t change.'],
   ['Goodbye', [
     ['Play goodbye (doesn\'t quit)', starby('goodbye')],
   ]],

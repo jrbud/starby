@@ -46,12 +46,31 @@ hideBox.addEventListener('change', () => {
   api.setSettings?.({ showWelcome: hideBox.checked ? 0 : 1 })?.catch?.(() => {});
 });
 
+// ---- What should i call you? (settingsStore.userName; Starby says it via renderer/pet/userName.js) ----
+const nameBox = document.getElementById('name');
+let nameTimer = null;
+const saveName = () => {
+  clearTimeout(nameTimer);
+  api.setSettings?.({ userName: nameBox.value })?.catch?.(() => {});
+};
+Promise.resolve(api.getSettings?.()).then((s) => {
+  if (typeof s?.userName === 'string' && !nameBox.value) nameBox.value = s.userName;
+}).catch(() => {});
+nameBox.addEventListener('input', () => {
+  clearTimeout(nameTimer);
+  nameTimer = setTimeout(saveName, 300);
+});
+nameBox.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') go.click(); // Enter in the name box = "let's go!"
+});
+
 // ---- Let's go! ----
 const go = document.getElementById('go');
 go.addEventListener('mouseenter', () => { winking = true; starby.src = WINK; });
 go.addEventListener('mouseleave', () => { winking = false; starby.src = HAPPY[frame]; });
 go.addEventListener('click', () => {
   go.disabled = true;
+  saveName(); // before Starby starts, so his first hello uses it
   api.welcomeDone?.();
 });
-go.focus();
+nameBox.focus();

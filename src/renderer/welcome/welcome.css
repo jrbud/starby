@@ -183,6 +183,33 @@ footer {
 .check.disabled input {
   cursor: default;
 }
+/* "What should i call you?" + the name box, framed with the team's white square art. */
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.name-row input {
+  width: 160px;
+  padding: 4px 8px;
+  border: 8px solid transparent;
+  border-image: url('../../../assets/menuIcons/white-square-hover.png') 95 fill / 8px stretch;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: center;
+}
+.name-row input::placeholder {
+  color: var(--ink);
+  opacity: 0.45;
+}
+.name-row input:focus {
+  outline: none;
+}
 .hint {
   margin: -4px 0 0;
   font-size: 12px;

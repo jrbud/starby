@@ -53,13 +53,13 @@ const GREETING_MS = 2800;
 const MIN = 60;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
-const FIRST_TIME = ["hi! i'm starby!", 'i live on your screen now :)', 'catch the starbits i drop!'];
+const FIRST_TIME = ["hi {name}! i'm starby!", 'i live on your screen now :)', 'catch the starbits i drop!'];
 const GREETINGS = [
   // [away for less than (seconds), lines]
-  [10 * MIN, lineBag(['back already?', 'oh! hi again!', 'that was quick!', 'hi hi!'])],
-  [6 * HOUR, lineBag(['welcome back!', 'hiya!', 'missed me?', 'yay, you\'re here!'])],
-  [2 * DAY, lineBag(['hey, you\'re back!', 'good to see you again!', 'there you are!', 'morning? evening? hi!'])],
-  [7 * DAY, lineBag(['long time no see!', 'i missed you!', 'where\'d you go?!'])],
+  [10 * MIN, lineBag(['back already?', 'oh! hi again!', 'that was quick!', 'hi hi!', 'hi again, {name}!'])],
+  [6 * HOUR, lineBag(['welcome back!', 'hiya!', 'missed me?', 'yay, you\'re here!', 'welcome back, {name}!'])],
+  [2 * DAY, lineBag(['hey, you\'re back!', 'good to see you again!', 'there you are!', 'morning? evening? hi!', 'there you are, {name}!'])],
+  [7 * DAY, lineBag(['long time no see!', 'i missed you!', 'where\'d you go?!', 'i missed you, {name}!'])],
   [Infinity, lineBag(['long time no see!!', 'it\'s been forever!', 'i thought you forgot about me...'])],
 ];
 const SEEN_KEY = 'starby:lastSeenAt';
