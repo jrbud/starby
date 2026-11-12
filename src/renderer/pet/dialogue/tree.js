@@ -12,7 +12,7 @@
 //                                      // or a function (ctx) => string, for lines that depend on state
 //     options: [ ...answers ],         // the boxes around him: left, right, left, right, ...
 //     pose: 'wink',                    // optional: a face he makes while saying it ('wink',
-//                                      // 'glistening', 'playful', 'spittle', 'sad'...), or
+//                                      // 'glistening', 'playful', 'spittle', 'grumpy'...), or
 //                                      // { face, for: seconds }
 //   }
 //
@@ -35,6 +35,8 @@
 import { GAMES, restLeft, gameEnabled } from '../events/games.js';
 
 const focusing = (ctx) => ctx.activeEvent() === 'focus';
+// Lonely-sad (behaviors/mood.js: bored and sad instead of sleepy). Unlocks the "What's wrong?" talk.
+const lonely = (ctx) => ctx.pet.mood === 'sad' && ctx.pet.sadKind === 'lonely';
 
 const mmss = (s) => {
   const whole = Math.ceil(s);
@@ -74,11 +76,14 @@ export const TREE = {
       if (focusing(ctx)) return pick(['oh! hi! need something?', 'hm? what is it?']);
       if (mood === 'mad') return pick(['...what.', 'hmph. what do you want?']);
       if (mood === 'sleepy') return pick(["*yawn* huh? what's up?", 'mmh... hi...']);
+      if (lonely(ctx)) return pick(['oh... you came to talk to me?', 'hi... *sniff*', "oh. hey. didn't think anyone would stop by."]);
       if (mood === 'sad') return pick(['oh... hey.', 'hi...']);
       return pick(["hey, what's up?", "hi hi! what's up?", "ooh, hi! what's going on?"]);
     },
     options: [
-      { label: "Let's chat!", next: 'chat' },
+      // Lonely: "What's wrong?" takes Let's chat!'s spot (same box, so still at most 6 answers).
+      { label: "What's wrong?", next: 'sad', show: lonely },
+      { label: "Let's chat!", next: 'chat', show: (ctx) => !lonely(ctx) },
       { label: 'Wanna shop?', action: 'shop', say: 'ooh, shopping!' },
       { label: 'Wanna play a game?', next: 'games', show: anyOn([...ACTION_GAMES, ...CHILL_GAMES]) },
       { label: 'It\'s time to focus', action: 'focus', show: (ctx) => !focusing(ctx) },
@@ -110,6 +115,46 @@ export const TREE = {
       // 5th shown, so it sits in the same box as 'start''s Never mind (5th once filtered).
       { label: 'Never mind', action: 'close' },
       { label: "Okay, I'm done focusing!", action: 'unfocus' },
+    ],
+  },
+
+  // ---- Sad talk ----
+  // Only while he's lonely-sad ('start' shows "What's wrong?" instead of "Let's chat!").
+  // Answers that comfort him end with action 'starby:cheerUp' (behaviors/mood.js): he's happy again,
+  // and the answer's `say` is his thank-you. Leaving ("Sorry, I have to go") keeps him sad.
+  sad: {
+    line: ["i just... feel kinda lonely.", "i was sitting here by myself for ages. it's fine. ...it's not fine.", "everyone's always so busy..."],
+    pose: 'sad',
+    options: [
+      { label: "I'm here now!", next: 'sadHere' },
+      { label: 'Want to talk about it?', next: 'sadTalk' },
+      { label: 'Wanna play a game?', next: 'games', show: anyOn([...ACTION_GAMES, ...CHILL_GAMES]) }, // a game cheers him up too
+      { label: 'Sorry, I have to go', action: 'close', say: 'oh... okay. bye...' },
+    ],
+  },
+  sadHere: {
+    line: ['you mean it? ...okay. that helps. a lot, actually.', 'really? you came over just for me?'],
+    pose: 'glistening',
+    options: [
+      { label: 'Of course!', action: 'starby:cheerUp', say: "hehe. okay! i feel way better!" },
+      { label: 'Always, buddy', action: 'starby:cheerUp', say: 'buddy! ...i like that. thanks!' },
+    ],
+  },
+  sadTalk: {
+    line: "it's just... up there, stars are never alone. there's billions of us. down here it's just me and your cursor.",
+    pose: 'sad',
+    options: [
+      { label: "You've got me!", action: 'starby:cheerUp', say: "...yeah. i do, huh? hehe" },
+      { label: 'My cursor is a great friend', next: 'sadCursor' },
+      { label: "I'm sorry, Starby", action: 'starby:cheerUp', say: "it's okay. talking helps. thanks for asking" },
+    ],
+  },
+  sadCursor: {
+    line: "it is pretty great. it never sits still though. ...hey, you're kinda funny.",
+    pose: 'wink',
+    options: [
+      { label: 'Hehe, I try', action: 'starby:cheerUp', say: "okay, you cheered me up. don't tell anyone" },
+      { label: 'Feel better?', action: 'starby:cheerUp', say: 'yeah! way better. thanks, friend!' },
     ],
   },
 
@@ -212,7 +257,7 @@ export const TREE = {
 
   chatAge: {
     line: "rude! you can't just ask a star that!",
-    pose: { face: 'sad', for: 1.2 }, // (the grumpy frames)
+    pose: { face: 'grumpy', for: 1.2 }, // (the mad frames, slower)
     options: [
       { label: 'Hey! I was just wondering!', next: 'chatAgeWondering' },
       { label: "Oh, my bad, I'm sorry!", next: 'chatAgeSorry' },

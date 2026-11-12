@@ -19,6 +19,9 @@
 // move by `at` → rotate by `rot` → scale → put the accessory's own `pivot` point there.
 // If an anchor is busy in a frame (null, e.g. his left hand covers his mouth when yawning),
 // the accessory moves to `fallback` (mirrored), e.g. the lollipop changes hands.
+// NEW FRAMES (frames.js "Faces waiting for art": sad-*, cheer-*, gamer-*, watching-*): until they're
+// listed in POSES they use IDLE's anchors. Once the art is in, measure and add them, and set a
+// hand to null where it holds the controller / popcorn / pom-pom so the lollipop moves out of the way.
 import { FEET_PADDING, alignFor } from './frames.js';
 
 const ART = 2048;
