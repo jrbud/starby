@@ -36,9 +36,14 @@ export const MOODS = {
   playful: { ...BASE, starbits: 2, bobSpeed: 4 },
   dizzy: { ...BASE, starbits: 0, wander: false, follow: false, flee: false, hop: false, bobSpeed: 2 },
   yawning: { ...BASE, starbits: 0, wander: 'corner', follow: false, flee: false, hop: false, bobSpeed: 2 },
-  // sad: you said no to a game (events/tag.js). Mopes: slow, no hops, avoids your eyes, doesn't
-  // come over to say hi. Wears off after a while, or a click cheers him up (mood.js).
+  // sad: two kinds (pet.sadKind, mood.js). 'sulk': you said no to a game (events/invite.js), a
+  // click cheers him up. 'lonely': bored instead of sleepy; only petting, chatting ("what's
+  // wrong?" in the dialogue) or a game cheer him up, else he gets over it and naps.
+  // Mopes: slow, no hops, avoids your eyes, doesn't come over to say hi.
   sad: { ...BASE, follow: false, lookAway: true, hop: false, bobSpeed: 1.5, speed: 0.5 },
+  // cheering: cheerleader (./cheerleader.js) after a long stretch in a work app. Stays where he
+  // is (cheerleader.js does the hops), no flinching or following: he's busy cheering.
+  cheering: { ...BASE, wander: false, follow: false, flee: false, hop: false, bobSpeed: 5 },
   sleepy: {
     ...BASE, starbits: 0, wander: false, follow: false, flee: false, hop: false, quiet: true, bobSpeed: 1, eyesShut: true,
   },
