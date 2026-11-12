@@ -32,7 +32,8 @@ if (!app.requestSingleInstanceLock()) {
     applyWindowIcons(); // classic Starby on every window's title bar / taskbar (before any window opens)
     registerIpc();
     // WELCOME first, before anything of Starby loads, until "Don't show this again" (showWelcome = 0).
-    // `npm start -- --welcome` shows it anyway (for working on the welcome window).
+    // `node scripts/start.js --welcome` shows it anyway (for working on the welcome window). Not
+    // `npm start -- --welcome` from PowerShell: PowerShell drops the `--`, so npm eats the flag.
     const forceWelcome = process.argv.includes('--welcome');
     if (forceWelcome || Number(settingsStore.get().showWelcome) !== 0) openWelcomeWindow(startStarby);
     else startStarby();

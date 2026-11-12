@@ -32,7 +32,7 @@
 // 'start' is the node right-clicking opens. 'busy' opens instead while a game / sky event is on,
 // and 'focus' while he's in focus mode.
 // To write the chat: fill in the 'chat' node and add your own nodes, linking them with `next`.
-import { GAMES, restLeft } from '../events/games.js';
+import { GAMES, restLeft, gameEnabled } from '../events/games.js';
 
 const focusing = (ctx) => ctx.activeEvent() === 'focus';
 
@@ -45,10 +45,12 @@ const mmss = (s) => {
 // A game added to GAMES (events/games.js) also needs adding to one of these lists.
 const ACTION_GAMES = ['tag', 'pong', 'catch', 'hoop-shot', 'maze'];
 const CHILL_GAMES = ['hide-seek', 'starby-says', 'constellation', 'memory', 'shuffle'];
+// Games switched off in Settings → Games are hidden (show), and so is a list with none left on.
 const gameOptions = (names) => names
   .map((name) => GAMES.find((g) => g.name === name))
   .filter(Boolean)
-  .map((g) => ({ label: g.label, action: `game:${g.name}` }));
+  .map((g) => ({ label: g.label, action: `game:${g.name}`, show: () => gameEnabled(g.name) }));
+const anyOn = (names) => () => names.some((name) => gameEnabled(name));
 
 // "i'm still tired (0:42)" while he needs a rest after a game, else `fresh`.
 const restOr = (fresh) => (ctx) => {
@@ -78,7 +80,7 @@ export const TREE = {
     options: [
       { label: "Let's chat!", next: 'chat' },
       { label: 'Wanna shop?', action: 'shop', say: 'ooh, shopping!' },
-      { label: 'Wanna play a game?', next: 'games' },
+      { label: 'Wanna play a game?', next: 'games', show: anyOn([...ACTION_GAMES, ...CHILL_GAMES]) },
       { label: 'It\'s time to focus', action: 'focus', show: (ctx) => !focusing(ctx) },
       { label: "Okay, I'm done focusing!", action: 'unfocus', show: focusing }, // (focusing opens 'focus' instead)
       { label: 'Never mind', action: 'close' },
@@ -287,8 +289,8 @@ export const TREE = {
   games: {
     line: restOr(['yes!! what kind?', 'ooh, a game! what kind?']),
     options: [
-      { label: 'Action games', next: 'gamesAction' },
-      { label: 'Chill games', next: 'gamesChill' },
+      { label: 'Action games', next: 'gamesAction', show: anyOn(ACTION_GAMES) },
+      { label: 'Chill games', next: 'gamesChill', show: anyOn(CHILL_GAMES) },
       { label: 'Back', next: 'start' },
     ],
   },

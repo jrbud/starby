@@ -14,6 +14,7 @@ const { openShopWindow } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const { openAdminSettingsWindow } = require('./windows/adminSettingsWindow');
 const { getPetWindow } = require('./windows/petWindow');
+const settingsStore = require('./settingsStore');
 
 const TRAY_ICON = path.join(__dirname, '..', '..', 'assets', 'sprite', 'sunny', 'idle-1.png');
 
@@ -29,22 +30,30 @@ function buildPetMenu() {
   };
   const play = (name) => send({ type: 'start-event', name });
   const dev = (fn, ...args) => send({ type: 'starby', fn, args });
+  // Games switched off in Settings → Games (settingsStore.gamesOff) aren't listed; none at all when
+  // the whole Games section is off (gamesEnabled 0).
+  const s = settingsStore.get();
+  const gamesOn = s.gamesEnabled === undefined || Number(s.gamesEnabled) !== 0;
+  const off = new Set(s.gamesOff || []);
+  const games = [
+    ['tag', 'Play tag'],
+    ['pong', 'Play pong'],
+    ['hide-seek', 'Play hide & seek'],
+    ['catch', 'Play catch'],
+    ['constellation', 'Play constellation quiz'],
+    ['starby-says', 'Play starby says'],
+    ['hoop-shot', 'Play hoop shot'],
+    ['memory', 'Play memory'],
+    ['shuffle', 'Play asteroid shuffle'],
+    ['maze', 'Play maze'],
+  ].filter(([name]) => gamesOn && !off.has(name)).map(([name, label]) => ({ label, click: () => play(name) }));
   return Menu.buildFromTemplate([
     { label: 'Open shop', click: () => openShopWindow() },
     { label: 'Settings…', click: () => openSettingsWindow() },
     { label: 'Admin Settings…', click: () => openAdminSettingsWindow() },
     { type: 'separator' },
-    { label: 'Play tag', click: () => play('tag') },
-    { label: 'Play pong', click: () => play('pong') },
-    { label: 'Play hide & seek', click: () => play('hide-seek') },
-    { label: 'Play catch', click: () => play('catch') },
-    { label: 'Play constellation quiz', click: () => play('constellation') },
-    { label: 'Play starby says', click: () => play('starby-says') },
-    { label: 'Play hoop shot', click: () => play('hoop-shot') },
-    { label: 'Play memory', click: () => play('memory') },
-    { label: 'Play asteroid shuffle', click: () => play('shuffle') },
-    { label: 'Play maze', click: () => play('maze') },
-    { type: 'separator' },
+    ...games,
+    ...(games.length ? [{ type: 'separator' }] : []),
     {
       label: 'Developer',
       submenu: [

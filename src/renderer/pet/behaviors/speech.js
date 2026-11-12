@@ -121,12 +121,17 @@ const CHAT_GAP = 10; // idle chatter needs this many quiet seconds, or it's skip
 const rand = (a, b) => a + Math.random() * (b - a);
 const forMood = (bags, pet) => (bags[pet.mood] || bags.happy)();
 
+// Settings → Starby → "Idle chats" (settingsStore.idleChats, 1/0): off = no random lines while he
+// hangs around. Clicks, games, reactions and focus mode's "Talk to me" still talk.
+let idleChatsOn = true;
+const applySpeechSettings = (s) => { idleChatsOn = s?.idleChats === undefined || Number(s.idleChats) !== 0; };
+
 function scheduleChat(ctx) {
   ctx.after(rand(...CHAT_EVERY), () => {
     // Only chat while relaxed (not while held, fleeing, etc.). Also in focus mode once you've
     // picked "Talk to me" in its menu (events/focus.js sets pet.focusTalk).
     const { mode, focusTalk } = ctx.pet;
-    if (mode === 'idle' || mode === 'walk' || (mode === 'focus' && focusTalk)) {
+    if (((mode === 'idle' || mode === 'walk') && idleChatsOn) || (mode === 'focus' && focusTalk)) {
       // ignoreQuiet: these pools already fit the mood (asleep → "zzz"), so they're allowed while asleep.
       chat(ctx, forMood(IDLE_BY_MOOD, ctx.pet), 3000, { gap: CHAT_GAP, ignoreQuiet: true });
     }
@@ -146,6 +151,8 @@ export default {
       if (ctx.pet.mode === 'focus') return;
       ctx.say(clickLine(ctx), 2000);
     });
+    ctx.api.getSettings?.().then(applySpeechSettings).catch(() => {});
+    ctx.api.onSettingsChanged?.(applySpeechSettings);
     scheduleChat(ctx);
   },
 };

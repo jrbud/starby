@@ -8,6 +8,27 @@ import { sfx, SOUND_CATEGORIES } from '../shared/sfx.js';
 // (team decision; open/closed isn't remembered). Click a heading to open it.
 for (const section of document.querySelectorAll('details.group')) section.open = false;
 
+// ---- Sections switched OFF by the box in their header (Sounds, Starbits, Games): their body is
+// hidden (settings.css, .section-off), but nothing in it is changed, so switching the section back
+// on brings every setting back as it was. Switching one on also opens it, so you see what's back.
+function syncSectionsOff() {
+  for (const section of document.querySelectorAll('details.group')) {
+    const box = section.querySelector(':scope > summary .header-toggle');
+    if (box) section.classList.toggle('section-off', !box.checked);
+  }
+}
+document.addEventListener('change', (e) => {
+  if (!e.target.matches?.('.header-toggle')) return;
+  syncSectionsOff();
+  if (e.target.checked) e.target.closest('details').open = true;
+});
+// An off section's heading doesn't open/close it (there's nothing to show); its box still works.
+for (const summary of document.querySelectorAll('details.group > summary')) {
+  summary.addEventListener('click', (e) => {
+    if (summary.parentElement.classList.contains('section-off') && !e.target.matches('.header-toggle')) e.preventDefault();
+  });
+}
+
 const api = window.sprite;
 
 // Frameless window: our own close button (team art, see ../shared/menuFrame.css).
@@ -112,10 +133,19 @@ const SWITCHES = [
   ['starbit-shoot', 'starbitShootAnimation'],
   ['starbit-show-count', 'starbitShowCount'],
   ['show-welcome', 'showWelcome'], // App → the welcome window at launch
+  ['game-invites', 'gameInvites'], // Games → Starby asks you to play
+  ['starby-game-invites', 'gameInvites'], // ...the same switch again, in the Starby section (linked)
+  ['idle-chats', 'idleChats'], // Starby → random lines while he hangs around
+  ['games-on', 'gamesEnabled'], // Games → the section's own box (all games on/off)
 ].map(([id, key]) => ({ box: document.getElementById(id), key }));
 
+// Several boxes can share one setting (gameInvites is in Starby AND Games): ticking one ticks the
+// others right away (the saved value comes back through show() as well).
 for (const { box, key } of SWITCHES) {
-  box.addEventListener('change', () => api.setSettings({ [key]: box.checked ? 1 : 0 }));
+  box.addEventListener('change', () => {
+    for (const other of SWITCHES) if (other.key === key && other.box !== box) other.box.checked = box.checked;
+    api.setSettings({ [key]: box.checked ? 1 : 0 });
+  });
 }
 
 function showSwitches(settings) {
@@ -283,12 +313,14 @@ function show(settings) {
   showSwitches(settings);
   showStarbySize(settings.starbySize);
   showUiScales(settings);
+  showGameToggles(settings);
   slider.value = settings.flingPower;
   valueOut.textContent = settings.flingPower;
   if (pendingColorSaves === 0) showColors(settings.starbitColors);
   showSize(settings.starbitSize);
   sizePreview.src = starbitImage(previewColor(settings.starbitColors), 1);
   syncAllFills();
+  syncSectionsOff(); // after the header boxes above are set
 }
 
 slider.addEventListener('input', () => {
@@ -388,6 +420,35 @@ const GAME_LABELS = {
   'hoop-shot': 'Hoop Shot', maze: 'Maze', shuffle: 'Asteroid Shuffle', memory: 'Memory', constellation: 'Star Quiz',
 };
 const gameLabel = (name) => GAME_LABELS[name] || name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+// ---- Games → one on/off box per game (checked = on). Saved as the list switched OFF
+// (settingsStore.gamesOff), so a game added later starts out on. The pet hides an off game from
+// his menu, his invites and the tray (pet/events/games.js, main/tray.js).
+// A new game needs adding to GAME_LABELS above to get a box here.
+const gameToggleBoxes = new Map(); // name → checkbox
+const gameTogglesEl = document.getElementById('game-toggles');
+for (const name of Object.keys(GAME_LABELS)) {
+  const label = document.createElement('label');
+  label.className = 'switch-row';
+  const span = document.createElement('span');
+  span.className = 'switch-name';
+  span.textContent = GAME_LABELS[name];
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.className = 'art-check';
+  box.checked = true;
+  label.append(span, box);
+  gameTogglesEl.append(label);
+  gameToggleBoxes.set(name, box);
+  box.addEventListener('change', () => {
+    const off = [...gameToggleBoxes].filter(([, b]) => !b.checked).map(([n]) => n);
+    api.setSettings({ gamesOff: off });
+  });
+}
+function showGameToggles(settings) {
+  const off = new Set(Array.isArray(settings?.gamesOff) ? settings.gamesOff : []);
+  for (const [name, box] of gameToggleBoxes) box.checked = !off.has(name);
+}
 
 const statsGroupsEl = document.getElementById('stats-groups');
 const statOutputs = new Map(); // key → [output, format]

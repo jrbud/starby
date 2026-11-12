@@ -116,6 +116,26 @@ label,
   border-radius: 4px;
 }
 
+/* A section switched off by the box in its header (settings.js syncSectionsOff): its settings are
+   hidden but kept as they are; the heading dims a little. */
+details.group.section-off > .group-body {
+  display: none;
+}
+details.group.section-off > summary .group-title {
+  opacity: 0.55;
+}
+/* ...and no dropdown arrow, since there's nothing to open (hidden, not removed, so the title
+   doesn't shift sideways). The heading isn't clickable either (settings.js); its box still is. */
+details.group.section-off > summary::before {
+  visibility: hidden;
+}
+details.group.section-off > summary {
+  cursor: default;
+}
+details.group.section-off > summary:hover .group-title {
+  text-decoration: none;
+}
+
 .group-body {
   display: grid;
   gap: 14px;
