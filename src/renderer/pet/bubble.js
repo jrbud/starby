@@ -23,6 +23,11 @@ const THINK_TIP = { x: 0.12, y: 0.28 };
 const EDGE = 6; // px kept clear of the screen edges
 const FONT = 14; // px
 const MAX_TEXT = 200; // px: lines wrap past this
+// ZOOMED (opts.zoom() > 1, events/secret.js: he leans right up to the screen): he's drawn that many
+// times bigger around his middle, so the bubble goes above his BIG head (or below his big feet),
+// never over his face, and grows a little so it reads easily from up close.
+const ZOOM_GROW = 0.15; // bubble scale gained per 1× of zoom...
+const ZOOM_GROW_MAX = 1.6; // ...up to this
 
 function injectHostStyles() {
   if (document.getElementById('bubble-host-styles')) return;
@@ -44,6 +49,7 @@ function injectHostStyles() {
  * @param {object} [opts]
  * @param {() => {left:number, top:number, right:number, bottom:number}} [opts.area]
  *        usable screen area to stay inside (default: the whole window)
+ * @param {() => number} [opts.zoom]  how many times bigger he's drawn around his middle (pet.zoom)
  */
 let instance = null; // the one speech bubble (pet.js creates it)
 /** The speech bubble (for behaviors that show things in it, e.g. dreams). */
@@ -69,13 +75,17 @@ export function createBubble(el, opts = {}) {
     const think = tb.style === 'think';
     // Chat size setting (./uiScale.js): the bubble is drawn at tb.w × tb.h and scaled by s around its
     // tail, so everything below works with its on-screen size W × H.
-    const s = chatScale();
+    const z = Math.max(1, opts.zoom ? opts.zoom() : 1);
+    const s = chatScale() * Math.min(ZOOM_GROW_MAX, 1 + (z - 1) * ZOOM_GROW);
     const W = tb.w * s;
     const H = tb.h * s;
+    // Where he looks like he starts / ends vertically (zoom is around his middle).
+    const headY = ph / 2 - (z * ph) / 2;
+    const feetY = ph / 2 + (z * ph) / 2;
     let left = (think ? pw * THINK_TIP.x : pw / 2) - tb.tailFrac * W; // tail tip over his middle (cloud: his upper-left)
-    let top = think ? ph * THINK_TIP.y - H : -H - GAP;
+    let top = think ? ph * THINK_TIP.y - H : headY - H - GAP;
     const flipped = r.top + top < a.top + EDGE; // no room above → below him, tail up
-    if (flipped) top = ph + GAP;
+    if (flipped) top = feetY + GAP;
     const screenLeft = r.left + left;
     if (screenLeft < a.left + EDGE) left += a.left + EDGE - screenLeft;
     else if (screenLeft + W > a.right - EDGE) left -= screenLeft + W - (a.right - EDGE);

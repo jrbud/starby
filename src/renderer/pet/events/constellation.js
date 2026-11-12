@@ -355,9 +355,8 @@ export default {
         ctx.log('constellation-answer', { shape: shape.name, answer, outcome, starbits: real.length });
         phase = 'result';
         phaseLeft = RESULT_FOR;
-      } else if (!isJumping() && chance(0.15, TICK_SECONDS)) {
-        startJump({ height: rand(5, 8), air: 0.2 }); // waiting, bouncy
       }
+      // (No bouncing while he waits: he's frozen in the middle of the answer boxes, dialogue.js.)
     } else if (phase === 'result') {
       phaseLeft -= TICK_SECONDS;
       if (phaseLeft <= 0) finishGame(outcome);

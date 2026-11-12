@@ -13,7 +13,7 @@ import { createEventLog } from './core/eventLog.js';
 import { createEventRunner } from './events/index.js';
 import { clampToScreen } from './behaviors/motion.js';
 import { createFrames, DEFAULT_SET } from './frames.js';
-import { createAccessoryArt, drawWorn, anchorAt, OVERHANG } from './accessories.js';
+import { createAccessoryArt, drawWorn, anchorAt, OVERHANG, ACCESSORIES } from './accessories.js';
 import { createFloaters } from './floaters.js';
 import { fillName } from './userName.js';
 
@@ -22,7 +22,8 @@ const petEl = document.getElementById('pet');
 const canvas = document.getElementById('sprite');
 const stage = document.getElementById('stage');
 const bubbleEl = document.getElementById('bubble');
-const bubble = createBubble(bubbleEl);
+// zoom: the bubble sits above (or below) how big he LOOKS while pet.zoom is up (events/secret.js).
+const bubble = createBubble(bubbleEl, { zoom: () => pet.zoom || 1 });
 
 // How big Starby is on screen, in css px. Everything else (hit box, ground, drag physics,
 // starbits, prompts, labels) is sized from pet.size. It's a user setting ("Starby size" in the
@@ -41,15 +42,20 @@ let SIZE = SIZE_DEFAULT;
 let CSS_PER_ART = SIZE / ART;
 let PAD = { top: 0, side: 0, bottom: 0 };
 let RES = 0; // his frame, in canvas px
+// ZOOM (pet.zoom > 1, events/secret.js): the canvas is CSS-scaled around his middle, so its
+// backing store gets ZOOM_RES times more pixels (in steps, not every frame) to stay sharp.
+// The clickable #pet box and his position don't change; only how big he's drawn.
+let ZOOM_RES = 1;
+const QX = () => PX * ZOOM_RES; // canvas px per css px right now
 
 // Size the canvas and the clickable box for SIZE. Called at startup and whenever the setting
-// changes (applySize).
+// changes (applySize), or the zoom resolution steps.
 function layoutForSize() {
   CSS_PER_ART = SIZE / ART;
   PAD = { top: OVERHANG.top * CSS_PER_ART, side: OVERHANG.side * CSS_PER_ART, bottom: OVERHANG.bottom * CSS_PER_ART };
-  RES = Math.round(SIZE * PX);
-  canvas.width = Math.round((SIZE + 2 * PAD.side) * PX);
-  canvas.height = Math.round((SIZE + PAD.top + PAD.bottom) * PX);
+  RES = Math.round(SIZE * QX());
+  canvas.width = Math.round((SIZE + 2 * PAD.side) * QX());
+  canvas.height = Math.round((SIZE + PAD.top + PAD.bottom) * QX());
   Object.assign(canvas.style, {
     position: 'absolute',
     left: `${-PAD.side}px`,
@@ -75,6 +81,23 @@ const ART_RES = Math.round(SIZE_MAX * PX);
 const frames = createFrames(ART_RES);
 const accessoryArt = createAccessoryArt(ART_RES);
 
+// CLOSE-UP ART (events/secret.js): while he's zoomed up to the screen, the normal ART_RES frames
+// would be blurry, so a few faces (and his worn accessories) are loaded again at the zoomed size.
+// Made on request, dropped when the zoom is over (they're big).
+let closeup = null; // { frames, art }
+function prepareCloseup(faces, zoom) {
+  const px = Math.min(1400, Math.ceil(SIZE * zoom * PX));
+  const close = { frames: createFrames(px), art: createAccessoryArt(px) };
+  closeup = close;
+  close.frames.loadFaces(pet.look.colorSet, faces);
+  for (const value of pet.look.accessories) {
+    if (ACCESSORIES[value]?.kind === 'worn') close.art.load(ACCESSORIES[value].file);
+  }
+}
+const releaseCloseup = () => { closeup = null; };
+// Accessory art for drawWorn: the close-up copy when it's loaded, else the normal one.
+const closeArt = { get: (file) => closeup?.art.get(file) || accessoryArt.get(file) };
+
 /**
  * Shared pet state. Behaviors read and write this; pet.js renders it every frame.
  * mode: 'idle' | 'walk' | 'follow' | 'flee' | 'drag' | 'toss' | 'tag'  (add more as needed)
@@ -89,6 +112,8 @@ const pet = {
   bob: 0, // vertical offset in px (idle bobbing, hops)
   squash: 1, // 1 = normal; <1 squashed, >1 stretched
   rotation: 0, // radians, clockwise, around the star's center (drag/toss spin)
+  freeze: null, // { x, y, bob, squash, rotation } while he asks a question: held perfectly still (applyFreeze)
+  zoom: 1, // drawn this many times bigger around his middle (events/secret.js leans in close); 1 = normal
   warp: null, // { angle (rad), stretch (1 = none) }: stretched toward a direction (slingshot)
   lookX: 0, // -1..1 eye direction (only the old drawn star used it; the PNGs have painted eyes)
   blink: false, // (old drawn star only; blinks/closed eyes are in the PNG frames now)
@@ -174,6 +199,10 @@ const ctx = {
   previewAccessory: (value) => setPreviewAccessory(value),
   // Shop try-on for colors/skins: show this color item id instead of the equipped one (null = back).
   previewColor: (id) => setPreviewColor(id),
+  // Zooming him up close (pet.zoom, events/secret.js): load sharp copies of these faces for that
+  // zoom first, and drop them after.
+  prepareCloseup: (faces, zoom) => prepareCloseup(faces, zoom),
+  releaseCloseup: () => releaseCloseup(),
 };
 
 const eventRunner = createEventRunner(ctx);
@@ -311,8 +340,44 @@ let shownFace = null; // face currently on screen...
 let faceSince = 0; // ...since this time (ms), so its frames alternate from the start
 let fallback = null; // the old drawn star, only if the PNGs can't load
 
+// QUESTION FREEZE: dialogue/dialogue.js sets pet.freeze = { x, y, bob, squash, rotation } while he
+// asks you something (the right-click dialogue, "wanna play?", "wanna hear a secret?"...). Applied
+// AFTER every behavior and event has run this frame, so nothing (a waiting bounce, idle bob, an
+// event's motion) can nudge him while the answer boxes are centered on him. A hop / squash / tilt he
+// was in the middle of settles quickly (FREEZE_SETTLE). Picking him up drops the freeze.
+const FREEZE_SETTLE = 30; // 1/s
+function applyFreeze(dt) {
+  const fz = pet.freeze;
+  if (!fz) return;
+  if (pet.mode === 'drag' || pet.mode === 'toss') { pet.freeze = null; return; }
+  const k = 1 - Math.exp(-FREEZE_SETTLE * dt);
+  fz.bob -= fz.bob * k;
+  fz.squash += (1 - fz.squash) * k;
+  fz.rotation -= fz.rotation * k;
+  pet.x = fz.x;
+  pet.y = fz.y;
+  pet.bob = fz.bob;
+  pet.squash = fz.squash;
+  pet.rotation = fz.rotation;
+  pet.warp = null;
+}
+
+let floatersHidden = false; // balloon / ufo / trail are put away while he's zoomed in
+
 function render(now, dt) {
   const { x, y, bob, squash, look, rotation } = pet;
+  const zoom = Math.max(1, pet.zoom || 1);
+  // Zoomed: more canvas pixels (steps of 0.5×, at most 6×) so the CSS scale stays sharp.
+  const zoomRes = zoom > 1.01 ? Math.min(6, Math.ceil(zoom * 2) / 2) : 1;
+  if (zoomRes !== ZOOM_RES) {
+    ZOOM_RES = zoomRes;
+    layoutForSize();
+  }
+  // Floaters follow his normal-size body, so they'd hang in the wrong place: hidden meanwhile.
+  if ((zoom > 1.01) !== floatersHidden) {
+    floatersHidden = zoom > 1.01;
+    floaters.setActive(floatersHidden ? [] : look.accessories);
+  }
   petEl.style.transform = `translate(${x}px, ${y + bob}px)`;
   // The canvas's transform-origin is his feet (set above). Rotation goes around his middle
   // instead: shift up half a size, rotate, shift back. Only the canvas rotates, so the speech
@@ -326,8 +391,9 @@ function render(now, dt) {
   const warp = w && w.stretch !== 1
     ? `rotate(${w.angle}rad) scale(${w.stretch}, ${1 / Math.sqrt(w.stretch)}) rotate(${-w.angle}rad) `
     : '';
+  // pet.zoom scales him around his middle too (the same shift-up / shift-back as the spin).
   canvas.style.transform =
-    `translateY(${-half}px) ${warp}rotate(${rotation}rad) translateY(${half}px) ` +
+    `translateY(${-half}px) ${zoom > 1 ? `scale(${zoom}) ` : ''}${warp}rotate(${rotation}rad) translateY(${half}px) ` +
     `scale(${1 / Math.sqrt(squash)}, ${squash})`;
 
   // Which frame: pet.face (mood.js), alternating from when that face appeared.
@@ -339,16 +405,18 @@ function render(now, dt) {
   const picked = frames.pick(face, look.colorSet, (now - faceSince) / 1000);
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, canvas.width, canvas.height);
-  const ox = PAD.side * PX; // where his frame box starts in the canvas
-  const oy = PAD.top * PX;
+  const ox = PAD.side * QX(); // where his frame box starts in the canvas
+  const oy = PAD.top * QX();
   if (picked) {
     pet.frameFile = picked.file;
+    // Zoomed in: the sharp close-up copy of this exact file, once it's loaded (see prepareCloseup).
+    const close = zoom > 1.01 && closeup ? closeup.frames.byFile(look.colorSet, picked.file) : null;
     // Frames come out of frames.js already lined up, with his feet on the bottom edge.
-    g.drawImage(picked.img, ox, oy, RES, RES);
+    g.drawImage(close || picked.img, ox, oy, RES, RES);
     if (look.accessories.length) {
       const u = RES / ART; // worn accessories are placed in art units
       g.setTransform(u, 0, 0, u, ox, oy);
-      drawWorn(g, accessoryArt, look.accessories, picked.file, now / 1000);
+      drawWorn(g, closeup ? closeArt : accessoryArt, look.accessories, picked.file, now / 1000);
     }
   } else {
     // No PNG loaded (art missing or failed to load): fall back to the old drawn star so he's
@@ -426,6 +494,7 @@ async function boot() {
     const dt = Math.min(0.05, realDt);
     for (const b of BEHAVIORS) b.update?.(ctx, dt);
     eventRunner.update(dt);
+    applyFreeze(dt); // last: while he's asking a question, nothing moves him
     // Taskbar moved (or the screen changed) while he was sitting still: step out from under it.
     if (pet.mode === 'idle') {
       const kept = clampToScreen(ctx, pet.x, pet.y);

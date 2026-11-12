@@ -7,10 +7,9 @@
 //                     from it (quickly), then the boxes burst out. Right-click again closes it.
 //   pick an answer    the other boxes snap back into him; the picked one pops. If it opens another
 //                     menu, the new boxes burst out FROM the picked box into a fresh horseshoe.
-//   while it's open   he stands still (only if he was just hanging around: idle / walk / follow).
+//   while it's open   he's frozen in place (see FROZEN WHILE ASKING below), in the middle of his answers.
 //                     In focus mode he's HELD (pet.dialogueHold): events/focus.js lets go of him, so he
 //                     flies out of his corner like at any edge, and flies back when it closes.
-//                     Other events that own him (hush) don't move him: the boxes shift instead.
 //   it closes when    you pick an answer that ends it, he's picked up, an event takes over, or
 //                     you leave it alone for AUTO_CLOSE seconds (the cursor over a box keeps it open)
 //   click away        a left or right click anywhere that isn't a box (or Starby) cancels it: the
@@ -43,8 +42,14 @@
 //   showMenu(ctx, { line, options: [{ label, onPick }], onCancel })   e.g. "wanna play pong?" [Yes!] [No]
 //   setMenuLine(ctx, text)                                   update his line (e.g. a countdown)
 //   closeMenu(ctx)                                           take it away (the event ended / timed out)
-// An event menu never moves him (the event owns him; the boxes shift to fit instead), doesn't
-// auto-close (the event has its own timer), closes when the event ends, and ignores right-clicks.
+// An event menu doesn't auto-close (the event has its own timer), closes when the event ends, and
+// ignores right-clicks.
+// FROZEN WHILE ASKING (every question: the right-click dialogue AND event menus): the moment a
+// question opens, he FREEZES (pet.freeze; pet.js holds him still after everything else has moved
+// him each frame, so a waiting bounce or an idle bob can't nudge him), his hop / squash / tilt
+// settle, and only then (FREEZE_LEAD_MS later) do the boxes pop out, centered on him. Too close to
+// an edge for the boxes to fit around him? He slides away from it first (event menus too), so he's
+// always in the middle of his answers. He unfreezes when the question closes.
 // Pass onCancel to let a click away cancel it (called after the boxes go back); without it the
 // menu doesn't catch clicks at all (they go through to the desktop).
 // Used by events/invite.js and events/constellation.js (the star quiz).
@@ -57,6 +62,7 @@ import { createTalkbox, loadTalkbox, talkboxReady, takeSpeech, releaseSpeech, on
 import { sfx } from '../../shared/sfx.js';
 import { menuScale, chatScale, fontScale } from '../uiScale.js';
 import { fillName } from '../userName.js';
+import { cancelJump } from '../behaviors/motion.js';
 
 // ---- Tuning ----
 export const MAX_OPTIONS = 6; // answers per node (tree.js keeps to this; extras are dropped)
@@ -73,6 +79,7 @@ let secretClicks = 0;
 let lastSecretAt = -Infinity;
 const ROOM_SPEED = 18; // how snappily he slides away from an edge (approach rate)
 const ROOM_MAX_MS = 450; // ...and the longest that may take before the boxes burst anyway
+const FREEZE_LEAD_MS = 180; // he freezes and settles this long BEFORE a question's boxes pop out
 const IN_MS = 230; // burst out: each box flies to its spot with a little overshoot
 const STAGGER_MS = 28; // ...one after another
 const OUT_MS = 150; // unpicked boxes snapping back into him
@@ -410,6 +417,7 @@ const measure = (b) => {
 // Show node `id`; its boxes burst out from `origin` (an offset from his middle).
 // `id` is a node id in TREE, or a node object (event menus: { line, options, menu: true }).
 function showNode(ctx, id, origin = { x: 0, y: 0 }) {
+  const first = !open; // a question just opening (not the next node after an answer)
   const node = typeof id === 'string' ? TREE[id] : id;
   if (!node) { close(ctx); return; }
   if (typeof id !== 'string') id = node.id || 'menu';
@@ -440,14 +448,28 @@ function showNode(ctx, id, origin = { x: 0, y: 0 }) {
   boxes = live; // ...keep the leaving ones animating
   open = { id, event: open ? open.event : ctx.activeEvent(), menu: Boolean(node.menu) };
   quietFor = 0;
-  // Too close to an edge? Slide him away first (only if he's ours to move), then burst.
+  // Freeze first (see FROZEN WHILE ASKING). Too close to an edge? Slide him away so the boxes fit
+  // around him, then burst; either way not before he's had FREEZE_LEAD_MS to settle.
+  if (first) freeze(ctx);
+  const now = performance.now();
+  const lead = first ? FREEZE_LEAD_MS : 0;
   const c = centerOf(ctx.pet);
   const fit = fitCenter(ctx, c);
-  if ((froze || ctx.pet.dialogueHold) && Math.hypot(fit.x - c.x, fit.y - c.y) > 1) {
-    room = { x: fit.x - ctx.pet.size / 2, y: fit.y - ctx.pet.size / 2, until: performance.now() + ROOM_MAX_MS };
+  if (Math.hypot(fit.x - c.x, fit.y - c.y) > 1) {
+    room = { x: fit.x - ctx.pet.size / 2, y: fit.y - ctx.pet.size / 2, until: now + Math.max(ROOM_MAX_MS, lead), notBefore: now + lead };
+  } else if (lead) {
+    room = { x: ctx.pet.x, y: ctx.pet.y, until: now + lead, notBefore: now + lead };
   } else {
-    burst(performance.now());
+    burst(now);
   }
+}
+
+// Hold him still where he is (pet.js applies pet.freeze every frame); hops / squash / tilt settle.
+function freeze(ctx) {
+  const { pet } = ctx;
+  cancelJump();
+  const tilt = Math.atan2(Math.sin(pet.rotation || 0), Math.cos(pet.rotation || 0)); // (after a spin: the short way upright)
+  pet.freeze = { x: pet.x, y: pet.y, bob: pet.bob || 0, squash: pet.squash || 1, rotation: tilt };
 }
 
 function burst(now) {
@@ -530,6 +552,7 @@ function close(ctx, picked = null) {
   releaseSpeech(dropLine); // (an event menu held it)
   setCatching(ctx, false); // clicks go to the desktop again
   room = null;
+  ctx.pet.freeze = null; // he can move again
   const now = performance.now();
   retire(picked, now);
   if (say && say.kind !== 'out') {
@@ -598,7 +621,7 @@ export function showMenu(ctx, { line, options, onCancel = null }) {
   if (!root) build(ctx);
   clearAll();
   if (froze && ctx.pet.mode === 'dialogue') ctx.pet.mode = 'idle'; // (the player's dialogue was open)
-  froze = false; // the event owns him: never move him (fitCenter shifts the boxes instead)
+  froze = false; // the event owns him (but the question still freezes him and may slide him off an edge)
   room = null;
   root.style.display = '';
   startBoil();
@@ -694,14 +717,19 @@ export const dialogue = {
     const now = performance.now();
     const { pet } = ctx;
     if (room) {
+      // Frozen: move the frozen spot (pet.js puts him there every frame).
+      const spot = pet.freeze || pet;
       const k = Math.min(1, (dt || 0.016) * ROOM_SPEED);
-      pet.x += (room.x - pet.x) * k;
-      pet.y += (room.y - pet.y) * k;
-      if (Math.hypot(room.x - pet.x, room.y - pet.y) < 1.5 || now >= room.until) {
-        pet.x = room.x;
-        pet.y = room.y;
+      spot.x += (room.x - spot.x) * k;
+      spot.y += (room.y - spot.y) * k;
+      const there = Math.hypot(room.x - spot.x, room.y - spot.y) < 1.5;
+      if ((there && now >= (room.notBefore || 0)) || now >= room.until) {
+        spot.x = room.x;
+        spot.y = room.y;
         burst(now);
       }
+      pet.x = spot.x;
+      pet.y = spot.y;
     }
     const c = centerOf(pet);
     const anchor = ext ? fitCenter(ctx, c) : c;
