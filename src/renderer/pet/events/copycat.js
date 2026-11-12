@@ -1,17 +1,19 @@
-// COPYCAT — Starby copies your movement, without asking.
+// COPYCAT — Starby follows your cursor around like a duckling following its mom.
 //
-// Out of nowhere he says "hehe, i'm copying you!" and from then on every move your cursor makes,
-// he makes too: the same distance in the same direction, from wherever he is (he mirrors your
-// motion; he doesn't follow the cursor). Big sudden jumps (the cursor leaving and re-entering the
-// screen) are ignored, and he moves no faster than MAX_SPEED.
-//
-// Ends:
-//   bored  after COPY_FOR seconds: "ok i'm bored now" → 'bored'
-//   wall   you make him walk into the edge of the usable screen (a copied move would push him more
-//          than WALL_PUSH px past it): he SMACKS into it (wall-hit effects via a 'slam' log, which
-//          fx.js plays without the thrown-wall starbit drop; a squish, a little bounce back, a dazed
-//          face), then "oof! you tricked me!" → 'wall'
-//   grabbed / thrown → interrupted
+//   approach  he walks over to your cursor first (APPROACH_SPEED), stopping a little way from it
+//   announce  then stops, faces you and says it: "hehe, i'm gonna copy you!" (ANNOUNCE_FOR)
+//   copy      for COPY_FOR seconds he follows where your cursor WENT, not where it is: he aims at
+//             the cursor's position from a moment ago (DELAY, drifting a little), so he trails your
+//             path. And he's not a robot about it:
+//               - he moves like a little body (a springy chase: speeds up, slightly overshoots,
+//                 settles), never snapping to the cursor, and no faster than MAX_SPEED
+//               - his aim wobbles a bit (WOBBLE), like a duckling that can't walk quite straight
+//               - now and then he gets distracted (DISTRACT_*): stops, looks around, then hurries
+//                 to catch up
+//               - he keeps a little gap (GAP) and never sits on top of your cursor
+//   ends      bored  after COPY_FOR: "ok i'm bored now" → 'bored'
+//             lost   your cursor's been off this screen for LOST_AFTER: "huh? where'd you go?" → 'lost'
+//             grabbed / thrown → interrupted
 //
 // ITS OWN CATEGORY ('copycat'), like dance: not a game (not on the game buttons, not in the games
 // timer, no shared rest). Its own timer (watch, below): COPYCAT_EVERY seconds (3 minutes) after the
@@ -19,55 +21,118 @@
 // he's relaxed (idle/walking) and happy/playful, and you're moving the mouse (moved in the last
 // USER_AROUND seconds: there has to be something to copy). Not a good moment → he tries again
 // every RETRY seconds. Priority 3: just above dance, so sky events, invites and games take over.
-// Also: tray menu → Developer → "Start copycat now", or starby.startEvent('copycat').
+// Also: Developer window → "Copycat", or starby.startEvent('copycat').
 // No reward: it's just him being silly.
 //
-// Owns the star via pet.mode = 'copycat'. Decisions (timer, ending) on ticks; copying every frame.
+// Owns the star via pet.mode = 'copycat'. Decisions (timer, ending) on ticks; moving every frame.
 import { rand, clamp, petBounds, startJump, cancelJump, isJumping, updateJump } from '../behaviors/motion.js';
 import { lineBag } from '../behaviors/chatter.js';
 import { TICK_SECONDS } from '../core/clock.js';
-import { strikePose } from '../behaviors/mood.js';
 
 // ---- Tuning ----
-const COPY_FOR = 30; // seconds before he gets bored
-const MAX_SPEED = 1400; // px/s: fastest he copies (a faster flick just takes him a moment longer)
-const JUMP_IGNORE = 250; // px: a cursor jump bigger than this in one frame isn't "movement"
-const WALL_PUSH = 4; // px past the edge a copied move has to push before it counts as "into the wall"
-const SMACK_SPEED = 1700; // how hard fx.js shows the smack (px/s scale of the wall-hit effects)
-// He recoils this far off the wall (star-sizes), with a little hop, over RECOIL_FOR seconds, THEN
-// says his line: far enough that his speech bubble isn't squeezed against the screen edge.
-const RECOIL = 1.3;
-const RECOIL_FOR = 0.4;
+const APPROACH_SPEED = 300; // px/s walking over to your cursor first
+const APPROACH_MAX = 6; // seconds: can't reach you by then (you keep running off) → announce anyway
+const ANNOUNCE_FOR = 1.8; // seconds standing still saying "i'm gonna copy you!"
+const COPY_FOR = 25; // seconds of copying before he gets bored
+const DELAY = 0.45; // seconds: he aims where your cursor was this long ago...
+const DELAY_DRIFT = 0.12; // ...give or take this (slowly changing: sometimes quicker, sometimes slower)
+const GAP = 0.9; // star-sizes he keeps between his middle and the cursor (never sits on it)
+const SPRING = 26; // how hard he pulls toward where he's aiming...
+const DAMPING = 6.5; // ...and how much that's held back (lower = more overshoot / wobble)
+const MAX_SPEED = 900; // px/s: fastest he can go
+const WOBBLE = 0.12; // star-sizes his aim wanders around (smooth, never jittery)
+const DISTRACT_EVERY = [5, 9]; // seconds between chances to get distracted...
+const DISTRACT_CHANCE = 0.4; // ...this often...
+const DISTRACT_FOR = [0.45, 0.9]; // ...standing there looking around for this long
+const LOST_AFTER = 3; // seconds with your cursor off this screen → he gives up
+const MOVING = 40; // px/s: faster than this, he faces the way he's going
 const STEP_PX = 26; // px travelled per little step-bob
 const STEP_BOB = 3; // px high
 const COPYCAT_EVERY = 180; // seconds between copycats (from the end of the last one)
 const RETRY = 15; // seconds: not a good moment → try again this soon
 const USER_AROUND = 3; // seconds since the cursor last moved, to count as "you're moving it"
+const HISTORY = 2; // seconds of cursor positions kept
 
 const LINES = {
-  start: lineBag(["hehe, i'm copying you!", 'copycat!', 'whatever you do, i do!', "i'm you now!"]),
+  start: lineBag(["hehe, i'm gonna copy you!", 'copycat time! whatever you do, i do!', "i'm your shadow now!", "follow the leader! you're the leader!"]),
   bored: lineBag(["ok i'm bored now", 'copying is boring now...', 'ok, you win. i stop.', 'yawn. done copying!']),
-  wall: lineBag(['oof! you tricked me!', 'ow!! who put that wall there?', 'ouch... okay, you got me', "bonk! i didn't see that coming"]),
+  lost: lineBag(["huh? where'd you go?", 'hello? come back!', 'aw, you lost me']),
 };
 
 // ---- State ----
 let endGame = null;
-let left = 0;
-let lastCursor = null; // { x, y } last frame
-let pending = { x: 0, y: 0 }; // copied movement not done yet (when he's slower than you)
-let hitWall = null; // side he got pushed into (spotted every frame, acted on at the tick)
-let recoil = null; // { from, to, t }: bouncing back off the wall after the smack
-let stepPhase = 0; // walking-bob phase, advanced by distance travelled
+let phase = 'approach'; // approach | announce | copy
+let t = 0; // seconds into the phase
+let trail = []; // [{ t, x, y }] cursor positions (session seconds), oldest first
+let vel = { x: 0, y: 0 }; // his speed (px/s), middle of the star
+let wob = { a: 0, b: 0, c: 0, d: 0 }; // wobble phases
+let nextDistractAt = 0;
+let distractedUntil = 0;
+let lookFace = null; // face while distracted
+let offScreenFor = 0;
+let stepPhase = 0;
 let nextAt = null; // session seconds when the timer next tries to start a copycat
 let lastCursorSeen = { x: -9999, y: -9999 };
 let cursorMovedAt = -Infinity;
 
 const cursorOn = (c) => c.x > -1000 && c.y > -1000; // pet.js parks it far off screen when it leaves
+const middle = (pet) => ({ x: pet.x + pet.size / 2, y: pet.y + pet.size / 2 });
 
 function finish(result) {
   const end = endGame;
   endGame = null;
   end?.(result);
+}
+
+const setPhase = (p) => { phase = p; t = 0; };
+
+// Where the cursor was `ago` seconds back (interpolated along the trail).
+function cursorAgo(now, ago) {
+  if (!trail.length) return null;
+  const at = now - ago;
+  if (at <= trail[0].t) return trail[0];
+  for (let i = trail.length - 1; i > 0; i--) {
+    const a = trail[i - 1];
+    const b = trail[i];
+    if (a.t <= at) {
+      const u = b.t > a.t ? (at - a.t) / (b.t - a.t) : 1;
+      return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
+    }
+  }
+  return trail[trail.length - 1];
+}
+
+// A spot GAP away from the cursor, on his side of it (so he never covers it).
+function besideCursor(pet, cursor, aim) {
+  const c = middle(pet);
+  const gap = GAP * pet.size;
+  const dx = aim.x - cursor.x;
+  const dy = aim.y - cursor.y;
+  if (Math.hypot(dx, dy) >= gap) return aim;
+  let ox = c.x - cursor.x;
+  let oy = c.y - cursor.y;
+  let d = Math.hypot(ox, oy);
+  if (d < 1) { ox = 0; oy = 1; d = 1; } // right on it: stand just below
+  return { x: cursor.x + (ox / d) * gap, y: cursor.y + (oy / d) * gap };
+}
+
+// Move his middle by (dx, dy), kept on screen; little step-bob; face the way he's going.
+function moveBy(ctx, dx, dy, dt) {
+  const { pet } = ctx;
+  const b = petBounds(ctx);
+  pet.x = clamp(pet.x + dx, b.minX, b.maxX);
+  pet.y = clamp(pet.y + dy, b.minY, b.maxY);
+  const speed = Math.hypot(dx, dy) / Math.max(dt, 1e-3);
+  if (!isJumping()) {
+    stepPhase += Math.hypot(dx, dy) / STEP_PX * Math.PI;
+    pet.bob = speed > MOVING ? -Math.abs(Math.sin(stepPhase)) * STEP_BOB : pet.bob * (1 - Math.min(1, dt * 12));
+  }
+  if (speed > MOVING && Math.abs(dx) > Math.abs(dy) * 0.4) {
+    pet.facing = dx > 0 ? 1 : -1;
+    pet.faceOverride = dx > 0 ? 'right' : 'left';
+  } else if (speed <= MOVING) {
+    pet.faceOverride = null; // standing: his usual face (talking, happy...)
+  }
 }
 
 export default {
@@ -103,32 +168,30 @@ export default {
   },
 
   start(ctx, end, reason) {
-    const { pet, cursor } = ctx;
+    const { pet } = ctx;
     endGame = end;
-    left = COPY_FOR;
-    lastCursor = { x: cursor.x, y: cursor.y };
-    pending = { x: 0, y: 0 };
-    hitWall = null;
-    recoil = null;
+    trail = [];
+    vel = { x: 0, y: 0 };
+    wob = { a: rand(0, 6), b: rand(0, 6), c: rand(0, 6), d: rand(0, 6) };
+    offScreenFor = 0;
     stepPhase = 0;
+    lookFace = null;
     pet.mode = 'copycat'; // behaviors stand down
     cancelJump();
-    startJump({ height: rand(10, 14), air: 0.25 }); // perk up
-    ctx.say(LINES.start(), 2500);
+    setPhase('approach');
     ctx.log('copycat-start', { reason });
   },
 
   onTick(ctx) {
-    const { pet } = ctx;
+    const { pet, cursor } = ctx;
     if (!endGame) return;
     if (pet.mode !== 'copycat') { finish(`interrupted:${pet.mode}`); return; }
-    left -= TICK_SECONDS;
-    if (hitWall) {
-      if (recoil && recoil.t < RECOIL_FOR) return; // still bouncing off the wall
-      ctx.say(LINES.wall(), 2800);
-      ctx.log('copycat-wall', { side: hitWall });
-      finish('wall');
-    } else if (left <= 0) {
+    if (phase !== 'copy') return;
+    offScreenFor = cursorOn(cursor) ? 0 : offScreenFor + TICK_SECONDS;
+    if (offScreenFor >= LOST_AFTER) {
+      ctx.say(LINES.lost(), 2500);
+      finish('lost');
+    } else if (t >= COPY_FOR) {
       ctx.say(LINES.bored(), 2500);
       finish('bored');
     }
@@ -137,87 +200,87 @@ export default {
   update(ctx, dt) {
     const { pet, cursor } = ctx;
     if (pet.mode !== 'copycat' || !endGame) return;
+    t += dt;
+    const now = ctx.clock.seconds;
     updateJump(pet, dt);
     pet.squash += (1 - pet.squash) * Math.min(1, dt * 10);
 
-    // Smacked into the wall: recoil off it (no more copying), then onTick says the line.
-    if (recoil) {
-      recoil.t += dt;
-      const u = Math.min(1, recoil.t / RECOIL_FOR);
-      const e = 1 - (1 - u) ** 3; // fast, then easing out
-      pet.x = recoil.from.x + (recoil.to.x - recoil.from.x) * e;
-      pet.y = recoil.from.y + (recoil.to.y - recoil.from.y) * e;
-      return;
-    }
-
-    // Copy this frame's cursor movement.
+    // Remember where the cursor's been (he copies the path, a moment late).
     if (cursorOn(cursor)) {
-      if (lastCursor) {
-        const dx = cursor.x - lastCursor.x;
-        const dy = cursor.y - lastCursor.y;
-        if (Math.hypot(dx, dy) <= JUMP_IGNORE) { pending.x += dx; pending.y += dy; }
+      trail.push({ t: now, x: cursor.x, y: cursor.y });
+      while (trail.length > 2 && now - trail[0].t > HISTORY) trail.shift();
+    }
+
+    if (phase === 'approach') {
+      // Walk over to you first (a little way from the cursor), then say what he's up to.
+      const c = middle(pet);
+      const spot = cursorOn(cursor) ? besideCursor(pet, cursor, c) : c;
+      const dx = spot.x - c.x;
+      const dy = spot.y - c.y;
+      const d = Math.hypot(dx, dy);
+      const step = Math.min(d, APPROACH_SPEED * dt);
+      if (d > 1) moveBy(ctx, (dx / d) * step, (dy / d) * step, dt);
+      if (d <= 2 || t >= APPROACH_MAX) {
+        pet.faceOverride = null; // faces you, talking
+        pet.bob = 0;
+        startJump({ height: rand(8, 12), air: 0.25 }); // a little hop: "hehe!"
+        ctx.say(LINES.start(), ANNOUNCE_FOR * 1000 + 600);
+        setPhase('announce');
       }
-      lastCursor = { x: cursor.x, y: cursor.y };
+      return;
+    }
+
+    if (phase === 'announce') {
+      if (!isJumping()) pet.bob *= 1 - Math.min(1, dt * 12);
+      if (t >= ANNOUNCE_FOR) {
+        vel = { x: 0, y: 0 };
+        nextDistractAt = now + rand(...DISTRACT_EVERY);
+        distractedUntil = 0;
+        setPhase('copy');
+      }
+      return;
+    }
+
+    // ---- copy: the duckling ----
+    const c = middle(pet);
+    const S = pet.size;
+    // Distracted now and then: stops, looks around, then hurries to catch up.
+    if (now >= nextDistractAt) {
+      nextDistractAt = now + rand(...DISTRACT_EVERY);
+      if (Math.random() < DISTRACT_CHANCE) {
+        distractedUntil = now + rand(...DISTRACT_FOR);
+        lookFace = ['up', 'left', 'right'][Math.floor(Math.random() * 3)];
+      }
+    }
+    let aim;
+    if (now < distractedUntil) {
+      aim = c; // stays put (slows to a stop on the spring)
     } else {
-      lastCursor = null; // cursor left the screen: wait for it to come back
+      lookFace = null;
+      const delay = DELAY + DELAY_DRIFT * Math.sin(now * 0.7 + wob.a); // reaction time drifts
+      const past = cursorAgo(now, delay) || c;
+      // The wobble: two slow waves per axis, so his line wanders without jitter.
+      const wx = (Math.sin(now * 1.7 + wob.b) + 0.5 * Math.sin(now * 3.1 + wob.c)) * WOBBLE * S;
+      const wy = (Math.sin(now * 1.3 + wob.d) + 0.5 * Math.sin(now * 2.7 + wob.a)) * WOBBLE * S;
+      const raw = { x: past.x + wx, y: past.y + wy };
+      aim = cursorOn(cursor) ? besideCursor(pet, cursor, raw) : raw;
     }
-
-    const want = Math.hypot(pending.x, pending.y);
-    if (want < 0.01) {
-      if (!isJumping()) pet.bob += (0 - pet.bob) * Math.min(1, dt * 12); // settle when you stop
-      return;
-    }
-    const k = Math.min(1, (MAX_SPEED * dt) / want);
-    const stepX = pending.x * k;
-    const stepY = pending.y * k;
-    pending.x -= stepX;
-    pending.y -= stepY;
-
-    // Into a wall? (moving toward an edge and the move would go past it)
-    const b = petBounds(ctx);
-    const nx = pet.x + stepX;
-    const ny = pet.y + stepY;
-    if (nx < b.minX - WALL_PUSH && stepX < 0) hitWall = 'left';
-    else if (nx > b.maxX + WALL_PUSH && stepX > 0) hitWall = 'right';
-    else if (ny < b.minY - WALL_PUSH && stepY < 0) hitWall = 'top';
-    else if (ny > b.maxY + WALL_PUSH && stepY > 0) hitWall = 'bottom';
-    pet.x = clamp(nx, b.minX, b.maxX); // right up against the edge
-    pet.y = clamp(ny, b.minY, b.maxY);
-    if (hitWall) {
-      pending = { x: 0, y: 0 };
-      // SMACK: wall-hit effects, a squish, a little bounce back off the wall, a dazed look.
-      ctx.log('slam', { side: hitWall, speed: SMACK_SPEED });
-      cancelJump();
-      pet.squash = 0.68;
-      const back = RECOIL * pet.size;
-      const to = { x: pet.x, y: pet.y };
-      if (hitWall === 'left') to.x += back;
-      else if (hitWall === 'right') to.x -= back;
-      else if (hitWall === 'top') to.y += back;
-      else to.y -= back;
-      to.x = clamp(to.x, b.minX, b.maxX);
-      to.y = clamp(to.y, b.minY, b.maxY);
-      recoil = { from: { x: pet.x, y: pet.y }, to, t: 0 };
-      startJump({ height: rand(12, 18), air: RECOIL_FOR }); // knocked back with a little hop
-      strikePose(ctx, 'dizzy', 1.8);
-      return;
-    }
-
-    if (Math.abs(stepX) > 0.3) pet.facing = stepX > 0 ? 1 : -1;
-    // A little step-bob while he's moving, so it reads as him walking along with you.
-    if (!isJumping()) {
-      stepPhase += Math.hypot(stepX, stepY) / STEP_PX * Math.PI;
-      pet.bob = -Math.abs(Math.sin(stepPhase)) * STEP_BOB;
-    }
+    // A springy chase: pulled toward the aim, held back by damping (a little overshoot), capped.
+    vel.x += (SPRING * (aim.x - c.x) - DAMPING * vel.x) * dt;
+    vel.y += (SPRING * (aim.y - c.y) - DAMPING * vel.y) * dt;
+    const sp = Math.hypot(vel.x, vel.y);
+    if (sp > MAX_SPEED) { vel.x *= MAX_SPEED / sp; vel.y *= MAX_SPEED / sp; }
+    moveBy(ctx, vel.x * dt, vel.y * dt, dt);
+    if (lookFace) pet.faceOverride = lookFace; // looking around
   },
 
   stop(ctx) {
     const { pet } = ctx;
     endGame = null;
-    pending = { x: 0, y: 0 };
-    lastCursor = null;
+    trail = [];
     pet.bob = 0;
     pet.squash = 1;
+    pet.faceOverride = null;
     if (pet.mode === 'copycat') pet.mode = 'idle';
     nextAt = ctx.clock.seconds + COPYCAT_EVERY; // the next one, 3 minutes after this one ended
   },

@@ -1,0 +1,235 @@
+===========================================================================
+ STARBY CHAT SCRIPT
+ Write Starby's chats here, then hand this file back to Claude to put in the
+ game (src/renderer/pet/dialogue/tree.js). Lines starting with # are notes:
+ Claude reads them but they never show up in the game.
+===========================================================================
+
+# ---------------------------------------------------------------------------
+# HOW IT WORKS
+# ---------------------------------------------------------------------------
+# When you pick "Let's chat!", Starby says one OPENING line and shows 5 TOPICS,
+# picked at random from every TOPIC in this file (plus a Back button). So every
+# chat can start differently. The more TOPICS, the more variety.
+#
+# Each TOPIC is a little tree: Starby says something, you pick an answer, he
+# replies, you pick again... as deep as you like.
+#
+# ---------------------------------------------------------------------------
+# THE PIECES (cheat sheet)
+# ---------------------------------------------------------------------------
+#   OPENING: line              What he says when the chat opens (one picked at random).
+#   TOPIC: Question?           A chat starter: the button you click. Starts at the far left.
+#   STARBY: line               What he says.
+#                              Several versions? Separate with  |  and he picks one:
+#                              STARBY: hi! | hello! | heyyy!
+#   FACE: wink                 (optional, on the line under STARBY) the face he makes
+#                              while saying it. Faces: wink, glistening (sparkly eyes),
+#                              playful (tongue out), grumpy, sad, spittle (spit-laugh),
+#                              up, dizzy, mad, yawning
+#   > Answer text              A button you can click, answering the STARBY line above it.
+#                              At most 5 answers under one STARBY line (Back is added for you).
+#   [END]                      After an answer: clicking it closes the chat.
+#   [END: line]                Closes the chat, and he says this line as it closes.
+#                              (An ending without a line, on "Talk to you later!", gets a
+#                              random "byeee!" / "talk soon!" / "see ya! *twinkle*".)
+#   [GO TO: name]              After an answer: jump to the STARBY line tagged  #name
+#   #name                      At the end of a STARBY line: a tag, so [GO TO: name] can jump here.
+#   [NO BACK]                  On a STARBY line: don't add a Back button under it.
+#   [DO: something]            After an answer: do something instead of (or after) talking.
+#                              Write it in plain words, e.g. [DO: open the shop],
+#                              [DO: play tag], [DO: start focus mode], [DO: open settings].
+#
+# INDENTING (the important part, it's what shows the tree):
+#   - Answers go 2 spaces further in than the STARBY line they answer.
+#   - Starby's reply to an answer goes 2 spaces further in than that answer.
+#   So every step deeper into the conversation moves further right. Use SPACES,
+#   not tabs. Blank lines are fine anywhere (use them to keep it readable).
+#
+#   STARBY: what he says
+#     > answer one
+#       STARBY: his reply to answer one
+#         > deeper answer [END]
+#     > answer two [END: okay, bye!]
+#
+# Every branch has to finish with [END] or [GO TO: ...] somewhere at the bottom.
+# (Middle steps get a Back button automatically, which goes up one step.)
+#
+# HIS VOICE (house rules for anything STARBY says):
+#   - all lowercase, no emojis
+#   - never mentions "AI", bots, assistants or being a program: he's a star
+#   - fun, outgoing, excited, but he's made of starlight and has "seen everything",
+#     so questions are a little silly to him
+#   - keep a line under ~120 characters so the bubble stays a nice size
+# Answers (> lines) can be written normally: they're shown lowercase anyway.
+#
+# Want something special (only when he's sad, only at night, a game starts...)?
+# Just write it as a # note next to it and Claude will wire it up.
+
+
+# ===========================================================================
+# OPENING LINES (when you pick "Let's chat!")
+# ===========================================================================
+
+OPENING: ooh, chat time! ask me anything!
+OPENING: ask away! i've seen it all, probably.
+OPENING: yay, questions! go go go!
+
+
+# ===========================================================================
+# TOPICS  (everything below is what's in the game right now; add your own
+#          at the bottom, or anywhere in between)
+# ===========================================================================
+
+TOPIC: Do you miss your star friends?
+STARBY: sometimes! but i'm made of light, so i can visit them whenever i want. zoom!
+
+  > What are their names?
+    STARBY: gavin, jeremy, ian and legrand! total legends, all four of them.
+    FACE: glistening
+      > They sound awesome! [END]
+      > Talk to you later! [END]
+
+  > Wait, you're light speed?
+    STARBY: yep! wanna see me go to the moon and back? ...done. wanna see it again?
+    FACE: playful
+      > Do it again!
+        STARBY: ...and back! that was the fastest one yet. you blinked, huh?
+        FACE: wink
+          > Wow, okay! [END]
+          > Talk to you later! [END]
+      > I didn't see anything...
+        STARBY: exactly! that's how fast i am. hehe.
+        FACE: playful
+          > Haha, okay! [END]
+          > Talk to you later! [END]
+
+  > Can I meet them?
+    STARBY: they're kinda far... like, really far. but i'll tell them you said hi!
+      > Aww, thanks! [END]
+      > Tell them hi! [END: will do! *twinkle*]
+
+
+TOPIC: What's your favorite moon?
+STARBY: mmm... io! it's fun to say. io. io... io!
+FACE: playful
+
+  > That's Jupiter's moon, right?
+    STARBY: look at you! the volcano one. very spicy. 10/10 moon.
+    FACE: glistening
+      > Spicy moon. Got it. [END]
+      > Talk to you later! [END]
+
+  > Say it again!
+    STARBY: io! ...okay, that one was just for you.
+    FACE: wink
+      > Haha, thanks! [END]
+      > Talk to you later! [END: io! io! byeee!]
+
+  > What about our moon?
+    STARBY: the moon? classic. a little dusty, but i'd never say that to its face.
+      > Haha, okay! [END]
+      > Talk to you later! [END]
+
+  > Was our moon landing faked?
+    STARBY: nah, that was real. wrong moon tho  [NO BACK]
+    FACE: wink
+      > What? [END: i've said too much]
+      > Which one is made of cheese?
+        STARBY: idk, ask wallace and gromit
+        FACE: playful
+          > Haha, okay! [END]
+          > Talk to you later! [END]
+
+
+TOPIC: How long have you been a star?
+STARBY: rude! you can't just ask a star that!
+FACE: grumpy
+
+  > Hey! I was just wondering!
+    STARBY: okay, okay... about one zabillion years. give or take a weekend.
+      > Wow, okay! [END]
+      > Talk to you later! [END]
+
+  > Oh, my bad, I'm sorry!
+    STARBY: it's okay! you're still my friend :)
+    FACE: glistening
+      > Yay! [END]
+      > Talk to you later! [END: bye, friend!]
+
+
+TOPIC: Is there alien life out there?
+STARBY: bruh. you're looking at one.
+
+  > No, like ALIEN aliens
+    STARBY: yes, duh! have you never seen e.t.?
+      > Wait, that was real?!
+        STARBY: of course! it was a documentary.
+        FACE: wink
+          > Huh. Okay! [END]
+          > Talk to you later! [END]
+
+  > Space must be scary alone
+    STARBY: nah, space is cozy! and aliens are sooo chill.
+      > How chill?
+        STARBY: let's just say... martians know how to party.
+        FACE: spittle
+          > Haha, okay! [END]
+          > Talk to you later! [END: party on!]
+
+
+TOPIC: How's my desktop?
+STARBY: pretty neat! honestly one of my favorites.
+
+  > Aww, thanks!
+    STARBY: of course! *wink*
+    FACE: wink
+      > Hehe, okay! [END]
+      > Talk to you later! [END]
+
+  > You've seen others?
+    STARBY: oh, tons. speed of light and all. yours is top ten though!
+      > Only top ten?! [END]
+      > Talk to you later! [END: top ten! that's a lot of desktops!]
+
+  > Favorite thing on here?
+    STARBY: the cursor! it's always running around. we're basically best friends.
+    FACE: glistening
+      > Aww! [END]
+      > Talk to you later! [END]
+
+
+# ===========================================================================
+# EXAMPLE: using a tag and GO TO (so two answers can lead to the same place)
+# (delete this one or keep it, it's a real topic too)
+# ===========================================================================
+
+TOPIC: Can you grant wishes?
+STARBY: technically? yes. officially? i'm not allowed to talk about it.
+FACE: wink
+
+  > Please? Just one wish?
+    STARBY: okay, fine. one tiny wish. go!  #wish
+      > I wish for more starbits! [END: done! ...check back in a bit. hehe]
+      > I wish you could stay forever [END: aww. that one's easy. i'm not going anywhere]
+
+  > I won't tell anyone [GO TO: wish]
+
+
+# ===========================================================================
+# YOUR NEW TOPICS (copy this blank one and fill it in)
+# ===========================================================================
+
+TOPIC: (the question you click)
+STARBY: (what he says back)
+
+  > (an answer)
+    STARBY: (his reply)
+      > (an answer that ends the chat) [END]
+      > Talk to you later! [END]
+
+  > (another answer)
+    STARBY: (his reply)
+      > (go deeper...)
+        STARBY: (...)
+          > (...) [END]
