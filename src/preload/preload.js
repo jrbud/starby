@@ -60,6 +60,9 @@ contextBridge.exposeInMainWorld('sprite', {
   onAdminSettingsChanged: (cb) => subscribe('admin:changed', cb),
   openAdminSettings: () => ipcRenderer.send('admin:open'),
 
+  // Developer window only (src/main/windows/devToolsWindow.js; ignored from any other window)
+  devCommand: (cmd) => ipcRenderer.send('dev:command', cmd),
+
   // Pet window
   setIgnoreMouse: (ignore) => ipcRenderer.send('pet:set-ignore-mouse', ignore),
   showContextMenu: () => ipcRenderer.send('pet:context-menu'), // old native menu (now on the tray)

@@ -9,6 +9,7 @@ const path = require('path');
 
 const DEFAULTS = {
   showWelcome: 1, // the welcome window at launch (windows/welcomeWindow.js); 0 = "Don't show this again"
+  userName: '', // what Starby calls you (welcome window / Settings → Starby); '' = "friend" (renderer/pet/userName.js)
   flingPower: 50, // 0–100: how hard throws fly and how bouncy the walls are (50 = original feel)
   starbySize: 100, // Starby's size on screen in px (Settings slider, 50–150; pet.js applies it live)
   idleChats: 1, // Settings → Starby → "Idle chats": random lines while he hangs around (renderer/pet/behaviors/speech.js)
@@ -62,6 +63,7 @@ const RANGES = {
 // List settings: arrays of short lowercase names (e.g. color names), nothing else.
 const LIST_ITEM = /^[a-z][a-z0-9-]{0,23}$/;
 const LIST_MAX = 32;
+const TEXT_MAX = 20; // text settings (userName); keep in sync with the inputs' maxlength
 
 let settings = null;
 let filePath = null;
@@ -106,6 +108,13 @@ function set(patch) {
       }
       continue;
     }
+    if (typeof DEFAULTS[key] === 'string') {
+      // Text setting (the user's name): plain text only, no control characters, at most TEXT_MAX long.
+      if (typeof patch[key] === 'string') {
+        settings[key] = patch[key].replace(/[\u0000-\u001f\u007f<>{}]/g, '').replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX);
+      }
+      continue;
+    }
     const value = Number(patch[key]);
     const [min, max] = RANGES[key] || [0, 100];
     if (Number.isFinite(value)) settings[key] = Math.max(min, Math.min(max, value));
@@ -124,7 +133,9 @@ function onChange(fn) {
 }
 
 function reset() {
-  return set({ ...DEFAULTS, starbitColors: [...DEFAULTS.starbitColors], gamesOff: [] });
+  // Restore default keeps your name: it's who you are, not a preference.
+  const { userName, ...rest } = DEFAULTS;
+  return set({ ...rest, starbitColors: [...DEFAULTS.starbitColors], gamesOff: [] });
 }
 
 module.exports = { get, set, reset, onChange, DEFAULTS };

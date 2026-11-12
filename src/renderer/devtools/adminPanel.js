@@ -1,4 +1,5 @@
-// Admin Settings window: a slider (or an on/off switch, for `type: 'toggle'`) for every knob.
+// Developer window → "Admin Settings" tab (was its own window): a slider (or an on/off switch, for
+// `type: 'toggle'`) for every knob.
 // Changing one saves the value (main process → admin-settings.json) and the pet picks it up live
 // via 'admin:changed'. Knobs, defaults and ranges come from ../shared/starbitsTuning.js.
 import { STARBITS_TUNING, MIN_MAX_PAIRS, resolveTuning } from '../shared/starbitsTuning.js';

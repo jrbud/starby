@@ -209,6 +209,30 @@ details.group.section-off > summary:hover .group-title {
 .switch-name {
   font-weight: 600;
 }
+/* Starby → "Your name": label left, text box right, framed with the team's white square art. */
+.name-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.name-setting input {
+  width: 55%;
+  min-width: 0;
+  padding: 3px 8px;
+  border: 8px solid transparent;
+  border-image: url('../../../assets/menuIcons/white-square-idle.png') 95 fill / 8px stretch;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+.name-setting input::placeholder {
+  color: inherit;
+  opacity: 0.45;
+}
+.name-setting input:focus {
+  outline: none;
+}
 /* A switch that can't be used here (App → Start when Windows starts, while developing). */
 .switch-row.disabled {
   opacity: 0.55;

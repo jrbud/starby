@@ -174,6 +174,21 @@ function hush(ctx, on) {
   if (!on && hushedByUs) { pet.hushed = false; hushedByUs = false; }
 }
 
+// Invisible while he's under an asteroid, so nothing of him gives away which one: not his body,
+// not worn props poking out around the asteroid, not floating props (balloon, UFO, star trail:
+// their own `.floater` elements beside #pet, see ../floaters.js). `visibility` rather than
+// opacity, since floaters.js rewrites the trail's opacity every frame. Called every frame while
+// hidden, so a floater added mid-game is hidden too.
+let invisible = false;
+function setInvisible(ctx, on) {
+  if (!on && !invisible) return;
+  invisible = on;
+  const v = on ? 'hidden' : '';
+  ctx.petEl.style.visibility = v;
+  ctx.petEl.style.pointerEvents = on ? 'none' : ''; // can't be grabbed/hovered to find him
+  for (const el of ctx.stage.querySelectorAll('.floater')) el.style.visibility = v;
+}
+
 function setPickable(on) {
   for (const r of rocks) {
     r.el.classList.toggle('pickable', on);
@@ -365,7 +380,11 @@ export default {
         pet.x = mine.x - pet.size / 2;
         pet.y = mine.y - pet.size / 2;
         pet.bob = 0;
-      } else if (outcome === 'right' && !hopped && !isJumping()) {
+        if (phase !== 'drop') setInvisible(ctx, true); // landed on him: from here he's hidden
+      } else {
+        setInvisible(ctx, false); // his asteroid lifted: there he is
+      }
+      if (liftedMine && outcome === 'right' && !hopped && !isJumping()) {
         hopped = true;
         startJump({ height: rand(14, 20), air: 0.3 }); // a happy hop when you find him
       }
@@ -376,6 +395,7 @@ export default {
     const { pet } = ctx;
     endGame = null;
     phase = 'done';
+    setInvisible(ctx, false); // always visible again, however the game ended
     pet.hiding = false;
     hush(ctx, false);
     hidePrompt();

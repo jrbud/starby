@@ -13,7 +13,7 @@
 // DevTools: starby.invite() or starby.invite('pong').
 //
 // Owns the star via pet.mode = 'invite' while asking (behaviors stand down).
-import { rand, chance, startJump, cancelJump, isJumping, updateJump } from '../behaviors/motion.js';
+import { rand, chance, approach, startJump, cancelJump, isJumping, updateJump } from '../behaviors/motion.js';
 import { lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
 import { TICK_SECONDS } from '../core/clock.js';
@@ -137,8 +137,14 @@ export default {
   },
 
   update(ctx, dt) {
-    if (ctx.pet.mode !== 'invite') return;
-    updateJump(ctx.pet, dt);
+    const { pet } = ctx;
+    if (pet.mode !== 'invite') return;
+    // updateJump leaves the landing squish (0.78) for the caller to ease back, and in 'invite'
+    // mode no behavior does that, so do it here or he stays squished until the invite ends.
+    if (!updateJump(pet, dt)) {
+      pet.bob = 0;
+      pet.squash = approach(pet.squash, 1, dt, 10);
+    }
   },
 
   stop(ctx) {

@@ -308,7 +308,21 @@ document.addEventListener('input', (e) => {
 });
 syncAllFills();
 
+// ---- Starby → "Your name" (settingsStore.userName; what he calls you, renderer/pet/userName.js).
+// Saved shortly after you stop typing; not overwritten while you're typing in it.
+const nameBox = document.getElementById('user-name');
+let nameTimer = null;
+nameBox.addEventListener('input', () => {
+  clearTimeout(nameTimer);
+  nameTimer = setTimeout(() => api.setSettings({ userName: nameBox.value }), 400);
+});
+nameBox.addEventListener('keydown', (e) => { if (e.key === 'Enter') nameBox.blur(); });
+function showUserName(settings) {
+  if (document.activeElement !== nameBox) nameBox.value = typeof settings.userName === 'string' ? settings.userName : '';
+}
+
 function show(settings) {
+  showUserName(settings);
   showSfx(settings);
   showSwitches(settings);
   showStarbySize(settings.starbySize);

@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>Starby Developer</title>
+    <link rel="stylesheet" href="devtools.css" />
+  </head>
+  <body>
+    <!-- Plain on purpose: a team-only tool. Two tabs (devtools.js switches them):
+         Actions = buttons built by devtools.js from its SECTIONS list;
+         Admin Settings = starbits tuning sliders built by adminPanel.js (renderer/shared/starbitsTuning.js). -->
+    <div id="top">
+      <nav id="tabs">
+        <button type="button" data-tab="actions">Actions</button>
+        <button type="button" data-tab="admin">Admin Settings</button>
+      </nav>
+      <p id="status">Ready. Most buttons end whatever Starby is doing first.</p>
+    </div>
+
+    <section id="tab-actions" class="tab">
+      <div id="sections"></div>
+    </section>
+
+    <section id="tab-admin" class="tab" hidden>
+      <p class="note">Tuning for testing and demos. Changes apply to Starby right away and are saved.</p>
+      <main id="settings"></main>
+      <button id="reset" type="button">Reset to defaults</button>
+    </section>
+
+    <script type="module" src="devtools.js"></script>
+    <script type="module" src="adminPanel.js"></script>
+  </body>
+</html>

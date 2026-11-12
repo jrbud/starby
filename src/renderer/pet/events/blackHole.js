@@ -123,7 +123,11 @@ function showHole(ctx, at) {
     img.onerror = () => console.warn(`[black-hole] missing art: ${HOLE_ART}`);
     holeEl.appendChild(img);
   }
-  holeEl.style.transform = `translate(${hole.x - HOLE_SIZE / 2}px, ${hole.y - HOLE_SIZE / 2}px)`;
+  // Placed with left/top, NOT transform: translate. The open/close animation uses the CSS `scale`
+  // property, which the browser applies on top of `transform`, so it scaled the translate too: closing,
+  // the hole slid off toward the screen's top-left corner instead of collapsing in on itself.
+  holeEl.style.left = `${hole.x - HOLE_SIZE / 2}px`;
+  holeEl.style.top = `${hole.y - HOLE_SIZE / 2}px`;
   // Behind him, so he's drawn in front of it until he's swallowed.
   if (!holeEl.parentNode) {
     if (ctx.petEl.parentNode === ctx.stage) ctx.stage.insertBefore(holeEl, ctx.petEl);
