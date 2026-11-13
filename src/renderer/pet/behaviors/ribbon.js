@@ -1,5 +1,5 @@
-// RAINBOW RIBBON (shop → Trails → "Rainbow ribbon", shopCatalog.js accessory-ribbontrail): while he
-// wears it and moves, a flat rainbow ribbon (six bands: red, orange, yellow, green, blue, purple)
+// RIBBONS (shop → Trails: Rainbow / Lesbian / MLM / Bi / Trans Ribbon, shopCatalog.js): while he
+// wears one and moves, a flat ribbon in that flag's stripes (RIBBONS below)
 // streams out behind him along the path he took, thin but long. Every part lasts
 // LIFE seconds and then disappears (no fading), so the tail shortens piece by piece from the end.
 // It lasts much longer than the copy-of-Starby trails. No wobble: it follows his path exactly.
@@ -7,14 +7,22 @@
 // (SHOP_DRIFT) so you can see it before buying.
 //
 // ART RULE EXCEPTION (approved by the team on 2026-11-12): CLAUDE.md says code never draws art.
-// This ribbon is the one approved exception: plain rainbow bands drawn by code, because it's a
+// These ribbons are the one approved exception: plain flag-stripe bands drawn by code, as it's a
 // flat-color effect with no hand-drawn look to match. Don't use it as precedent for drawing
 // other art in code.
 //
 // One full-window canvas in the stage, inserted BEFORE #pet (always behind him), pointer-events:
 // none (never blocks clicks). Redrawn every frame from a list of points along his path.
-const VALUE = 'ribbontrail'; // the shop item's value (in pet.look.accessories while worn)
-const BANDS = ['#ff0000', '#ff9900', '#ffff00', '#33ff00', '#0099ff', '#6633ff'];
+// The ribbons, by shop item value (in pet.look.accessories while worn): their stripes, top to bottom.
+// A color listed twice is a double-width stripe (the bisexual flag is 2 : 1 : 2).
+const RIBBONS = {
+  ribbontrail: ['#ff0000', '#ff9900', '#ffff00', '#33ff00', '#0099ff', '#6633ff'], // rainbow
+  lesbianribbon: ['#d52d00', '#ff9a56', '#ffffff', '#d362a4', '#a30262'], // lesbian
+  mlmribbon: ['#078d70', '#26ceaa', '#98e8c1', '#ffffff', '#7bade2', '#5049cc', '#3d1a78'], // gay men / mlm
+  biribbon: ['#d60270', '#d60270', '#9b4f96', '#0038a8', '#0038a8'], // bisexual
+  transribbon: ['#5bcefa', '#f5a9b8', '#ffffff', '#f5a9b8', '#5bcefa'], // trans
+};
+let BANDS = RIBBONS.ribbontrail; // the stripes of the one he's wearing
 const LIFE = 0.5; // seconds each part of the ribbon lasts before it disappears (= how long the ribbon is)
 const ALPHA = 0.9; // opacity of the whole ribbon
 const WIDTH = 0.3; // ribbon width, in Starby sizes (thin)
@@ -100,7 +108,10 @@ export default {
 
   update(ctx, dt) {
     const { pet } = ctx;
-    const want = pet.look.accessories.includes(VALUE);
+    // Which ribbon he's wearing, if any (they're all in the shop's Trails category: one at a time).
+    const key = Object.keys(RIBBONS).find((k) => pet.look.accessories.includes(k));
+    if (key) BANDS = RIBBONS[key];
+    const want = Boolean(key);
     if (want !== on) {
       on = want;
       if (on) makeCanvas(ctx);
