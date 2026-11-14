@@ -113,6 +113,9 @@ let ext = null; // how far the whole layout reaches from his middle: { left, rig
 let open = null; // { id, event }: node showing, and the event running when it opened
 let room = null; // { x, y, until }: sliding him away from an edge before the burst
 let froze = false; // we put him in 'dialogue' mode (and must hand him back)
+// px from his middle the side boxes must stay clear of, on BOTH sides (so he stays centered):
+// an event menu's `clearX`, e.g. events/friend.js keeps the boxes off the friend holding his hand.
+let sideClear = 0;
 let quietFor = 0;
 let boilTimer = null;
 let ctxRef = null;
@@ -284,7 +287,7 @@ function layout(ctx) {
     const row = Math.floor(i / 2);
     const side = i % 2 ? 1 : -1;
     const y = (row - (pairs - 1) / 2) * rowStep;
-    let out = S / 2 + GAP + (pairs - 1 - row) * FAN;
+    let out = Math.max(S / 2, sideClear) + GAP + (pairs - 1 - row) * FAN;
     if (y - b.h / 2 < sayBottom && y + b.h / 2 > sayTop) out = Math.max(out, clear);
     b.slot = { x: side * (out + b.w / 2), y };
   }
@@ -427,6 +430,7 @@ function showNode(ctx, id, origin = { x: 0, y: 0 }) {
     options = options.slice(0, MAX_OPTIONS);
   }
   root.style.setProperty('--font-scale', String(fontScale())); // Font size setting (the CSS above)
+  sideClear = node.clearX || 0;
   if (!say) say = makeSay();
   setSayText(ctx, resolve(ctx, node.line));
   // prompt.mp3: he's asking you something (every dialogue step, and event menus like
@@ -617,7 +621,9 @@ function draw(b, anchor, now) {
 
 // ---- Event menus (see the header) ----
 /** Show an event's choices like the dialogue: his `line` in a talkbox, `options` bursting out. */
-export function showMenu(ctx, { line, options, onCancel = null }) {
+// clearX (optional): px from his middle the side boxes must start past, on both sides (something
+// standing next to him, like his friend). He stays centered between them.
+export function showMenu(ctx, { line, options, onCancel = null, clearX = 0 }) {
   if (!root) build(ctx);
   clearAll();
   if (froze && ctx.pet.mode === 'dialogue') ctx.pet.mode = 'idle'; // (the player's dialogue was open)
@@ -626,7 +632,7 @@ export function showMenu(ctx, { line, options, onCancel = null }) {
   root.style.display = '';
   startBoil();
   open = null;
-  showNode(ctx, { line, options: options.slice(0, MAX_OPTIONS), menu: true });
+  showNode(ctx, { line, options: options.slice(0, MAX_OPTIONS), menu: true, clearX });
   open.onCancel = onCancel;
   takeSpeech(dropLine); // other speech can't talk over the event's question (see dropLine)
   if (onCancel) setCatching(ctx, true); // click away = cancel; otherwise clicks pass through

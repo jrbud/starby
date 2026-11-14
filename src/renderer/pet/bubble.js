@@ -84,8 +84,14 @@ export function createBubble(el, opts = {}) {
     const feetY = ph / 2 + (z * ph) / 2;
     let left = (think ? pw * THINK_TIP.x : pw / 2) - tb.tailFrac * W; // tail tip over his middle (cloud: his upper-left)
     let top = think ? ph * THINK_TIP.y - H : headY - H - GAP;
-    const flipped = r.top + top < a.top + EDGE; // no room above → below him, tail up
+    let flipped = r.top + top < a.top + EDGE; // no room above → below him, tail up
     if (flipped) top = feetY + GAP;
+    // Zoomed way in and no room below either: stay above, pinned to the top of the screen (over the
+    // tip of his point, never his face, which is lower down).
+    if (flipped && z > 1 && r.top + top + H > a.bottom - EDGE) {
+      flipped = false;
+      top = a.top + EDGE - r.top;
+    }
     const screenLeft = r.left + left;
     if (screenLeft < a.left + EDGE) left += a.left + EDGE - screenLeft;
     else if (screenLeft + W > a.right - EDGE) left -= screenLeft + W - (a.right - EDGE);

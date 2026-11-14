@@ -86,7 +86,7 @@ const accessoryArt = createAccessoryArt(ART_RES);
 // Made on request, dropped when the zoom is over (they're big).
 let closeup = null; // { frames, art }
 function prepareCloseup(faces, zoom) {
-  const px = Math.min(1400, Math.ceil(SIZE * zoom * PX));
+  const px = Math.min(1600, Math.ceil(SIZE * zoom * PX));
   const close = { frames: createFrames(px), art: createAccessoryArt(px) };
   closeup = close;
   close.frames.loadFaces(pet.look.colorSet, faces);
@@ -367,8 +367,8 @@ let floatersHidden = false; // balloon / ufo / trail are put away while he's zoo
 function render(now, dt) {
   const { x, y, bob, squash, look, rotation } = pet;
   const zoom = Math.max(1, pet.zoom || 1);
-  // Zoomed: more canvas pixels (steps of 0.5×, at most 6×) so the CSS scale stays sharp.
-  const zoomRes = zoom > 1.01 ? Math.min(6, Math.ceil(zoom * 2) / 2) : 1;
+  // Zoomed: more canvas pixels (steps of 0.5×, at most 8×) so the CSS scale stays sharp.
+  const zoomRes = zoom > 1.01 ? Math.min(8, Math.ceil(zoom * 2) / 2) : 1;
   if (zoomRes !== ZOOM_RES) {
     ZOOM_RES = zoomRes;
     layoutForSize();
