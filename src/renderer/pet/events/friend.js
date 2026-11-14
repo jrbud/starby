@@ -17,9 +17,10 @@
 //            They always stay inside the usable screen (walls = its edges). When it's time: "i've got things to do! bye!" and they hop off screen.
 //   no       still holding hands: Starby: "yeah, they're not that cool anyway". Once his bubble is
 //            gone, the friend: "uhhh... whattt?". Once THAT's gone, Starby SPINS on the spot, faster
-//            and faster, swinging the friend around by the hand, and lets go (when they're heading
-//            up): they fly off spinning, bounce off the screen edges BOUNCES times, then fly out past
-//            the edge. Starby spins down to a stop.
+//            and faster, swinging the friend around by the hand, and lets go in a RANDOM direction
+//            (mostly sideways, never straight up/down), hard: they pinball around the screen (no
+//            gravity, a little random skew off each wall) BOUNCES times, then fly out past the edge.
+//            Starby spins down to a stop.
 //   no answer → they let go; the friend shrugs, waves and hops off.
 //
 // Only one friend at a time (it's one event). While they're visiting the event stays active at
@@ -61,9 +62,11 @@ const HOP_SPEED = 260; // px/s hopping in / off
 const WALK_SPEED = 110; // px/s wandering
 const PAUSE_FOR = [1.5, 4]; // seconds standing still between wanders
 const CHAT_EVERY = [12, 25]; // seconds between their remarks while visiting
-const THROW_SPEED = 1500; // px/s when Starby throws them
-const BOUNCES = 3; // edge bounces before they fly off
-const BOUNCE_KEEP = 0.85; // speed kept per bounce
+const THROW_SPEED = 2300; // px/s when Starby flings them
+const BOUNCES = 7; // edge bounces (ricocheting around the screen) before they fly off
+const BOUNCE_KEEP = 0.93; // speed kept per bounce (high: they keep pinballing)
+const BOUNCE_SKEW = 0.3; // rad: each bounce knocks them a little off a clean angle (more chaos)
+const FLING_NEAR_VERTICAL = 60; // degrees: the random fling direction stays within this of sideways (no straight up/down)
 const SAY_MS = 2600;
 const CLICK_SLOP = 6; // px of movement before a press counts as a drag, not a click
 const FLY_DRAG = 2.2; // 1/s: how quickly a thrown friend slows down (space-like glide, like Starby)
@@ -137,6 +140,7 @@ let starbyFace = 'calm'; // Starby's face while we own him
 let spinTheta = 0; // the spin: angle so far (rad, clockwise)...
 let spinW = 0; // ...speed (rad/s)...
 let spinOff = null; // ...and the friend's middle relative to Starby's middle at the start
+let flingDir = 0; // rad: the random direction he lets go in (picked when the spin starts)
 let settle = null; // { from, to, t } Starby spinning down after letting go
 // Dragging / throwing them (like Starby): held → flying → back to wandering.
 let held = null; // { offX, offY, moved, startX, startY } while the mouse button is down on them
@@ -474,9 +478,14 @@ function stickToHand(ctx) {
 function askToMeet(ctx) {
   phase = 'ask';
   phaseLeft = ASK_FOR;
+  // The answer boxes go out past the friend holding his hand (both sides the same, so he stays
+  // centered between Yes and No): their far edge is this far from his middle, plus a little.
+  const S = ctx.pet.size;
+  const clearX = Math.abs(fx - ctx.pet.x) + S / 2 + 6;
   showMenu(ctx, { // (he freezes first, centered between the answers: dialogue.js)
     line: STARBY_LINES.ask(friend.name),
     options: [{ label: 'Yes!', onPick: () => { answer = 'yes'; } }, { label: 'No', onPick: () => { answer = 'no'; } }],
+    clearX,
   });
 }
 
@@ -487,6 +496,10 @@ function startSpin(ctx) {
   spinTheta = 0;
   spinW = SPIN_W0;
   spinOff = { x: fx - pet.x, y: fy - pet.y }; // friend's middle from Starby's middle (same box size)
+  // A random direction to fling them: anything within FLING_NEAR_VERTICAL of sideways, left or right,
+  // up or down (straight up / down would just bounce them floor to ceiling).
+  const tilt = ((Math.random() * 2 - 1) * FLING_NEAR_VERTICAL * Math.PI) / 180;
+  flingDir = Math.random() < 0.5 ? tilt : Math.PI + tilt;
   ctx.log('friend-spin', { name: friend.name, size: S });
 }
 
@@ -512,11 +525,16 @@ function spinStep(ctx, dt) {
   const tvx = -oy * spinW; // the friend's speed along the circle
   const tvy = ox * spinW;
   const sp = Math.hypot(tvx, tvy) || 1;
-  if (spinTheta < SPIN_MIN_TURNS * TAU || tvy > -0.7 * sp) return;
-  // Let go! They fly off the way they were swinging (at least THROW_SPEED), still spinning.
-  const k = Math.max(sp, THROW_SPEED) / sp;
-  vx = tvx * k;
-  vy = tvy * k;
+  // Let go once they've gone round SPIN_MIN_TURNS and are swinging the random fling direction
+  // (or, safety, after one more turn anyway).
+  const off = Math.atan2(Math.sin(Math.atan2(tvy, tvx) - flingDir), Math.cos(Math.atan2(tvy, tvx) - flingDir));
+  const lined = Math.abs(off) <= Math.max(0.15, spinW * dt);
+  if (spinTheta < SPIN_MIN_TURNS * TAU || (!lined && spinTheta < (SPIN_MIN_TURNS + 1) * TAU)) return;
+  // Let go! Hard, in that direction, still spinning.
+  const dir = lined ? flingDir : Math.atan2(tvy, tvx);
+  const speed = Math.max(sp, THROW_SPEED);
+  vx = Math.cos(dir) * speed;
+  vy = Math.sin(dir) * speed;
   spin = spinW;
   bounces = 0;
   holding = false;
@@ -769,16 +787,30 @@ export default {
         if (moveToward(target.x, target.y, HOP_SPEED, dt)) { phase = 'done'; finish('left'); return; }
       }
     } else if (phase === 'thrown') {
-      vy += 900 * dt; // a bit of gravity while flying around
+      // Pinballing around: no gravity (so it's not just up and down), straight lines, ricocheting
+      // off every edge with a little random skew and a spin flip, BOUNCES times.
       fx += vx * dt;
       fy += vy * dt;
       rot += spin * dt;
       const out = bounces >= BOUNCES; // after enough bounces they fly out past the edge
       if (!out) {
-        if (fx < a.left) { impact(ctx, 'left', Math.abs(vx)); fx = a.left; vx = Math.abs(vx) * BOUNCE_KEEP; bounces++; }
-        if (fx > a.right - S) { impact(ctx, 'right', Math.abs(vx)); fx = a.right - S; vx = -Math.abs(vx) * BOUNCE_KEEP; bounces++; }
-        if (fy < a.top) { impact(ctx, 'top', Math.abs(vy)); fy = a.top; vy = Math.abs(vy) * BOUNCE_KEEP; bounces++; }
-        if (fy > a.bottom - S) { impact(ctx, 'bottom', Math.abs(vy)); fy = a.bottom - S; vy = -Math.max(Math.abs(vy) * BOUNCE_KEEP, 700); bounces++; }
+        let hit = null;
+        if (fx < a.left) { impact(ctx, 'left', Math.abs(vx)); fx = a.left; vx = Math.abs(vx) * BOUNCE_KEEP; hit = 'x'; }
+        if (fx > a.right - S) { impact(ctx, 'right', Math.abs(vx)); fx = a.right - S; vx = -Math.abs(vx) * BOUNCE_KEEP; hit = 'x'; }
+        if (fy < a.top) { impact(ctx, 'top', Math.abs(vy)); fy = a.top; vy = Math.abs(vy) * BOUNCE_KEEP; hit = 'y'; }
+        if (fy > a.bottom - S) { impact(ctx, 'bottom', Math.abs(vy)); fy = a.bottom - S; vy = -Math.abs(vy) * BOUNCE_KEEP; hit = 'y'; }
+        if (hit) {
+          bounces++;
+          spin = -spin * rand(0.8, 1.2);
+          // Knock the angle a bit, but keep heading away from the wall just hit.
+          const sp = Math.hypot(vx, vy);
+          let ang = Math.atan2(vy, vx) + rand(-BOUNCE_SKEW, BOUNCE_SKEW);
+          const nx = Math.cos(ang);
+          const ny = Math.sin(ang);
+          if ((hit === 'x' && Math.sign(nx) !== Math.sign(vx)) || (hit === 'y' && Math.sign(ny) !== Math.sign(vy))) ang = Math.atan2(vy, vx);
+          vx = Math.cos(ang) * sp;
+          vy = Math.sin(ang) * sp;
+        }
       } else if (fx < a.left - S * 2 || fx > a.right + S || fy < a.top - S * 2 || fy > a.bottom + S) {
         phase = 'done';
         finish('thrown-out');
