@@ -24,8 +24,8 @@
 //   40–50   small things: lollipop, bow, tie                       (~8–10 min of play)
 //   60–70   hats and shoes: propeller hat, sneakers, boots, top hat (~12–14 min)
 //   80–90   floating extras: balloon, star tail, neon trail, motion blur (~16–18 min)
-//   100–120 the showpieces: halo, UFO, rainbow trail, rainbow ribbon (~20–24 min)
-// Everything (colors 60 + accessories 1160) costs 1220 starbits, about 4 hours of play.
+//   100–120 the showpieces: halo, UFO, rainbow trail, the flag ribbons (~20–24 min)
+// Everything (colors 60 + accessories 1600) costs 1660 starbits, about 5.5 hours of play.
 // For demos use the shop's demo shortcut (P4-3).
 
 const SHOP_ITEMS = [
@@ -66,6 +66,11 @@ const SHOP_ITEMS = [
   // The ribbon is drawn by code (renderer/pet/behaviors/ribbon.js; a team-approved exception to
   // the art rule), not copies of Starby.
   { id: 'accessory-ribbontrail', slot: 'accessory', name: 'Rainbow Ribbon', price: 110, value: 'ribbontrail', place: 'trail', category: 'trails' },
+  // Pride flag ribbons: same ribbon, each flag's stripes (RIBBONS in ribbon.js).
+  { id: 'accessory-lesbianribbon', slot: 'accessory', name: 'Lesbian Ribbon', price: 110, value: 'lesbianribbon', place: 'trail', category: 'trails' },
+  { id: 'accessory-mlmribbon', slot: 'accessory', name: 'MLM Ribbon', price: 110, value: 'mlmribbon', place: 'trail', category: 'trails' },
+  { id: 'accessory-biribbon', slot: 'accessory', name: 'Bi Ribbon', price: 110, value: 'biribbon', place: 'trail', category: 'trails' },
+  { id: 'accessory-transribbon', slot: 'accessory', name: 'Trans Ribbon', price: 110, value: 'transribbon', place: 'trail', category: 'trails' },
 ];
 
 function getItem(id) {
