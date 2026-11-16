@@ -74,10 +74,15 @@ button {
   flex: none;
 }
 
+/* Starby stands centered in this box (shop.js reports where it is, wherever it ends up). Big gaps
+   above and below it (here and on .action-button) leave room for Starby spilling out of it: at the
+   biggest "Starby size" (150px) with a small UI size (75%), the page shows at 0.6× (MENU_SCALE 0.8 ×
+   0.75), so the box is only ~97px tall on screen and he sticks out ~27px top and bottom (~45px of
+   page space), which used to cover the wallet and the Buy/Equip button. */
 .display-box {
   width: 220px;
   height: 162px;
-  margin-top: 12px;
+  margin-top: 44px;
   /*border: 1.5px solid var(--outline);*/
   /*background: var(--display-bg);*/
 }
@@ -87,12 +92,19 @@ button {
      .grey   not enough       → white art (white-dark on hover); still clickable, Starby explains
      .equip  owned, not worn  → white art (white-dark on hover)
      .done   already wearing  → white art, faded, no hover */
+/* Sized with Settings → UI → Font size (--font-scale, 0.75–1.5, see ../shared/menuZoom.js): the
+   whole button scales with its text, keeping the art's ~2.8:1 shape, so "Equipped" / "Take off"
+   never spill out of the drawn border. At the largest font it's 195px wide: still inside the 220px
+   display box it's centered under. */
 .action-button {
+  --btn-scale: var(--font-scale, 1);
+  --btn-w: calc(130px * var(--btn-scale));
   align-self: flex-start;
-  margin: 16px 0 0 45px; /* centered under the 220px box: (220 - 130) / 2 */
-  width: 130px;
-  min-height: 46px; /* art ratio ~2.4:1; min-height: a label that wraps (big Font size) makes it taller */
-  padding: 6px 10px 8px; /* keeps 2 lines inside the art's drawn border */
+  margin: 52px 0 0 calc((220px - var(--btn-w)) / 2); /* centered under the 220px box; 52px: room for a big Starby (see .display-box) */
+  width: var(--btn-w);
+  min-height: calc(46px * var(--btn-scale)); /* min-height: a label that still wraps makes it taller */
+  padding: calc(6px * var(--btn-scale)) calc(10px * var(--btn-scale)) calc(8px * var(--btn-scale)); /* inside the art's drawn border */
+  white-space: nowrap; /* one line: the button is as wide as the text needs */
   line-height: 1.1;
   border: 0;
   background: url('../../../assets/menuIcons/button-white-light.png') center / 100% 100% no-repeat;
