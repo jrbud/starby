@@ -3,10 +3,51 @@
 // Design: ONE frameless, transparent, always-on-top window covering the whole primary
 // display. The sprite, speech bubble and starbits are all DOM elements moved around
 // inside it. That way walking/dragging/dropping starbits never has to move OS windows.
-const { BrowserWindow, screen } = require('electron');
+const { app, BrowserWindow, screen } = require('electron');
 const path = require('path');
 
 let petWindow = null;
+
+// Put the pet window back in front of everything. Off-then-on re-applies the z-order through a
+// Windows call that never activates the window (see KEEP_ON_TOP_MS below for why not moveTop()).
+function reassertOnTop() {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  petWindow.setAlwaysOnTop(false);
+  petWindow.setAlwaysOnTop(true, 'screen-saver');
+}
+
+// WINDOWS QUIRK: the shop / settings / other menu windows are always-on-top too (bringToFront.js),
+// and Windows orders always-on-top windows by which was raised LAST: the window levels Electron
+// takes ('floating' vs 'screen-saver') make no difference there. Focusing, showing or DRAGGING one
+// of them (moving a window raises it) put it above Starby until the KEEP_ON_TOP_MS timer caught up,
+// so he'd vanish behind the shop for a moment and pop back on top later. So whenever any of the
+// app's other windows is raised, put him straight back on top:
+//   - 'move' (fires continuously while dragging): moveTop(), cheap and with no gap, so he never
+//     dips behind the window you're dragging. moveTop doesn't take focus.
+//   - focus / show / 'moved' (drag finished): the full off-then-on re-assert as well.
+// Done here once for every window (browser-window-created), so new menu windows get it for free.
+function watchOtherWindow(win) {
+  if (!win || win === petWindow) return;
+  const raiseNow = () => {
+    if (petWindow && !petWindow.isDestroyed()) petWindow.moveTop();
+  };
+  const raiseFully = () => {
+    raiseNow();
+    reassertOnTop();
+  };
+  win.on('move', raiseNow);
+  win.on('moved', raiseFully);
+  win.on('focus', raiseFully);
+  win.on('show', raiseFully);
+  win.on('restore', raiseFully);
+}
+app.on('browser-window-created', (_e, win) => {
+  // The pet window itself is reported here too, before createPetWindow() has stored it: skip a
+  // window that's the pet page (checked once it starts loading).
+  win.webContents.once('did-start-loading', () => {
+    if (win !== petWindow) watchOtherWindow(win);
+  });
+});
 
 function createPetWindow() {
   // Use full `bounds` (not `workArea`) so the sprite can sit on top of the taskbar.
@@ -54,11 +95,7 @@ function createPetWindow() {
   // call that never activates the window, so it can't steal keyboard focus from what you're
   // typing in. Re-applying the same value alone may be skipped as "no change".
   const KEEP_ON_TOP_MS = 1500;
-  const keepOnTop = setInterval(() => {
-    if (!petWindow || petWindow.isDestroyed()) return;
-    petWindow.setAlwaysOnTop(false);
-    petWindow.setAlwaysOnTop(true, 'screen-saver');
-  }, KEEP_ON_TOP_MS);
+  const keepOnTop = setInterval(reassertOnTop, KEEP_ON_TOP_MS);
 
   // CLICK-THROUGH: start fully click-through. `forward: true` still delivers mousemove
   // events to the renderer, which is how we (a) detect hovering over the sprite and
@@ -87,4 +124,4 @@ function getPetWindow() {
   return petWindow;
 }
 
-module.exports = { createPetWindow, getPetWindow };
+module.exports = { createPetWindow, getPetWindow, reassertOnTop };
