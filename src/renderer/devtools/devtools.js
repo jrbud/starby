@@ -52,6 +52,9 @@ const SECTIONS = [
   ]],
   ['Other events', [
     ['Friend visits', starby('friendVisit')],
+    ['Secret (asks first)', starby('secret')],
+    ['Secret: tell one', starby('secret', 'tell')],
+    ['Secret: spit-laugh', starby('secret', 'spit')],
     ['Copycat', [stop, event('copycat')]],
     ['Dance', [stop, event('dance')]],
     ['Open dialogue box', starby('dialogue')],

@@ -96,11 +96,20 @@ const APP_KEYS = {
   spotify: 'spotify', spotifast: 'spotify', minecraft: 'minecraft', minecraftlauncher: 'minecraft',
   robloxplayerbeta: 'roblox', whatsapp: 'whatsapp', windowsterminal: 'terminal', wt: 'terminal', cmd: 'terminal',
   powershell: 'terminal', pwsh: 'terminal',
+  // Game launchers: so focus mode's gamer flavor can tell "opened Steam" from "playing a game"
+  // (renderer/pet/events/focusFlavors.js LAUNCHER_KEYS).
+  epicgameslauncher: 'epic', 'battle.net': 'battlenet', riotclientservices: 'riot', leagueclient: 'league-client',
+  // Video players: a fullscreen one gives focus mode its "watching" (popcorn) flavor (focusFlavors.js VIDEO_KEYS).
+  vlc: 'vlc', 'mpc-hc64': 'mpc', 'mpc-hc': 'mpc', 'mpc-be64': 'mpc', mpv: 'mpv', potplayermini64: 'potplayer',
+  potplayermini: 'potplayer', 'video.ui': 'movies', 'microsoft.media.player': 'mediaplayer', wmplayer: 'mediaplayer',
 };
 // Sites, from a browser tab's title (checked here; the title never leaves this file).
 const SITE_KEYS = [
   { key: 'youtube', test: /youtube/i }, { key: 'netflix', test: /netflix/i }, { key: 'twitch', test: /twitch/i },
   { key: 'github', test: /github/i }, { key: 'gmail', test: /gmail|inbox \(\d+\)/i }, { key: 'reddit', test: /reddit/i },
+  // Streaming (focusFlavors.js VIDEO_KEYS); Prime Video before 'amazon', which would match it too.
+  { key: 'disneyplus', test: /disney\+|disneyplus/i }, { key: 'primevideo', test: /prime video/i },
+  { key: 'hulu', test: /\bhulu\b/i }, { key: 'crunchyroll', test: /crunchyroll/i },
   { key: 'wikipedia', test: /wikipedia/i }, { key: 'amazon', test: /amazon/i }, { key: 'nasa', test: /\bnasa\b/i },
   { key: 'instagram', test: /instagram/i },
   // X / Twitter: x.com tab titles end in "/ X" ("Home / X", "Someone (@them) / X"), then the

@@ -39,6 +39,7 @@
 //             (games.js: every 30s, 30%, 2 min cooldown; hide-seek starts silently;
 //             4 min with no game → he asks no matter what)
 //   friend    friend                              its own timer, every 20–40 min (friend.js) 14
+//   secret    secret                              auto: rolled every min, 10%, 15 min cooldown 6
 //   copycat   copycat                             its own timer, every 3 min (copycat.js)    3
 //   dance     dance                               music playing, 1 min cooldown (dance.js)  2
 //   system    intro (100), shop (20), focus (16), launch / the shop window / the dialogue's
@@ -65,6 +66,7 @@ import shuffle from './shuffle.js';
 import maze from './maze.js';
 import blackHole from './blackHole.js';
 import friend from './friend.js';
+import secret from './secret.js'; // "psst... wanna hear a secret?" (he leans right up to the screen)
 import { gamesMenu } from './games.js';
 import { happenings } from './happenings.js';
 import { dialogue } from '../dialogue/dialogue.js';
@@ -87,7 +89,7 @@ import { dialogue } from '../dialogue/dialogue.js';
 // maze = an action game: drag him through a maze without touching the walls (maze.js).
 // black-hole = a sky event: a black hole pulls him in, keep him away from it (blackHole.js).
 // friend = its own category: another Starby visits (meet them or not), every 20–40 min (friend.js).
-export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance, hush, constellation, copycat, starbySays, hoopShot, focus, memory, shuffle, maze, blackHole, friend];
+export const EVENTS = [intro, tag, pong, invite, starShower, shootingStar, hideSeek, catchGame, shop, dance, hush, constellation, copycat, starbySays, hoopShot, focus, memory, shuffle, maze, blackHole, friend, secret];
 
 // Helpers: not events (they never start or take over), but they get the same init / watch /
 // watchFrame hooks. gamesMenu = the rest between games, requestGame and the games timer (games.js);

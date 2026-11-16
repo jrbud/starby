@@ -13,7 +13,7 @@
 // DevTools: starby.invite() or starby.invite('pong').
 //
 // Owns the star via pet.mode = 'invite' while asking (behaviors stand down).
-import { rand, chance, approach, startJump, cancelJump, isJumping, updateJump } from '../behaviors/motion.js';
+import { approach, cancelJump, updateJump } from '../behaviors/motion.js';
 import { lineBag } from '../behaviors/chatter.js';
 import { requestMood } from '../behaviors/mood.js';
 import { TICK_SECONDS } from '../core/clock.js';
@@ -93,8 +93,7 @@ export default {
     left = INVITE_FOR;
 
     pet.mode = 'invite'; // behaviors stand down; he stays put while asking
-    cancelJump();
-    startJump({ height: rand(8, 12), air: 0.25 }); // perk up
+    cancelJump(); // (no perk-up hop: he freezes before the boxes pop, see dialogue.js FROZEN WHILE ASKING)
     ctx.log('game-invite', { game: game.name, reason });
     // His ask goes in the menu's talkbox (not ctx.say), with the answers around him.
     showMenu(ctx, {
@@ -131,9 +130,8 @@ export default {
       ctx.log('game-answer', { game: game.name, answer: 'none' });
       finish('ignored');
       ctx.say(LINES.ignored(), 2000);
-    } else if (!isJumping() && chance(0.3, TICK_SECONDS)) {
-      startJump({ height: rand(6, 10), air: 0.22 }); // bouncing on the spot, waiting
     }
+    // (No bouncing while he waits: he's frozen in the middle of the answer boxes.)
   },
 
   update(ctx, dt) {

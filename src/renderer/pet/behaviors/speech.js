@@ -95,7 +95,7 @@ function clickLine(ctx) {
     const pokes = recentPokes(ctx); // includes this click (not ones made during a game like Starby Says)
     if (pokes >= 2 && pokes < POKES_TO_MAD) {
       const tier = Math.min(POKE_WARNINGS.length - 1, Math.floor(((pokes - 2) * POKE_WARNINGS.length) / Math.max(1, POKES_TO_MAD - 2)));
-      if (pokes === POKES_TO_MAD - 1) strikePose(ctx, 'sad', 1.2); // grumpy look: next poke = mad
+      if (pokes === POKES_TO_MAD - 1) strikePose(ctx, 'grumpy', 1.2); // grumpy look: next poke = mad
       return POKE_WARNINGS[tier]();
     }
   }
@@ -111,6 +111,9 @@ const CLICK_BY_MOOD = lineBags({
   dizzy: ['@_@', 'not now... still spinning', 'whoa, two of you?', 'ugh... wobbly'],
   yawning: ['*yawn* hm?', "i'm awake, i'm awake", 'sleepy...'],
   sad: ['...', 'oh. hi.', '*sniff*'], // (a click cheers him up first, so these rarely show)
+  // Lonely-sad (pet.sadKind 'lonely', mood.js): a click doesn't fix it, so hint at what does.
+  lonely: ['...oh. hi.', "*sniff* i'm fine.", 'maybe we could... talk?', 'you noticed me...', 'a pat would be nice...'],
+  cheering: ['go go go!', 'high five! hehe', "you're a superstar!", 'no breaks for champions!'],
   // Clicks don't wake him (only picking him up and shaking does), so hint at that.
   sleepy: ['zzz...', '*snore*', 'mmm... five more minutes...', 'zzz... (he needs a good shake)'],
 });
@@ -122,6 +125,7 @@ const IDLE_BY_MOOD = lineBags({
   dizzy: ['the room is spinning...', '@_@', 'which way is up?'],
   yawning: ['*yaaawn*', 'so sleepy...', 'nap time soon...'],
   sad: ['*sigh*', 'i just wanted to play...', '...', 'oh well.'],
+  lonely: ['*sigh*', "it's so quiet down here...", 'i miss the other stars...', "i'll just... sit here.", '*sniffle*', 'nobody ever asks how i am...'],
   sleepy: ['zzz...', '*snore*', 'zzz... mm... starbits...', '*mumbles*'],
 });
 
@@ -129,7 +133,9 @@ const CHAT_EVERY = [20, 40]; // seconds between idle-chatter attempts
 const CHAT_GAP = 10; // idle chatter needs this many quiet seconds, or it's skipped
 
 const rand = (a, b) => a + Math.random() * (b - a);
-const forMood = (bags, pet) => (bags[pet.mood] || bags.happy)();
+// Pool key: the mood, except lonely-sad has its own pools.
+const poolKey = (pet) => (pet.mood === 'sad' && pet.sadKind === 'lonely' ? 'lonely' : pet.mood);
+const forMood = (bags, pet) => (bags[poolKey(pet)] || bags.happy)();
 
 // Settings → Starby → "Idle chats" (settingsStore.idleChats, 1/0): off = no random lines while he
 // hangs around. Clicks, games, reactions and focus mode's "Talk to me" still talk.
@@ -140,8 +146,9 @@ function scheduleChat(ctx) {
   ctx.after(rand(...CHAT_EVERY), () => {
     // Only chat while relaxed (not while held, fleeing, etc.). Also in focus mode once you've
     // picked "Talk to me" in its menu (events/focus.js sets pet.focusTalk).
-    const { mode, focusTalk } = ctx.pet;
-    if (((mode === 'idle' || mode === 'walk') && idleChatsOn) || (mode === 'focus' && focusTalk)) {
+    // Cheering: behaviors/cheerleader.js says his cheers on its own beat, so no idle chatter.
+    const { mode, focusTalk, mood } = ctx.pet;
+    if (mood !== 'cheering' && (((mode === 'idle' || mode === 'walk') && idleChatsOn) || (mode === 'focus' && focusTalk))) {
       // ignoreQuiet: these pools already fit the mood (asleep → "zzz"), so they're allowed while asleep.
       chat(ctx, forMood(IDLE_BY_MOOD, ctx.pet), 3000, { gap: CHAT_GAP, ignoreQuiet: true });
     }

@@ -28,11 +28,12 @@ export const DEFAULT_SET = 'sunny';
 export const FACES = {
   happy: { files: ['idle-1', 'idle-2'], every: 0.6 }, // default: standing, content
   calm: { files: ['idle-1'] }, // content, arms down, no swapping (focus mode: not distracting)
+  armsUp: { files: ['idle-2'] }, // both arms up, held (holding hands with his friend: they raise them TOGETHER, events/friend.js)
   talking: { files: ['talk-1', 'talk-2'], every: 0.2 }, // mouth flapping
   playful: { files: ['happy-1', 'happy-2'], every: 0.35 }, // playing / thrown / tag (tongue out)
   dancing: { files: ['happy-1', 'happy-2'], every: 0.25 }, // dancing to music: swaps twice a beat (events/dance.js)
   mad: { files: ['mad-1', 'mad-2'], every: 0.4 },
-  sad: { files: ['mad-1', 'mad-2'], every: 0.5 }, // said no to tag: grumpy for a bit, not truly mad
+  grumpy: { files: ['mad-1', 'mad-2'], every: 0.5 }, // a grumpy look, not truly mad (poke warning, dialogue pose)
   dizzy: { files: ['dizzy-1', 'dizzy-2'], every: 0.3 },
   yawning: { files: ['yawn-1', 'yawn-2'], every: 0.8 },
   sleepy: { files: ['asleep-1', 'asleep-2'], every: 1.0 }, // slow and peaceful
@@ -46,7 +47,29 @@ export const FACES = {
   down: { files: ['down'] }, // cursor right below him
   left: { files: ['left'] }, // normal and walking left
   right: { files: ['right'] }, // normal and walking right
+
+  // ---- Faces waiting for art (see "FALLBACK FACES" below) ----
+  // Until these PNGs exist in a color folder, the face shows its `fallback` face instead, so
+  // everything already works. Drop the files in and they show up on the next launch; no code.
+  // More than 2 frames? Just list them all (e.g. 'cheer-1' ... 'cheer-4'). Tune `every` to taste.
+  sad: { files: ['sad-1', 'sad-2'], every: 0.6, fallback: 'grumpy' }, // sad mood: teary / moping
+  cheering: { files: ['cheer-1', 'cheer-2'], every: 0.25, fallback: 'playful' }, // cheerleader (pom-poms)
+  gaming: { files: ['gamer-1', 'gamer-2'], every: 0.3, fallback: 'calm' }, // focus mode, game controller in hand
+  watching: { files: ['watching-1', 'watching-2'], every: 0.7, fallback: 'calm' }, // focus mode, eating popcorn
 };
+
+// FALLBACK FACES: a face with `fallback` only uses ITS OWN color set's frames. If the equipped
+// color (sky, bubblegum...) has no gamer-1.png yet, he shows the fallback face in his own color
+// rather than borrowing sunny's (a yellow Starby with a controller on a blue star would flash).
+// Faces without `fallback` keep the old rule: a missing file is borrowed from sunny.
+// A new frame with a different pose (hands holding a controller...) may need its accessory
+// anchors in ./accessories.js POSES, and (if the feet moved) an ALIGN entry below.
+function faceChain(face) {
+  const chain = [];
+  for (let name = face; name && FACES[name] && !chain.includes(name); name = FACES[name].fallback) chain.push(name);
+  if (!chain.includes('happy')) chain.push('happy');
+  return chain;
+}
 
 // ---- Lining the frames up ----
 // All numbers are in the art's own 2048px canvas, measured from the PNGs (not guessed).
@@ -166,8 +189,8 @@ export function createFrames(px) {
 
   // GIF faces: decode, shrink each frame like a PNG, cache as '<set>/<gif>#<i>'.
   const gifsLoaded = new Set();
-  async function loadGifs(set) {
-    for (const def of gifFaces()) {
+  async function loadGifs(set, defs = gifFaces()) {
+    for (const def of defs) {
       const key = `${set}/${def.gif}`;
       if (gifsLoaded.has(key)) continue;
       gifsLoaded.add(key);
@@ -202,14 +225,25 @@ export function createFrames(px) {
       await loadFiles(set, allFiles());
       await loadGifs(set);
     },
+    /**
+     * Load just these faces (and their fallbacks). For a CLOSE-UP set of frames at a bigger size
+     * (pet.js prepareCloseup: events/secret.js zooms him up to the screen), so only the few faces
+     * that show up close are held in memory at that size.
+     */
+    async loadFaces(set, names) {
+      const defs = [...new Set(names.flatMap((n) => faceChain(n)))].map((n) => FACES[n]).filter(Boolean);
+      await loadFiles(set, [...new Set(defs.filter((d) => !d.gif).flatMap((d) => d.files))]);
+      await loadGifs(set, defs.filter((d) => d.gif));
+    },
 
     /**
      * The frame to show for `face` after it's been on screen for `elapsed` seconds:
      * { img, file } (file = which PNG, e.g. 'idle-2', so accessories can follow that pose),
-     * or null if nothing is loaded yet. Faces whose frames aren't loaded (yet) fall back to happy.
+     * or null if nothing is loaded yet. Faces whose frames aren't loaded (yet) fall back to their
+     * `fallback` face (if any), then to happy.
      */
     pick(face, set, elapsed) {
-      for (const name of [face, 'happy']) {
+      for (const name of faceChain(face)) {
         const def = FACES[name];
         if (!def || !def.files.length) continue; // (a GIF face before it's decoded)
         const i = def.every ? Math.floor(elapsed / def.every) % def.files.length : 0;
@@ -221,6 +255,7 @@ export function createFrames(px) {
           const img = getExact(set, file);
           if (img) return { img, file };
         }
+        if (def.fallback) continue; // own color only: show the fallback face instead (see FALLBACK FACES)
         for (const file of [def.files[i], def.files[0]]) {
           const img = get(set, file);
           if (img) return { img, file };

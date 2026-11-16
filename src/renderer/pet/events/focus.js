@@ -41,10 +41,19 @@
 // Ends when you pick "Okay, I'm done focusing!" in the dialogue (he says hi), or a call /
 // fullscreen focus ends. The shop window (priority 20) also ends it.
 //
-// CALLS + FULLSCREEN also put him in focus mode (they used to use ./hush.js):
+// CALLS + FULLSCREEN + GAMES also put him in focus mode (they used to use ./hush.js):
 //   call starts (src/main/systemReads/calls.js)   "i'll be quiet for now!" then the usual slingshot
 //   fullscreen app/video (activeWindow.js)        a quick, silent flip into focus (no line, no wait)
-//   ...and the moment the call / fullscreen ends he leaves focus and walks back to where he was.
+//   a game window (activeWindow.js 'game', not a  "game time? lemme grab my controller!" then the
+//     launcher like Steam: LAUNCHER_KEYS)          slingshot. Alt-tabbing out for less than
+//                                                  GAME_GRACE seconds doesn't end it.
+//   ...and the moment the call / fullscreen / game ends he leaves focus and walks back to where he was.
+//   Picking "Okay, I'm done focusing!" during one of these ends it for good: he won't jump back in
+//   until that call / fullscreen / game is over (suppressAuto).
+// FLAVORS (./focusFlavors.js): while parked, what you're doing can give focus a flavor: a game →
+// controller in hand ('gaming' face), a fullscreen video → popcorn ('watching'). A flavor has its own
+// face (held still, no idle animations; his mood face still wins), click lines, and now and then
+// an unprompted murmur ("yo, is my controller unplugged?") that gets through the hush.
 // Clicking or grabbing him doesn't end it (same as above). A focus YOU chose (the dialogue)
 // isn't ended by a call or fullscreen ending.
 // No dialogue until he's landed (pet.noDialogue): right-clicking him mid-slingshot would open the
@@ -57,6 +66,7 @@
 import { approach, petBounds, rand } from '../behaviors/motion.js';
 import { requestMood } from '../behaviors/mood.js';
 import { lineBag } from '../behaviors/chatter.js';
+import { flavorFor, LAUNCHER_KEYS, MURMUR_EVERY } from './focusFlavors.js';
 
 // ---- Tuning ----
 const TALK_FOR = 1.6; // seconds of his line before the slingshot
@@ -112,6 +122,7 @@ const STUDY_LINE_MS = 2600;
 
 const CALL_TALK_FOR = 1.4; // seconds of his "i'll be quiet" line before a call slingshot
 const RETURN_SPEED = 420; // px/s walking back after a call / fullscreen
+const GAME_GRACE = 30; // seconds out of the game window (alt-tabbed to chat...) before game focus ends
 
 const LINES = {
   call: lineBag(["i'll be quiet for now!", "shh, call time! i'll be quiet", "ooh, a call! i'll go sit over here"]),
@@ -122,9 +133,16 @@ const LINES = {
 };
 
 let endFocus = null;
-let reason = null; // 'dialogue' | 'call' | 'fullscreen' | 'devtools'...
+let reason = null; // 'dialogue' | 'call' | 'fullscreen' | 'game' | 'devtools'...
 let inCall = false;
 let fullscreen = false;
+let app = { category: null, key: null }; // the focused app (activeWindow.js 'active-window')
+let gameActive = false; // a game (not a launcher) is the focused window
+let gameLeftAt = -Infinity; // clock seconds the game stopped being focused
+let suppressAuto = false; // "done focusing" during a call / fullscreen / game: don't jump back in until it's over
+let flavor = null; // the current focusFlavors.js flavor while parked, or null
+let nextMurmurAt = Infinity; // parkedFor of the next unprompted flavor line
+const AUTO_REASONS = ['call', 'fullscreen', 'game'];
 let returnTo = null; // { x, y } where he was before a call / fullscreen focus
 let talkFor = TALK_FOR;
 let phase = 'talk'; // talk | aim | fly | drop | parked
@@ -240,17 +258,37 @@ function trackHeld(pet, dt) {
 // Turn angle into -π..π, so easing him upright takes the short way round.
 const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
-// A left-click while focusing: a study line, even though he's hushed while parked.
+// Still gaming? (Focused now, or alt-tabbed out less than GAME_GRACE seconds ago.)
+const gaming = (ctx) => gameActive || ctx.clock.seconds - gameLeftAt < GAME_GRACE;
+const autoWanted = (ctx) => inCall || fullscreen || gaming(ctx);
+const flavorState = (ctx) => ({ inCall, fullscreen, gaming: gaming(ctx), category: app.category, key: app.key });
+
+// A line while focusing, even though he's hushed while parked.
 // The hush has to stay OFF for as long as the line shows: pet.js hides the bubble on every frame
 // while pet.hushed is on, so just un-hushing around ctx.say() made it vanish a frame later.
-function onClick(ctx) {
-  if (!endFocus) return;
-  unhushUntil = ctx.clock.seconds + STUDY_LINE_DELAY + STUDY_LINE_MS / 1000;
-  ctx.after(STUDY_LINE_DELAY, () => {
+function sayThroughHush(ctx, pickLine, delay = 0) {
+  unhushUntil = ctx.clock.seconds + delay + STUDY_LINE_MS / 1000;
+  ctx.after(delay, () => {
     if (!endFocus) return;
     ctx.pet.hushed = false; // (the parked step keeps it off until unhushUntil)
-    ctx.say(LINES.study(), STUDY_LINE_MS);
-  }, 'focus study line');
+    ctx.say(pickLine(), STUDY_LINE_MS);
+  }, 'focus line');
+}
+
+// A left-click while focusing: a study line (or the flavor's click line: "shh, i'm in the zone").
+function onClick(ctx) {
+  if (!endFocus) return;
+  const f = flavor;
+  sayThroughHush(ctx, () => (f ? f.click() : LINES.study()), STUDY_LINE_DELAY);
+}
+
+// Parked: which flavor now? Switching flavors restarts the murmur timer.
+function updateFlavor(ctx) {
+  const next = flavorFor(flavorState(ctx));
+  if ((next && next.name) === (flavor && flavor.name)) return;
+  flavor = next;
+  nextMurmurAt = flavor && MURMUR_EVERY.length ? parkedFor + rand(...MURMUR_EVERY) : Infinity;
+  ctx.log('focus-flavor', { flavor: flavor ? flavor.name : null });
 }
 
 // "Stretch your legs" / "Stay still" (the focus menu in ../dialogue/tree.js).
@@ -301,6 +339,12 @@ export default {
     ctx.events.onEntry((e) => {
       if (e.type === 'system' && e.data.type === 'call') inCall = Boolean(e.data.active);
       if (e.type === 'system' && e.data.type === 'fullscreen') fullscreen = Boolean(e.data.active);
+      if (e.type === 'system' && e.data.type === 'active-window') {
+        app = { category: e.data.category || null, key: e.data.key || null };
+        const nowGame = app.category === 'game' && !LAUNCHER_KEYS.includes(app.key);
+        if (gameActive && !nowGame) gameLeftAt = ctx.clock.seconds;
+        gameActive = nowGame;
+      }
     });
     ctx.petEl.addEventListener('pet:clicked', () => onClick(ctx));
     // The focus menu (../dialogue/tree.js) calls these through its 'starby:<fn>:<arg>' actions.
@@ -310,18 +354,21 @@ export default {
     }
   },
 
-  // Every tick: a call / fullscreen starts focus mode (if it isn't on already).
+  // Every tick: a call / fullscreen / game starts focus mode (if it isn't on already).
   watch(ctx) {
-    if (!(inCall || fullscreen) || ctx.activeEvent() === 'focus') return;
+    if (suppressAuto && !autoWanted(ctx)) suppressAuto = false; // that call / game is over
+    if (suppressAuto || !(inCall || fullscreen || gameActive) || ctx.activeEvent() === 'focus') return;
     if (ctx.pet.mode === 'drag' || ctx.pet.mode === 'toss' || ctx.pet.mode === 'goodbye') return;
-    ctx.startEvent('focus', inCall ? 'call' : 'fullscreen');
+    ctx.startEvent('focus', inCall ? 'call' : gameActive ? 'game' : 'fullscreen');
   },
 
   start(ctx, end, why) {
     const { pet } = ctx;
     endFocus = end;
     reason = why;
-    returnTo = why === 'call' || why === 'fullscreen' ? { x: pet.x, y: pet.y } : null;
+    returnTo = AUTO_REASONS.includes(why) ? { x: pet.x, y: pet.y } : null;
+    flavor = null;
+    nextMurmurAt = Infinity;
     setPhase('talk');
     // Every focus starts parked in one spot and quiet (the focus menu turns these on).
     wandering = false;
@@ -335,6 +382,10 @@ export default {
     } else if (why === 'call') {
       talkFor = CALL_TALK_FOR;
       ctx.say(LINES.call(), CALL_TALK_FOR * 1000 + 300);
+    } else if (why === 'game') {
+      talkFor = TALK_FOR;
+      const f = flavorFor(flavorState(ctx));
+      ctx.say((f ? f.start : LINES.okay)(), TALK_FOR * 1000 + 300);
     } else {
       talkFor = TALK_FOR;
       ctx.say(LINES.okay(), TALK_FOR * 1000 + 300);
@@ -344,9 +395,9 @@ export default {
     pet.noDialogue = true; // until he lands (see land())
   },
 
-  // A call / fullscreen focus ends the moment that call / fullscreen does.
-  onTick() {
-    if ((reason === 'call' || reason === 'fullscreen') && !inCall && !fullscreen) finish('over');
+  // A call / fullscreen / game focus ends the moment none of them is going on (games: after GAME_GRACE).
+  onTick(ctx) {
+    if (AUTO_REASONS.includes(reason) && !autoWanted(ctx)) finish('over');
   },
 
   update(ctx, dt) {
@@ -465,7 +516,14 @@ export default {
     // Parked: calm face with idle animations (talking face if he's mid-line); strolling along the
     // bottom if "Stretch your legs" is on.
     parkedFor += dt;
-    // Quiet, unless "Talk to me" is on or a clicked study line is showing (see onClick()).
+    updateFlavor(ctx);
+    // A flavor's unprompted murmur ("mmmmmm... wow..."), through the hush.
+    if (flavor && parkedFor >= nextMurmurAt) {
+      nextMurmurAt = parkedFor + rand(...MURMUR_EVERY);
+      const f = flavor;
+      if (!ctx.isSpeaking?.() && !pet.dialogueHold) sayThroughHush(ctx, () => f.murmur());
+    }
+    // Quiet, unless "Talk to me" is on or a clicked study / flavor line is showing (see sayThroughHush()).
     pet.hushed = parkedFor >= QUIET_AFTER_LANDING && !talkative && ctx.clock.seconds >= unhushUntil;
     if (pet.dialogueHold) {
       // The right-click dialogue moved him out of the corner to fit its boxes; it owns where he is.
@@ -513,13 +571,21 @@ export default {
       // Walking: little steps, facing the way he's going (his mood's face if he's feeling one).
       walkPhase += dt * STEP_RATE * Math.PI;
       pet.bob = -Math.abs(Math.sin(walkPhase)) * STEP_HEIGHT * S;
-      pet.faceOverride = feelingIt(pet) || ctx.isSpeaking?.() ? null : walkDir < 0 ? 'left' : 'right';
+      if (feelingIt(pet)) pet.faceOverride = null;
+      else if (flavor) pet.faceOverride = flavor.face; // (keeps the controller / popcorn while strolling)
+      else pet.faceOverride = ctx.isSpeaking?.() ? null : walkDir < 0 ? 'left' : 'right';
       return;
     }
     if (feelingIt(pet)) {
       // Mad, sad, playful...: let mood.js show that face (faceOverride beats mood faces there),
       // and hold still instead of doing idle animations.
       pet.faceOverride = null;
+      pet.bob = approach(pet.bob, 0, dt, 12);
+      return;
+    }
+    if (flavor) {
+      // Flavored: his flavor face, held (even while talking: the talking face has no controller).
+      pet.faceOverride = flavor.face;
       pet.bob = approach(pet.bob, 0, dt, 12);
       return;
     }
@@ -532,6 +598,10 @@ export default {
     const { pet } = ctx;
     endFocus = null;
     idleAnim = null;
+    flavor = null;
+    nextMurmurAt = Infinity;
+    // "Done focusing" during a call / fullscreen / game: stay out until it's over (see watch()).
+    if (result === 'done' && AUTO_REASONS.includes(reason)) suppressAuto = true;
     wandering = false;
     talkative = false;
     pet.focusWander = false;
@@ -547,7 +617,7 @@ export default {
     if (result === 'done') {
       ctx.after(0.15, () => ctx.say(LINES.back(), 2200), 'focus hello');
     }
-    // A call / fullscreen ended: straight out of focus, and he walks back to where he was.
+    // A call / fullscreen / game ended: straight out of focus, and he walks back to where he was.
     if (result === 'over' && returnTo && pet.mode === 'idle') {
       if (reason === 'call') ctx.after(0.15, () => ctx.say(LINES.callOver(), 2200), 'focus call over');
       Object.assign(pet, { targetX: returnTo.x, targetY: returnTo.y, walkSpeed: RETURN_SPEED, walkKind: 'wander', mode: 'walk' });

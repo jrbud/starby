@@ -711,6 +711,61 @@ Also owns `pet.mood`, `pet.face` and `pet.goal` (proposed; see P3-6, agree with 
     - `games.js`: chip removed.
     - `starbits.js` (P2): no drops in `focus` mode.
     - `events/index.js`, `main.js`, `ipc.js`, `preload.js`.
+- [x] **New moods + focus flavors (framework; art pending).** Everything runs now on existing frames.
+  **Art to draw** (2048×2048, feet at y=1900 like every frame, one set per color folder `assets/sprite/<color>/`;
+  drop them in and they show on next launch, no code):
+  `sad-1/2` (lonely/sad; until then mad-1/2), `cheer-1/2` (pom-poms; until then happy-1/2),
+  `gamer-1/2` (controller in hand; until then idle-1), `watching-1/2` (eating popcorn; until then idle-1).
+  More frames / other speed = one line in `frames.js` FACES. Say which hand holds the prop so the lollipop
+  can move out of the way (`accessories.js` POSES). Someone with access should add these rows to `assets/README.md`.
+  - **Frames (`frames.js`):** faces can have a `fallback` face, used until their PNGs exist (own color set only).
+    The old `sad` face (mad frames) is now `grumpy`; `sad` is its own face (`sad-1/2`, falls back to grumpy).
+  - **Lonely sad (`mood.js`):** when bored, 30% (10% at night) he gets sad instead of sleepy (`pet.sadKind`
+    `'lonely'`). Clicks don't fix it; petting, the new dialogue branch ("What's wrong?" replaces "Let's chat!"
+    in `tree.js`) or starting a game do. Alone for 3 min → he naps it off. The 5s sulk after a declined
+    invite is unchanged (`sadKind 'sulk'`). DevTools: `starby.lonely()`, `starby.cheerUp()`.
+  - **Cheerleader (`behaviors/cheerleader.js`, new; mood `cheering` in `moods.js`):** 20 min in work apps
+    (activeWindow `editor` / `writing`; 5 min away resets) → he cheers in place for 60s with hops and lines.
+    Not during events or a focus you chose. DevTools: `starby.cheer()`, `starby.workClock()`.
+  - **Focus flavors (`events/focusFlavors.js`, new; `focus.js`):** a game window (not a launcher) now starts
+    focus too ("game time? lemme grab my controller!"; 30s grace for alt-tabbing). Parked, he shows the
+    `gaming` face during a game and `watching` during a fullscreen video, with their own click lines and a
+    murmur every 1.5–3 min. "Done focusing" during an automatic focus now sticks until it's over.
+    `activeWindow.js`: keys for launchers, video players and streaming sites.
+  - **Mad:** thrown or spun again while dizzy → mad. **Dizzy:** cursor circles only count if the whole loop
+    stays outside his body (`CIRCLE_CLEAR`), so tight circles on top of him no longer make him dizzy.
+  - **Other people's files touched:** `events/focus.js`, `frames.js`, `accessories.js` (comment only),
+    `dialogue/tree.js`, `behaviors/index.js` (registered cheerleader).
+- [x] **Secret (`events/secret.js`, new).** Now and then: "psst... wanna hear a secret?" [Yes! Tell me!] [No thanks].
+  No → the short sulk. Yes → he runs to the middle of the screen, glances left/right, then SLOWLY leans up to the
+  screen (`pet.zoom` up to ~45% of the screen height, tilting in) and either tells a secret (self-disclosure,
+  a bit embarrassing) or does the spittle.gif spit-laugh (30%); then zooms back to normal super fast.
+  Auto: rolled every minute, 10%, 15 min cooldown. DevTools: `starby.secret()`, `starby.secret('tell' | 'spit')`.
+  - **Shared file `pet.js`:** new `pet.zoom` (canvas CSS-scaled around his middle; more canvas pixels while
+    zoomed), `ctx.prepareCloseup` / `ctx.releaseCloseup` (sharp close-up frames + worn accessories, dropped after),
+    balloon/ufo/trail hidden while zoomed. `bubble.js`: the bubble goes above his zoomed head and grows up to 1.6×.
+    `frames.js`: `loadFaces()`. `events/index.js`: registered.
+- [x] **Questions: frozen and centered.** Every question (right-click dialogue and event menus: invites,
+  secret, friend, star quiz) freezes him first (`pet.freeze`, applied in `pet.js` after everything else
+  each frame), lets a hop/squash settle for 0.18s, THEN pops the boxes, centered on him; near an edge he
+  slides away first (event menus too, which used to shift the boxes instead). The waiting bounces in
+  `invite.js`, `secret.js` and `constellation.js` are gone.
+- [x] **Friend holds Starby's hand (`events/friend.js`).** The friend says a line as they hop on screen, then
+  takes Starby's hand (their hand anchor locked onto his every frame). While holding, nobody raises a hand
+  alone: arms-down faces only, and `armsUp` (new face, `idle-2`) only for both at once (when they meet, and
+  on Yes). Starby asks only after the friend's line is gone. No → "they're not that cool anyway" → (gone)
+  friend: "uhhh... whattt?" → (gone) Starby spins faster and faster, swinging them by the hand, lets go
+  while they're heading up, and they bounce around and fly off; he spins down to a stop.
+  Starby is owned (`pet.mode = 'friend'`) from the arrival until they let go.
+- [x] **Copycat redone (`events/copycat.js`).** He walks over to your cursor first, stops and says he's going
+  to copy you, then follows your cursor's path like a duckling: aims where it was ~0.45s ago (drifting),
+  springy chase with a little overshoot, a wobbly line, keeps a gap, gets distracted now and then and hurries
+  to catch up. Ends bored after 25s, or "where'd you go?" if the cursor leaves the screen. (The old
+  mirror-your-moves + wall-smack ending is gone.)
+- [x] **Flinch & run switched off** (`cursorReact.js` `FLINCH_ENABLED = false`; set true to bring it back).
+- [x] **Developer window:** Secret (asks first) / Secret: tell one / Secret: spit-laugh.
+- [ ] **Chat rework (planned):** "Let's chat!" shows 5 random topics each time. Script format + all current chats
+  in `chat-script.txt` (repo root): fill it in, then Claude converts it into `tree.js`.
 
 ---
 

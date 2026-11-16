@@ -4,7 +4,7 @@
 //   - FOLLOW BRIEFLY: after noticing a calm cursor it sometimes takes a few steps toward it,
 //     then loses interest ('follow' mode; re-aimed every tick, walk.js does the walking,
 //     a ctx.after timer ends it)
-//   - FLINCH & RUN: if the cursor rushes at the star, it squashes, hops and runs away
+//   - FLINCH & RUN (OFF for now: FLINCH_ENABLED): if the cursor rushes at the star, it squashes, hops and runs away
 //     (tick decision → switches to 'flee' mode; walk.js does the actual running)
 //   - if you keep chasing it, it gives up for a bit so you can still catch/click it
 //
@@ -32,6 +32,9 @@ const FOLLOW_STOP = 70; // stops this far (px) from the cursor, center to cursor
 const FOLLOW_TOO_FAR = 450; // cursor got this far away → stop following
 
 // Flinch tuning
+// FLINCH_ENABLED: switched OFF for now (team request): it happened too often and broke other things
+// (games, menus, dragging). Set back to true to bring "eek!" + running away back; nothing else changes.
+const FLINCH_ENABLED = false;
 // (Made harder to scare by Person 3 at the team's request: only a really fast rush right at him.)
 const FLINCH_RADIUS = 130; // the cursor's path has to come this close (px) to the star's center (was 180)
 const MIN_RUSH_SPEED = 2600; // px/s toward the star: a really fast lunge, not a quick move (was 1300)
@@ -217,7 +220,7 @@ export default {
     near = isNear;
 
     // ---- Flinch ----
-    if (!free || !from || !rules.flee) return;
+    if (!FLINCH_ENABLED || !free || !from || !rules.flee) return;
     if (flinchCooldown > 0 || ctx.clock.seconds < braveUntil) return;
     // Impossibly fast = the cursor jumped (e.g. first mousemove after a while), not a flick.
     if (Math.hypot(vx, vy) > MAX_REAL_SPEED) return;
