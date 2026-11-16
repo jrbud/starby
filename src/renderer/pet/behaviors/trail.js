@@ -51,6 +51,13 @@ const STYLES = {
   },
 };
 const MIN_SPEED = 60; // px/s: slower than this = standing still, no new copies
+// Settings → Starby → "Trail length" / "Trail size" (settingsStore.trailLength / trailSize, %):
+// length stretches how long each copy lasts (and how many there are), size scales the copies
+// around his middle. 100 = as tuned above.
+let lengthK = 1;
+let sizeK = 1;
+let builtFor = 1; // lengthK the pool was built for (rebuilt when it changes)
+const lifeOf = () => style.life * lengthK;
 const SHOP_DRIFT = -140; // px/s: in the shop, copies drift this way (left) from where he stands
 
 let style = null; // the STYLES entry he's wearing (null = no trail)
@@ -61,7 +68,8 @@ let sinceCopy = 0;
 let last = null; // his last position, for his speed
 
 function makeGhosts(ctx) {
-  ghosts = Array.from({ length: style.count }, () => {
+  builtFor = lengthK;
+  ghosts = Array.from({ length: Math.max(2, Math.ceil(style.count * lengthK)) }, () => {
     const wrap = document.createElement('div');
     Object.assign(wrap.style, { position: 'absolute', left: '0', top: '0', pointerEvents: 'none', display: 'none' });
     const canvas = document.createElement('canvas');
@@ -106,7 +114,9 @@ function copy(ctx, sprite, drift = 0) {
     left: s.left, top: s.top, width: s.width, height: s.height,
     transform: s.transform, transformOrigin: s.transformOrigin,
   });
-  gh.base = ctx.petEl.style.transform;
+  // His position, then (Trail size) scaled around his middle.
+  const h = ctx.pet.size / 2;
+  gh.base = ctx.petEl.style.transform + (sizeK !== 1 ? ` translate(${h}px, ${h}px) scale(${sizeK}) translate(${-h}px, ${-h}px)` : '');
   gh.drift = drift;
   gh.wrap.style.transform = gh.base;
   gh.wrap.style.opacity = String(style.alpha);
@@ -117,7 +127,7 @@ function copy(ctx, sprite, drift = 0) {
 
 // Opacity for a copy this old: smooth, or in hard steps for a choppy trail.
 function opacityAt(age) {
-  const k = Math.max(0, 1 - age / style.life);
+  const k = Math.max(0, 1 - age / lifeOf());
   if (!style.steps) return style.alpha * k;
   return style.alpha * (Math.ceil(k * style.steps) / style.steps);
 }
@@ -125,12 +135,22 @@ function opacityAt(age) {
 export default {
   name: 'trail',
 
+  init(ctx) {
+    const apply = (s) => {
+      const pctOf = (v) => (Number.isFinite(Number(v)) ? Number(v) / 100 : 1);
+      lengthK = pctOf(s?.trailLength);
+      sizeK = pctOf(s?.trailSize);
+    };
+    ctx.api.getSettings?.().then(apply).catch(() => {});
+    ctx.api.onSettingsChanged?.(apply);
+  },
+
   update(ctx, dt) {
     const { pet } = ctx;
     // Which trail he's wearing (pet.look.accessories includes shop try-ons).
     const key = Object.keys(STYLES).find((k) => pet.look.accessories.includes(k));
     const want = key ? STYLES[key] : null;
-    if (want !== style) {
+    if (want !== style || (style && builtFor !== lengthK)) {
       clearGhosts();
       style = want;
       if (style) makeGhosts(ctx);
@@ -138,11 +158,11 @@ export default {
     if (!style || !ghosts.length) return;
     // Fade the copies out (shop preview copies also slide sideways).
     for (const gh of ghosts) {
-      if (gh.age >= style.life) continue;
+      if (gh.age >= lifeOf()) continue;
       gh.age += dt;
       const a = opacityAt(gh.age);
       gh.wrap.style.opacity = String(a);
-      if (style.blur) gh.wrap.style.filter = `blur(${((style.blur * gh.age) / style.life).toFixed(2)}px)`; // softer as it fades
+      if (style.blur) gh.wrap.style.filter = `blur(${((style.blur * gh.age) / lifeOf()).toFixed(2)}px)`; // softer as it fades
       if (gh.drift) gh.wrap.style.transform = `translateX(${gh.drift * gh.age}px) ${gh.base}`;
       if (a <= 0) gh.wrap.style.display = 'none';
     }

@@ -314,6 +314,15 @@ input.art-check:checked:focus-visible {
   font-weight: 700;
   color: var(--accent);
 }
+/* "Per game" heading with "W/L" at its right end (over the numbers). */
+.stats-subtitle.with-key {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.stats-key {
+  font-size: calc(15px * var(--font-scale, 1));
+}
 .stats-empty {
   margin: 0;
   color: var(--muted);

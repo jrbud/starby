@@ -63,6 +63,24 @@
       <input id="fling-power" type="range" min="0" max="100" step="1" value="50" />
     </section>
 
+    <!-- Shop trails (Rainbow Blur, Sandevistan, ribbons...): how long and how big, 50–200 %
+         (settingsStore.trailLength / trailSize; pet/behaviors/trail.js + ribbon.js apply them). -->
+    <section class="setting">
+      <div class="label-row">
+        <label for="trail-length">Trail length</label>
+        <output id="trail-length-value" for="trail-length">100%</output>
+      </div>
+      <input id="trail-length" type="range" min="50" max="200" step="10" value="100" />
+    </section>
+
+    <section class="setting">
+      <div class="label-row">
+        <label for="trail-size">Trail size</label>
+        <output id="trail-size-value" for="trail-size">100%</output>
+      </div>
+      <input id="trail-size" type="range" min="50" max="200" step="10" value="100" />
+    </section>
+
     <!-- Same setting as Games → "Game Prompts" (settingsStore.gameInvites): the two boxes
          are linked (settings.js SWITCHES), ticking either one changes both. -->
     <section class="setting switches">

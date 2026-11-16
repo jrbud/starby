@@ -3,7 +3,7 @@
 //   - Left: wallet (top-left), the display box Starby stands in, and one Buy / Equip button
 //     that acts on the selected item.
 //   - Right: "Colors" plus one dropdown per accessory category (Head, Hand, Shoes, Buddies,
-//     Trails; all open when the shop opens) listing the items. Price (with the starbit icon) only on items you don't own yet.
+//     Trails; all closed when the shop opens) listing the items. Price (with the starbit icon) only on items you don't own yet.
 //   - Starby talks for the shop: picking an item you don't own, or pressing a grey Buy button
 //     (not enough starbits), makes him say something (window.sprite.shopSay → pet window).
 //
@@ -20,7 +20,7 @@ const ASSETS = '../../../assets'; // relative to src/renderer/shop/index.html
 // Dropdowns, in order. Accessories are split by their `category` (src/shared/shopCatalog.js).
 // A new category = one line here plus `category: '<key>'` on its items.
 const SECTIONS = [
-  { key: 'color', title: 'Colors', open: true, match: (i) => i.slot === 'color' },
+  { key: 'color', title: 'Colors', open: false, match: (i) => i.slot === 'color' },
   ...[
     ['head', 'Head'],
     ['hand', 'Hand'],
@@ -30,7 +30,7 @@ const SECTIONS = [
   ].map(([cat, title]) => ({
     key: `accessory-${cat}`,
     title,
-    open: true,
+    open: false, // every section starts closed; click a heading to open it
     match: (i) => i.slot === 'accessory' && i.category === cat,
   })),
 ];

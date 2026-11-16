@@ -174,6 +174,9 @@ const UI_SLIDERS = [
   ['menu-scale', 'menuScale'],
   ['chat-scale', 'chatScale'],
   ['font-scale', 'fontScale'],
+  // Starby section: the shop trails' length and size (%), same kind of slider.
+  ['trail-length', 'trailLength'],
+  ['trail-size', 'trailSize'],
 ].map(([id, key]) => ({ slider: document.getElementById(id), out: document.getElementById(`${id}-value`), key }));
 
 for (const { slider: s, out, key } of UI_SLIDERS) {
@@ -495,11 +498,21 @@ for (const [title, rows] of STAT_GROUPS) {
   for (const [label, key, format] of rows) statOutputs.set(key, [statRow(section, label), format]);
 }
 const perGameEl = statsGroup('Per game'); // rows filled in by showStats (only games you've played)
+// "W/L" at the right end of the "Per game" heading, over the numbers.
+{
+  const heading = perGameEl.querySelector('.stats-subtitle');
+  heading.classList.add('with-key');
+  const key = document.createElement('span');
+  key.className = 'stats-key';
+  key.textContent = 'W/L';
+  heading.append(key);
+}
 
 function showStats(stats) {
   if (!stats) return;
   for (const [key, [out, format]] of statOutputs) out.textContent = format(stats[key]);
-  // Per game: "3 won / 7 played", most played first.
+  // Per game: wins/losses, e.g. "3/4", most played first. statsStore keeps played + won per game,
+  // so losses = played - won (a game you didn't win, including ones quit midway, counts as a loss).
   perGameEl.querySelectorAll('.label-row, .stats-empty').forEach((el) => el.remove());
   const games = Object.entries(stats.games || {}).filter(([, g]) => g.played > 0)
     .sort((a, b) => b[1].played - a[1].played);
@@ -509,7 +522,7 @@ function showStats(stats) {
     p.textContent = 'no games yet!';
     perGameEl.append(p);
   }
-  for (const [name, g] of games) statRow(perGameEl, gameLabel(name), `${num(g.won)} won / ${num(g.played)} played`);
+  for (const [name, g] of games) statRow(perGameEl, gameLabel(name), `${num(g.won)}/${num(Math.max(0, g.played - g.won))}`);
 }
 api.getStats?.().then(showStats);
 api.onStatsChanged?.(showStats);
