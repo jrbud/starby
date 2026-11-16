@@ -103,6 +103,10 @@ const WANDER_PAUSE = [3, 15]; // seconds standing still between walks (idle anim
 const WANDER_MIN = 0.75; // star-sizes: shortest walk
 const STEP_RATE = 2; // steps per second (the bob while walking)
 const STEP_HEIGHT = 0.035; // star-sizes
+// Petted: sparkly eyes for PETTED_FOR seconds, starting with a little hop.
+const PETTED_FOR = 1.8;
+const PET_HOP_FOR = 0.35; // seconds
+const PET_HOP_HEIGHT = 0.12; // star-sizes (same as his usual petted hop in mood.js)
 // Dropped after being picked up: falls straight down, speeding up.
 // Let go while focusing: he keeps the momentum your hand gave him and arcs down under gravity,
 // bouncing off the screen edges, then slides to a stop on the taskbar line.
@@ -215,6 +219,7 @@ function parkedIdle(S) {
     case 'bop': return { face: 'calm', bob: -Math.abs(Math.sin(Math.PI * BOP_RATE * u)) * BOP_HEIGHT * S };
     case 'glisten': return { face: 'glistening', bob: 0 };
     case 'wink': return { face: 'wink', bob: 0 };
+    case 'petted': return { face: 'glistening', bob: u < PET_HOP_FOR ? -Math.sin((Math.PI * u) / PET_HOP_FOR) * PET_HOP_HEIGHT * S : 0 };
     default: return { face: 'calm', bob: 0 };
   }
 }
@@ -292,6 +297,18 @@ function updateFlavor(ctx) {
 }
 
 // "Stretch your legs" / "Stay still" (the focus menu in ../dialogue/tree.js).
+// Petted (mood.js's slow back-and-forth rub, which also works in focus mode): sparkly eyes and a
+// happy hop, standing still or strolling. A stroll stops for it, then carries on after a pause.
+// (mood.js's own glistening pose can't show here: focus's faceOverride beats poses.)
+function onPetted() {
+  if (!endFocus || phase !== 'parked') return;
+  idleAnim = { kind: 'petted', start: parkedFor, until: parkedFor + PETTED_FOR };
+  if (wandering) {
+    wanderTo = null;
+    wanderPauseUntil = Math.max(wanderPauseUntil, parkedFor + PETTED_FOR + rand(...WANDER_PAUSE) / 2);
+  }
+}
+
 function setWander(ctx, on) {
   const { pet } = ctx;
   wandering = on;
@@ -339,6 +356,7 @@ export default {
     ctx.events.onEntry((e) => {
       if (e.type === 'system' && e.data.type === 'call') inCall = Boolean(e.data.active);
       if (e.type === 'system' && e.data.type === 'fullscreen') fullscreen = Boolean(e.data.active);
+      if (e.type === 'petted') onPetted();
       if (e.type === 'system' && e.data.type === 'active-window') {
         app = { category: e.data.category || null, key: e.data.key || null };
         const nowGame = app.category === 'game' && !LAUNCHER_KEYS.includes(app.key);
@@ -533,11 +551,16 @@ export default {
       pet.faceOverride = null;
       return;
     }
+    // His spot is always ON the taskbar line, worked out fresh every frame from his CURRENT size:
+    // pet.x/y is his top-left corner, so a spot saved at one size left him floating after making
+    // him smaller in Settings, or with his feet below the screen after making him bigger. Same if
+    // the taskbar moves. (Kept on screen sideways too.)
+    const b = petBounds(ctx);
+    target.y = b.maxY;
+    target.x = Math.max(b.minX, Math.min(b.maxX, target.x));
     // "Stretch your legs": move his spot (target) along the bottom, a step at a time.
     let walkDir = 0;
     if (wandering) {
-      const b = petBounds(ctx);
-      target.y = b.maxY;
       if (wanderTo == null && parkedFor >= wanderPauseUntil) {
         const lo = b.minX + EDGE;
         const hi = Math.max(lo, b.maxX - EDGE);
@@ -574,6 +597,13 @@ export default {
       if (feelingIt(pet)) pet.faceOverride = null;
       else if (flavor) pet.faceOverride = flavor.face; // (keeps the controller / popcorn while strolling)
       else pet.faceOverride = ctx.isSpeaking?.() ? null : walkDir < 0 ? 'left' : 'right';
+      return;
+    }
+    if (idleAnim?.kind === 'petted' && parkedFor < idleAnim.until) {
+      // Just petted (onPetted): sparkly eyes + hop, over his mood / flavor face for a moment.
+      const petted = parkedIdle(pet.size);
+      pet.bob = petted.bob;
+      pet.faceOverride = petted.face;
       return;
     }
     if (feelingIt(pet)) {
