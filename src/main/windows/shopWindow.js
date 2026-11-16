@@ -18,7 +18,7 @@
 //     150% scaling no extra conversion is needed.
 const { BrowserWindow } = require('electron');
 const path = require('path');
-const { getPetWindow } = require('./petWindow');
+const { getPetWindow, reassertOnTop } = require('./petWindow');
 const { bringToFront } = require('./bringToFront');
 // Window size + page zoom, shared with the settings window (see menuSize.js).
 const { MENU_SCALE } = require('./menuSize');
@@ -63,9 +63,37 @@ const releasePet = () => sendToPet({ type: 'shop-release' });
 // always-on-top windows are ordered by which was raised last, so focusing/clicking the shop would
 // put it ABOVE the pet window and hide Starby standing in its display box. Every time the shop
 // is raised, move the pet window back on top (moveTop doesn't take focus).
+// (Dragging the shop is handled in petWindow.js, which re-raises Starby whenever any window moves.)
 function keepPetAbove() {
   const pet = getPetWindow();
   if (pet && !pet.isDestroyed()) pet.moveTop();
+  reassertOnTop();
+}
+
+// The shop ranks above Settings: when Settings is raised (focused, shown, dragged...), the shop
+// goes back on top of it, and Starby stays on top of both. Called from settingsWindow.js.
+// Doesn't take focus, so you can still type in Settings.
+//
+// FLICKER: this runs on every 'move' step while Settings is dragged, so it must never take Starby
+// off the top, even for an instant:
+//   - moveAbove(settings) slots the shop JUST above Settings. (moveTop() would put it above
+//     Starby too until he was raised again: a visible flash every step.)
+//   - `full: false` (while dragging): no off-then-on re-assert of the pet window; that briefly
+//     drops him out of always-on-top, which is the flicker. The full re-assert waits for 'moved'.
+function keepShopAboveSettings(settingsWin, { full = true } = {}) {
+  if (!shopWindow || shopWindow.isDestroyed() || shopWindow.isMinimized() || !shopWindow.isVisible()) return;
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    try {
+      shopWindow.moveAbove(settingsWin.getMediaSourceId());
+    } catch {
+      shopWindow.moveTop(); // (moveAbove can't find the window: fall back)
+    }
+  } else {
+    shopWindow.moveTop();
+  }
+  const pet = getPetWindow();
+  if (pet && !pet.isDestroyed()) pet.moveTop();
+  if (full) reassertOnTop();
 }
 
 function raiseShop() {
@@ -163,4 +191,4 @@ function setPreviewColor(id) {
 const minimizeShop = () => shopWindow?.minimize();
 const closeShop = () => shopWindow?.close();
 
-module.exports = { openShopWindow, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop };
+module.exports = { openShopWindow, keepShopAboveSettings, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop };
