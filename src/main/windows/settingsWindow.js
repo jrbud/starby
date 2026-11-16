@@ -5,7 +5,8 @@
 const { BrowserWindow } = require('electron');
 const path = require('path');
 const { bringToFront } = require('./bringToFront');
-const { getPetWindow } = require('./petWindow');
+const { getPetWindow, reassertOnTop } = require('./petWindow');
+const { keepShopAboveSettings } = require('./shopWindow');
 // Window size + page zoom, shared with the shop window (see menuSize.js).
 const { MENU_SCALE } = require('./menuSize');
 // ...times the "UI size" setting (menuScale.js).
@@ -17,9 +18,13 @@ let settingsWindow = null;
 // WINDOWS QUIRK: always-on-top windows are ordered by which was raised last, so raising/clicking
 // Settings would put it ABOVE the pet window and hide Starby. Every time it's raised, move the
 // pet window back on top (moveTop doesn't take focus). Same as shopWindow.js.
+// Also keeps the SHOP above Settings (the shop ranks higher): it goes back on top first, then
+// Starby on top of both (keepShopAboveSettings does nothing while the shop is closed).
 function keepPetAbove() {
+  keepShopAboveSettings(settingsWindow, { full: false }); // (the re-assert below covers both)
   const pet = getPetWindow();
   if (pet && !pet.isDestroyed()) pet.moveTop();
+  reassertOnTop(); // moveTop alone can be skipped; this always re-applies (petWindow.js)
 }
 
 function raiseSettings() {
@@ -59,7 +64,13 @@ function openSettingsWindow() {
 
   trackMenuWindow(settingsWindow); // resizes live with the UI size slider
   settingsWindow.once('ready-to-show', raiseSettings);
-  settingsWindow.on('focus', keepPetAbove); // clicking Settings raises it: keep Starby above it
+  settingsWindow.on('focus', keepPetAbove); // clicking Settings raises it: keep the shop and Starby above it
+  // Dragging Settings raises it too ('move' fires continuously while dragging). Light version
+  // while dragging (no pet re-assert: that's what flickered Starby), the full one once it stops.
+  settingsWindow.on('move', () => keepShopAboveSettings(settingsWindow, { full: false }));
+  settingsWindow.on('moved', keepPetAbove);
+  settingsWindow.on('show', keepPetAbove);
+  settingsWindow.on('restore', keepPetAbove);
   settingsWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'settings', 'index.html'));
   settingsWindow.on('closed', () => { settingsWindow = null; });
   return settingsWindow;
