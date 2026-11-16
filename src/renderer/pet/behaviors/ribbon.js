@@ -28,6 +28,10 @@ const ALPHA = 0.9; // opacity of the whole ribbon
 const WIDTH = 0.3; // ribbon width, in Starby sizes (thin)
 const STEP = 3; // px he has to move before a new point is added
 const SHOP_DRIFT = -150; // px/s: in the shop the ribbon flows out this way (left)
+// Settings → Starby → "Trail length" / "Trail size" (settingsStore.trailLength / trailSize, %):
+// length × LIFE, size × WIDTH. 100 = as tuned above.
+let lengthK = 1;
+let sizeK = 1;
 
 let on = false;
 let canvas = null;
@@ -78,7 +82,7 @@ function draw(size) {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
   if (points.length < 2) return;
-  const bandW = (WIDTH * size) / BANDS.length;
+  const bandW = (WIDTH * sizeK * size) / BANDS.length;
   const half = (BANDS.length * bandW) / 2;
   const normals = points.map((_, i) => normalAt(i));
   const at = (i, off) => [points[i].x + normals[i].x * off, points[i].y + normals[i].y * off];
@@ -102,7 +106,14 @@ function draw(size) {
 export default {
   name: 'ribbon',
 
-  init() {
+  init(ctx) {
+    const apply = (s) => {
+      const pctOf = (v) => (Number.isFinite(Number(v)) ? Number(v) / 100 : 1);
+      lengthK = pctOf(s?.trailLength);
+      sizeK = pctOf(s?.trailSize);
+    };
+    ctx.api.getSettings?.().then(apply).catch(() => {});
+    ctx.api.onSettingsChanged?.(apply);
     window.addEventListener('resize', fit);
   },
 
@@ -137,7 +148,7 @@ export default {
       lastP.y = here.y;
     }
     // Drop points older than LIFE: the tail disappears piece by piece.
-    while (points.length && now - points[0].t > LIFE) points.shift();
+    while (points.length && now - points[0].t > LIFE * lengthK) points.shift();
     draw(pet.size);
   },
 };

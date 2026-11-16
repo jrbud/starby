@@ -12,6 +12,8 @@ const DEFAULTS = {
   userName: '', // what Starby calls you (welcome window / Settings → Starby); '' = "friend" (renderer/pet/userName.js)
   flingPower: 50, // 0–100: how hard throws fly and how bouncy the walls are (50 = original feel)
   starbySize: 100, // Starby's size on screen in px (Settings slider, 50–150; pet.js applies it live)
+  trailLength: 100, // Settings → Starby → "Trail length" %: how long shop trails last (pet/behaviors/trail.js, ribbon.js)
+  trailSize: 100, // Settings → Starby → "Trail size" %: how big shop trails are
   idleChats: 1, // Settings → Starby → "Idle chats": random lines while he hangs around (renderer/pet/behaviors/speech.js)
   // Settings → UI (sliders, 75–150 %; 100 = as designed):
   menuScale: 100, // shop/settings windows (windows/menuScale.js) + the right-click/event menus' answer boxes
@@ -52,6 +54,9 @@ const RANGES = {
   menuScale: [75, 150],
   chatScale: [75, 150],
   fontScale: [75, 150],
+  // Trail sliders (Settings → Starby): keep in sync with renderer/settings/index.html
+  trailLength: [50, 200],
+  trailSize: [50, 200],
   // Sound sliders go up to 200 % (shared/sfx.js boosts past full volume). Keep in sync with the
   // sliders' max in renderer/settings (index.html master, settings.js categories).
   sfxVolume: [0, 150], // master; the categories below go to 200

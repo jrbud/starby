@@ -61,16 +61,16 @@ const SHOP_ITEMS = [
   // Trails: no art files. They're copies of Starby's own frames, tinted by code (renderer/pet/
   // behaviors/trail.js), so no entry in accessories.js and no row icon in the shop (no stand-in drawn).
   { id: 'accessory-rainbowtrail', slot: 'accessory', name: 'Rainbow Blur', price: 100, value: 'rainbowtrail', place: 'trail', category: 'trails' },
-  { id: 'accessory-neontrail', slot: 'accessory', name: 'Sandevistan', price: 90, value: 'neontrail', place: 'trail', category: 'trails' },
   { id: 'accessory-blurtrail', slot: 'accessory', name: 'Motion Blur', price: 80, value: 'blurtrail', place: 'trail', category: 'trails' },
+  { id: 'accessory-neontrail', slot: 'accessory', name: 'Sandevistan', price: 90, value: 'neontrail', place: 'trail', category: 'trails' },
   // The ribbon is drawn by code (renderer/pet/behaviors/ribbon.js; a team-approved exception to
   // the art rule), not copies of Starby.
   { id: 'accessory-ribbontrail', slot: 'accessory', name: 'Rainbow Ribbon', price: 110, value: 'ribbontrail', place: 'trail', category: 'trails' },
   // Pride flag ribbons: same ribbon, each flag's stripes (RIBBONS in ribbon.js).
-  { id: 'accessory-lesbianribbon', slot: 'accessory', name: 'Lesbian Ribbon', price: 110, value: 'lesbianribbon', place: 'trail', category: 'trails' },
-  { id: 'accessory-mlmribbon', slot: 'accessory', name: 'MLM Ribbon', price: 110, value: 'mlmribbon', place: 'trail', category: 'trails' },
-  { id: 'accessory-biribbon', slot: 'accessory', name: 'Bi Ribbon', price: 110, value: 'biribbon', place: 'trail', category: 'trails' },
   { id: 'accessory-transribbon', slot: 'accessory', name: 'Trans Ribbon', price: 110, value: 'transribbon', place: 'trail', category: 'trails' },
+  { id: 'accessory-lesbianribbon', slot: 'accessory', name: 'Lesbian Ribbon', price: 110, value: 'lesbianribbon', place: 'trail', category: 'trails' },
+  { id: 'accessory-biribbon', slot: 'accessory', name: 'Bi Ribbon', price: 110, value: 'biribbon', place: 'trail', category: 'trails' },
+  { id: 'accessory-mlmribbon', slot: 'accessory', name: 'MLM Ribbon', price: 110, value: 'mlmribbon', place: 'trail', category: 'trails' },
 ];
 
 function getItem(id) {
