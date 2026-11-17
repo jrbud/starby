@@ -133,7 +133,7 @@ const LINES = {
   callOver: lineBag(['call over? hi again!', "all done talking? i'm back!"]),
   okay: lineBag(["okay! i'll be right here!", 'you got this! i believe in you!', "okay, i'll be quiet. good luck!", 'go get it! i\'ll wait over here!']),
   back: lineBag(["yay, you're back!", 'all done? hi hi!', 'break time? yay!']),
-  timerEnded: lineBag(['ding ding ding!', 'time\'s up!', 'is it snack time?', 'the timer\'s done!', 'break time, you\'ve earned it!', 'ok timer... we hear you', 'ok done for now']),
+  timerEnded: lineBag(['ding ding ding!', 'time\'s up!', 'is it snack time?', 'the timer\'s done!', 'break time! you\'ve earned it ;3', 'ok timer... we hear you', 'ok done for now :)']),
   study: lineBag(['stay focused!', 'keep  up to good work!', 'you shine bright!', 'wow so focused :o', 'me when i\'m focused', 'you\'re doing great :3', 'ok studious!', '*hums*', 'la la laa~', 'i like seeing your progress :)', 'maybe i\'ll work too... jk', 'you\'re doing great!']),
 };
 
