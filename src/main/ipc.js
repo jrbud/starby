@@ -6,6 +6,7 @@ const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
 const { openShopWindow, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
 const { openTimerWindow, minimizeTimer, closeTimer } = require('./windows/timerWindow');
+const { openGoalsWindow, minimizeGoals, closeGoals, loadGoals, saveGoals } = require('./windows/goalsWindow');
 const settingsStore = require('./settingsStore');
 const { openDevToolsWindow, handleDevCommand } = require('./windows/devToolsWindow');
 const adminSettingsStore = require('./adminSettingsStore');
@@ -113,6 +114,20 @@ function registerIpc() {
   ipcMain.on('timer:open', () => openTimerWindow());
   ipcMain.on('timer:minimize', () => minimizeTimer());
   ipcMain.on('timer:close', () => closeTimer());
+  // ---- Goals checklist window (focus menu → "Let's set goals!"); its text lives in goals.md ----
+  ipcMain.on('goals:open', () => openGoalsWindow());
+  ipcMain.on('goals:minimize', () => minimizeGoals());
+  ipcMain.on('goals:close', () => closeGoals());
+  ipcMain.handle('goals:load', () => loadGoals());
+  ipcMain.on('goals:save', (_e, markdown) => saveGoals(markdown));
+  // A goal was ticked off: tell the pet, so Starby reacts (renderer/pet/events/focus.js).
+  ipcMain.on('goals:checked', (_e, counts) => {
+    const pet = getPetWindow();
+    const total = Math.max(0, Math.floor(Number(counts?.total) || 0));
+    const checked = Math.max(0, Math.min(total, Math.floor(Number(counts?.checked) || 0)));
+    if (pet && !pet.isDestroyed()) pet.webContents.send('pet:command', { type: 'goal-checked', total, checked });
+  });
+
   // Time's up: tell the pet, so Starby says something (renderer/pet/events/focus.js).
   ipcMain.on('timer:ended', () => {
     const pet = getPetWindow();

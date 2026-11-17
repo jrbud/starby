@@ -48,6 +48,8 @@ const DEFAULTS = {
   sfxStarbitsOn: 1,
   sfxActionVolume: 100, // throw, sling, explode
   sfxActionOn: 1,
+  sfxTimerVolume: 100, // the study timer's alarm (renderer/timer/timer.js)
+  sfxTimerOn: 1,
   // (startup + exit sounds have no category: just the master volume above)
 };
 
@@ -67,6 +69,7 @@ const RANGES = {
   sfxVoiceVolume: [0, 200],
   sfxStarbitsVolume: [0, 200],
   sfxActionVolume: [0, 200],
+  sfxTimerVolume: [0, 200],
 };
 
 // Pick-one settings: only these values are accepted (anything else is ignored).

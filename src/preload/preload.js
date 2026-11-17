@@ -47,6 +47,16 @@ contextBridge.exposeInMainWorld('sprite', {
   closeTimer: () => ipcRenderer.send('timer:close'),
   timerEnded: () => ipcRenderer.send('timer:ended'), // time's up: Starby says something
 
+  // Goals checklist window ("Let's set goals!" in the focus menu). The text is Markdown, kept in
+  // goals.md in the app's own data folder (main/windows/goalsWindow.js).
+  openGoals: () => ipcRenderer.send('goals:open'),
+  minimizeGoals: () => ipcRenderer.send('goals:minimize'),
+  closeGoals: () => ipcRenderer.send('goals:close'),
+  loadGoals: () => ipcRenderer.invoke('goals:load'),
+  saveGoals: (markdown) => ipcRenderer.send('goals:save', markdown),
+  // A goal was ticked off: { total, checked } checkbox counts, so Starby can react.
+  goalChecked: (counts) => ipcRenderer.send('goals:checked', counts),
+
 
   // Settings (sliders): { flingPower: 0–100 }
   getSettings: () => ipcRenderer.invoke('settings:get'),

@@ -19,6 +19,8 @@
 // Time is kept as an END TIME, not by counting ticks, so it stays right even if the window is
 // minimized or the computer is busy.
 
+import { sfx } from '../shared/sfx.js';
+
 const api = window.sprite || {};
 const DESIGN_WIDTH = 308; // keep in sync with timer.css and src/main/windows/timerWindow.js
 const MAX_SECONDS = 99 * 60 + 59;
@@ -68,7 +70,14 @@ function setDigitsFrom(seconds) {
   digits = [Math.floor(m / 10), m % 10, Math.floor(s / 10), s % 10];
 }
 
+// ALARM: assets/sounds/alarm.mp3, on repeat from the moment time's up until the timer leaves that
+// state (Stop or rewind → back to picking). Closing the window ends the page, which stops it too.
+// Volume: Settings → Sounds → "Timer" (× "All sounds"), live while it rings (sfx.loop).
+let alarm = null;
+
 function setState(next) {
+  if (next === 'done' && !alarm) alarm = sfx.loop('alarm');
+  if (next !== 'done' && alarm) { alarm.stop(); alarm = null; }
   state = next;
   body.dataset.state = next;
   clearInterval(ticker);

@@ -96,6 +96,21 @@ function keepShopAboveSettings(settingsWin, { full = true } = {}) {
   if (full) reassertOnTop();
 }
 
+/**
+ * Keep `win` below the shop for good (the study timer, the goals checklist), the same way Settings
+ * is: whenever it's raised, shown, restored or dragged, the shop slots back above it (and Starby
+ * above both). Call once after creating the window, and right after bringing it to the front.
+ */
+function rankBelowShop(win) {
+  if (!win || win.isDestroyed()) return;
+  const full = () => keepShopAboveSettings(win);
+  win.on('focus', full);
+  win.on('show', full);
+  win.on('restore', full);
+  win.on('moved', full);
+  win.on('move', () => keepShopAboveSettings(win, { full: false })); // light while dragging (no flicker)
+}
+
 function raiseShop() {
   bringToFront(shopWindow, { stayOnTop: true });
   keepPetAbove();
@@ -191,4 +206,4 @@ function setPreviewColor(id) {
 const minimizeShop = () => shopWindow?.minimize();
 const closeShop = () => shopWindow?.close();
 
-module.exports = { openShopWindow, keepShopAboveSettings, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop };
+module.exports = { openShopWindow, keepShopAboveSettings, rankBelowShop, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop };

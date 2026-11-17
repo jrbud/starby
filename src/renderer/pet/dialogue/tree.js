@@ -106,8 +106,8 @@ export const TREE = {
       { label: 'Stay still', action: 'starby:focusWander:off', show: (ctx) => Boolean(ctx.pet.focusWander) },
       // Opens the study timer window (src/renderer/timer/; style: Settings → UI → Study Timer).
       { label: 'Start a timer', action: 'starby:openTimer' },
-      // TODO: not built yet; for now this just closes the menu.
-      { label: "Let's set goals!", action: 'close' },
+      // Opens the goals checklist window (src/renderer/goals/; saved as goals.md).
+      { label: "Let's set goals!", action: 'starby:openGoals' },
       // Lets him chat now and then (speech.js idle chatter) instead of staying quiet...
       { label: 'Talk to me', action: 'starby:focusTalk:on', show: (ctx) => !ctx.pet.focusTalk },
       // ...and back to quiet.

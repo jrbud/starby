@@ -1,0 +1,233 @@
+/* Goals checklist window ("Let's set goals!"). Art: assets/backgrounds/checklist.png (the whole
+   window, "CHECKLIST" written on it), assets/menuIcons/clock/minimize + x-yellow (title icons),
+   yellow-square / unchecked-box (toolbar buttons), line.png (the line under the toolbar), and
+   white-square / checked-box (checkbox items, the same boxes as Settings' checkboxes).
+   Window frame, Pangolin font, drag band and the inner panel's position: ../shared/menuFrame.css.
+   The page is laid out at 584 × 652 CSS px (like shop / settings) and zoomed to the window.
+   Positions below are measured from the team's checklist mockup. */
+
+:root {
+  --ink: #2b2236;
+  --purple: #5f5587; /* the frame's purple: the scrollbar (same as Settings) */
+}
+
+body {
+  background-image: url('../../../assets/backgrounds/checklist.png');
+  color: var(--ink);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* ---- Minimize / close: in the title band, right of "CHECKLIST" ---- */
+.title-icon {
+  position: fixed;
+  background: center / 100% 100% no-repeat;
+  transition: transform 120ms ease-out; /* grows a bit on hover, like the other windows' buttons */
+  -webkit-app-region: no-drag;
+}
+.title-icon:hover,
+.title-icon:focus-visible {
+  transform: scale(1.15);
+}
+.minimize {
+  left: calc(78.2% - 21px);
+  top: calc(9.3% - 7px);
+  width: 42px; /* minimize.png 61 × 21 */
+  height: 14.5px;
+  outline: 10px solid transparent; /* a bigger hit area than the thin dash */
+  background-image: url('../../../assets/menuIcons/clock/minimize.png');
+}
+.minimize:hover,
+.minimize:focus-visible {
+  background-image: url('../../../assets/menuIcons/clock/minimize-hover.png');
+}
+.close {
+  left: calc(89.5% - 25px);
+  top: calc(9.1% - 25px);
+  width: 50px; /* x-yellow.png 71 × 71 */
+  height: 50px;
+  background-image: url('../../../assets/menuIcons/clock/x-yellow.png');
+}
+.close:hover,
+.close:focus-visible {
+  background-image: url('../../../assets/menuIcons/clock/x-yellow-hover.png');
+}
+
+/* ---- The panel: toolbar + line (fixed), then the text (scrolls) ---- */
+.goals-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 30px 0 14px 28px;
+}
+
+/* B / I / U / • / □, right-aligned, evenly spaced. Not selected: yellow-square art; selected (the
+   style is on where the cursor is, or the list type you're in): unchecked-box art. Each has its
+   hover file. The boxes grow with Font size, and the label is centered in the box (the art's
+   square sits a little off-center, so the label isn't lined up with the art, but with the box). */
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  padding-right: 28px;
+  flex: none;
+}
+.tool {
+  width: calc(34px * var(--font-scale, 1));
+  height: calc(34px * var(--font-scale, 1));
+  display: grid;
+  place-items: center;
+  background: url('../../../assets/menuIcons/yellow-square-idle.png') center / 100% 100% no-repeat;
+  font-size: calc(21px * var(--font-scale, 1));
+  line-height: 1;
+}
+.tool:hover,
+.tool:focus-visible {
+  background-image: url('../../../assets/menuIcons/yellow-square-hover.png');
+}
+.tool[aria-pressed='true'] {
+  background-image: url('../../../assets/menuIcons/unchecked-box-idle.png');
+}
+.tool[aria-pressed='true']:hover,
+.tool[aria-pressed='true']:focus-visible {
+  background-image: url('../../../assets/menuIcons/unchecked-box-hover.png');
+}
+.tool b,
+.tool i,
+.tool u {
+  font-weight: inherit;
+}
+/* "□" comes from a fallback font (Pangolin has no box glyph) and draws small: bring it up to the
+   size of the letters. */
+.tool[data-cmd='checklist'] {
+  font-size: calc(30px * var(--font-scale, 1));
+}
+
+/* The line under the toolbar: line.png, squished flatter than the art. */
+.rule {
+  flex: none;
+  height: 7px;
+  margin: 16px 28px 0 0;
+  background: url('../../../assets/menuIcons/line.png') center / 100% 100% no-repeat;
+}
+
+/* ---- The text: scrolls inside the panel ----
+   Scrollbar: the frame's purple (like Settings), on a faint purple track the full height of the
+   scroll area (like the shop's), so you can see how long the whole page is. 10px in from the
+   panel's right edge, like Settings. */
+.goals-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 14px;
+  margin-right: 10px;
+  padding-right: 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.goals-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.goals-scroll::-webkit-scrollbar-track {
+  background: rgba(95, 85, 135, 0.22);
+  border-radius: 4px;
+}
+.goals-scroll::-webkit-scrollbar-thumb {
+  background: var(--purple);
+  border-radius: 4px;
+}
+
+/* The writing itself: plain Pangolin (not menuFrame's outline), so bold can stand out. */
+.editor {
+  position: relative;
+  min-height: 100%;
+  outline: none;
+  font-size: calc(24px * var(--font-scale, 1));
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  cursor: text;
+  -webkit-app-region: no-drag;
+}
+body.menu-window .editor,
+body.menu-window .editor * {
+  -webkit-text-stroke: 0;
+}
+/* BOLD: Pangolin has one weight, so bold is drawn as a thin shadow in the text's own colour all
+   the way round each letter (8 directions), about as heavy as the timer's outlined text.
+   NOT an outline (-webkit-text-stroke) like the rest of the menus: Chromium paints misspelled
+   words (red squiggle) and selected text in a separate pass that drops the outline, so bold
+   keyboard-smash words looked plain while still being bold. Shadows survive the spelling pass,
+   and the ::selection rule below keeps them on selected text too. */
+body.menu-window .editor {
+  --bold-shadow:
+    0.025em 0 0 currentColor, -0.025em 0 0 currentColor, 0 0.025em 0 currentColor, 0 -0.025em 0 currentColor,
+    0.018em 0.018em 0 currentColor, -0.018em -0.018em 0 currentColor, 0.018em -0.018em 0 currentColor, -0.018em 0.018em 0 currentColor;
+}
+body.menu-window .editor b,
+body.menu-window .editor strong,
+body.menu-window .editor b *,
+body.menu-window .editor strong * {
+  text-shadow: var(--bold-shadow);
+}
+body.menu-window .editor b::selection,
+body.menu-window .editor strong::selection,
+body.menu-window .editor b *::selection,
+body.menu-window .editor strong *::selection {
+  text-shadow: var(--bold-shadow);
+}
+.editor:empty::before,
+.editor.is-empty::before {
+  content: attr(data-placeholder); /* (over the first, empty line) */
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0.45;
+  pointer-events: none;
+}
+.editor > div {
+  min-height: 1.5em;
+}
+
+/* Lists: bullets (•) and checkboxes. */
+.editor ul {
+  margin: 0;
+  padding-left: 1.4em;
+}
+.editor ul.checklist {
+  list-style: none;
+  padding-left: 0;
+}
+.editor ul.checklist > li {
+  position: relative;
+  padding-left: 1.6em;
+}
+/* Each checkbox item's box: Settings' checkbox art (white square → checked box), hover files on
+   hover. Click the box to tick it (goals.js). */
+.editor ul.checklist > li::before {
+  content: '';
+  position: absolute;
+  left: 0.1em;
+  top: 0.3em;
+  width: 0.95em;
+  height: 0.95em;
+  background: url('../../../assets/menuIcons/white-square-idle.png') center / contain no-repeat;
+  cursor: pointer;
+}
+.editor ul.checklist > li.box-hover::before {
+  background-image: url('../../../assets/menuIcons/white-square-hover.png');
+}
+.editor ul.checklist > li[data-checked='true']::before {
+  background-image: url('../../../assets/menuIcons/checked-box-idle.png');
+}
+.editor ul.checklist > li[data-checked='true'].box-hover::before {
+  background-image: url('../../../assets/menuIcons/checked-box-hover.png');
+}
+.editor ul.checklist > li[data-checked='true'] {
+  opacity: 0.7; /* done: a little faded */
+}

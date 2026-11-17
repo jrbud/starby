@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>sprite.exe — checklist</title>
+    <link rel="stylesheet" href="../shared/menuFrame.css" />
+    <link rel="stylesheet" href="goals.css" />
+    <!-- Zooms the page to the window for the UI size setting (before the page's own scripts). -->
+    <script src="../shared/menuZoom.js"></script>
+    <!-- Hover / selected art, loaded up front so swapping never flickers. -->
+    <link rel="preload" as="image" href="../../../assets/menuIcons/yellow-square-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/unchecked-box-idle.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/unchecked-box-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/checked-box-idle.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/checked-box-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/clock/minimize-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/clock/x-yellow-hover.png" />
+  </head>
+  <body class="menu-window">
+    <!-- The background art (assets/backgrounds/checklist.png) has "CHECKLIST" written on it. -->
+    <h1 class="sr-only">Checklist</h1>
+    <div class="menu-drag"></div>
+    <button id="minimize" class="title-icon minimize" type="button" title="Minimize" aria-label="Minimize checklist"></button>
+    <button id="close" class="title-icon close" type="button" title="Close" aria-label="Close checklist"></button>
+
+    <main class="menu-panel goals-panel">
+      <!-- Stays put while the text below scrolls. -->
+      <div class="toolbar" role="toolbar" aria-label="Formatting">
+        <button type="button" class="tool" data-cmd="bold" title="Bold (Ctrl+B)" aria-pressed="false"><b>B</b></button>
+        <button type="button" class="tool" data-cmd="italic" title="Italic (Ctrl+I)" aria-pressed="false"><i>I</i></button>
+        <button type="button" class="tool" data-cmd="underline" title="Underline (Ctrl+U)" aria-pressed="false"><u>U</u></button>
+        <button type="button" class="tool" data-cmd="bullets" title="Bullet points" aria-pressed="false" aria-label="Bullet points">&bull;</button>
+        <button type="button" class="tool" data-cmd="checklist" title="Checkboxes" aria-pressed="false" aria-label="Checkboxes">&#9633;</button>
+      </div>
+      <div class="rule" aria-hidden="true"></div>
+
+      <div class="goals-scroll" id="scroll">
+        <div id="editor" class="editor" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true"
+          aria-label="Your goals" data-placeholder="What are your goals today?"></div>
+      </div>
+    </main>
+
+    <script type="module" src="goals.js"></script>
+  </body>
+</html>

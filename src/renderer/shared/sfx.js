@@ -21,6 +21,8 @@
 //   collect-starbit  pet/behaviors/starbits.js collect(): one of the 3 clips at random
 //   launch           pet/events/intro.js showTitle(): the title card at app launch
 //   exit             pet/behaviors/goodbye.js: quitting (exclusive, so his bye line is quiet)
+//   alarm            renderer/timer/timer.js: the study timer reached 00:00. LOOPS (sfx.loop) until
+//                    you press Stop / rewind or close the timer window
 //
 // SOUND names (add a new file to assets/sounds/ and list it here):
 const SOUNDS = {
@@ -32,6 +34,7 @@ const SOUNDS = {
   prompt: ['prompt'],
   throw: ['throw-1', 'throw-2', 'throw-3', 'throw-4'],
   sling: ['sling'],
+  alarm: ['alarm'],
 };
 
 // Per-sound loudness (1 = as recorded), applied on top of the Settings volume. Tweak here to
@@ -44,7 +47,8 @@ const GAIN = {
   throw: 0.1,
   sling: 0.07,
   startup: 0.1,
-  exit: 0.03
+  exit: 0.03,
+  alarm: 0.25, // the study timer's alarm (loops while it rings): ~2x the starbit pickup's loudness
 };
 // Sounds that always share another sound's loudness: change chat above and prompt follows.
 GAIN.prompt = GAIN.chat; // his questions sound as loud as his lines
@@ -73,6 +77,7 @@ export const SOUND_CATEGORIES = [
   { id: 'Voice', label: 'Voice', sounds: ['chat', 'prompt'], sample: 'chat' },
   { id: 'Starbits', label: 'Starbits', sounds: ['collect-starbit'], sample: 'collect-starbit' },
   { id: 'Action', label: 'Tossing', sounds: ['throw', 'sling', 'explode'], sample: 'throw' },
+  { id: 'Timer', label: 'Timer', sounds: ['alarm'], sample: 'alarm' }, // the study timer's alarm
 ].map((c) => ({ ...c, volumeKey: `sfx${c.id}Volume`, onKey: `sfx${c.id}On` }));
 const categoryOf = new Map(SOUND_CATEGORIES.flatMap((c) => c.sounds.map((s) => [s, c])));
 
@@ -98,6 +103,7 @@ function applySettings(settings) {
     const on = s[c.onKey] === undefined || Number(s[c.onKey]) !== 0; // missing = on (older files)
     categoryVolume.set(c.id, on ? pctOf(s[c.volumeKey], 100, CATEGORY_MAX_PCT) / 100 : 0);
   }
+  for (const l of loops) l.setLevel(); // a ringing alarm follows the sliders live
 }
 /** Master × category volume for a sound (0 = silent). Sounds in no category use the master alone. */
 const volumeFor = (name) => {
@@ -105,6 +111,7 @@ const volumeFor = (name) => {
   return volume * (c ? categoryVolume.get(c.id) ?? 1 : 1);
 };
 
+const loops = new Set(); // sounds playing on repeat (sfx.loop), so volume changes reach them
 const api = typeof window !== 'undefined' ? window.sprite : null;
 // Sounds asked for before the saved volume arrives (e.g. launch.mp3 right at startup) wait for
 // it, so a muted user never hears a blip at the default volume.
@@ -183,6 +190,50 @@ export const sfx = {
     if (name !== STARTUP_SOUND && performance.now() < startupQuietUntil) return Promise.resolve(); // startup quiet
     if (settingsLoaded) return start(name, files, scale, exclusive);
     return settingsReady.then(() => start(name, files, scale, exclusive));
+  },
+  /**
+   * Play a sound ON REPEAT until stopped, e.g. the study timer's alarm. Follows the Settings volume
+   * live (master × its category × GAIN), so moving a slider while it rings changes it right away,
+   * and muting / switching its category off silences it. Returns { stop() }; closing the window
+   * stops it too.
+   */
+  loop(name) {
+    const files = SOUNDS[name];
+    if (!files) return { stop() {} };
+    const audio = clip(files[0]).cloneNode();
+    audio.loop = true;
+    let gain = null; // Web Audio gain node, once the level goes past 100 %
+    let stopped = false;
+    const handle = {
+      setLevel() {
+        const total = Math.max(0, volumeFor(name) * (GAIN[name] ?? 1));
+        if (total > 1 && !gain) {
+          try {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+            gain = audioCtx.createGain();
+            audioCtx.createMediaElementSource(audio).connect(gain).connect(audioCtx.destination);
+          } catch { gain = null; }
+        }
+        // (Once routed through the gain node it stays there; the node then sets the level.)
+        if (gain) { audio.volume = 1; gain.gain.value = Math.min(MAX_LEVEL, total); }
+        else audio.volume = Math.min(1, total);
+      },
+      stop() {
+        if (stopped) return;
+        stopped = true;
+        loops.delete(handle);
+        audio.pause();
+        audio.currentTime = 0;
+      },
+    };
+    loops.add(handle);
+    settingsReady.then(() => {
+      if (stopped) return;
+      handle.setLevel();
+      audio.play().catch(() => {}); // e.g. file missing: stay silent rather than throw
+    });
+    return handle;
   },
   /** Preload some (or all) sounds so the first play has no delay. */
   preload(names = Object.keys(SOUNDS)) {
