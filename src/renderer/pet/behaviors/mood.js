@@ -71,7 +71,7 @@ const HOVER_FOR = 0.8; // seconds the cursor rests on a happy star before he tur
 const RUB_TURNS = 3; // direction changes...
 const RUB_WINDOW = 2.5; // ...within this many seconds, while over him...
 const RUB_SPEED = [30, 900]; // ...at a gentle speed (px/s)
-const PET_COOLDOWN = 20; // seconds
+const PET_COOLDOWN = 5; // seconds (was 20: you can pet him again much sooner now)
 const TICK_DT = 0.1; // onTick runs 10x a second
 const PET_LINES = lineBag(['hehe, that\'s nice', 'aww, pets!', '*happy twinkle*', 'more pets please', 'ooh, right there']);
 const DIZZY_TOSSES = 3; // throws...
@@ -411,7 +411,10 @@ const rubTurns = [];
 let pettedAt = -Infinity;
 function trackRub(ctx, now) {
   const { pet, cursor } = ctx;
-  const free = pet.mode === 'idle' || pet.mode === 'walk' || pet.mode === 'follow' || pet.mode === 'fidget';
+  // 'focus' too (events/focus.js, standing still or strolling): it shows its own pet reaction
+  // (sparkly eyes + a hop) on the 'petted' log entry, and his pet line only shows if "Talk to me"
+  // is on (otherwise he's hushed).
+  const free = pet.mode === 'idle' || pet.mode === 'walk' || pet.mode === 'follow' || pet.mode === 'fidget' || pet.mode === 'focus';
   const over = free && pet.mood !== 'sleepy' && cursor.x >= pet.x && cursor.x <= pet.x + pet.size
     && cursor.y >= pet.y && cursor.y <= pet.y + pet.size;
   if (!over) { rubLastX = null; rubDir = 0; return; }

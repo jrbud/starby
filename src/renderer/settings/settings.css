@@ -1,5 +1,5 @@
 /* Settings window. Background art: assets/backgrounds/settings.png (frame, "SETTINGS" title,
-   grey panel). Window frame, Sour Gummy font, close button and panel placement:
+   grey panel). Window frame, Pangolin font, close button and panel placement:
    ../shared/menuFrame.css. The cards inside are plain, flat UI. */
 :root {
   --panel: #ffffff;
@@ -488,6 +488,43 @@ button {
 #reset-progress:hover,
 #reset-progress:focus-visible {
   background-image: url('../../../assets/menuIcons/button-red-hover.png');
+}
+
+/* UI → Study Timer: pick one of three. Tan art (button-tan-*) for the others, green
+   (button-green-*) for the picked one; the hover file of each while hovered.
+   ALWAYS ONE ROW: three equal buttons that never wrap. Their text follows Font size but stops at
+   18.5px ("Moon Phases", the longest, fits a third of the panel up to ~19.3px), and Menu size zooms
+   the whole page, so the row stays on one line at every setting. */
+.choice-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+.choice {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 38px;
+  padding: 4px 6px 6px; /* clear of the art's drawn border */
+  border: 0;
+  border-radius: 0;
+  background: url('../../../assets/menuIcons/button-tan-idle.png') center / 100% 100% no-repeat;
+  color: var(--ink);
+  font-size: min(calc(15px * var(--font-scale, 1)), 18.5px);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.choice:hover,
+.choice:focus-visible {
+  background-image: url('../../../assets/menuIcons/button-tan-hover.png');
+}
+.choice[aria-checked='true'] {
+  background-image: url('../../../assets/menuIcons/button-green-idle.png');
+}
+.choice[aria-checked='true']:hover,
+.choice[aria-checked='true']:focus-visible {
+  background-image: url('../../../assets/menuIcons/button-green-hover.png');
 }
 
 button:focus-visible,

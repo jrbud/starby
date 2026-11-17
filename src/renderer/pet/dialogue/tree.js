@@ -104,8 +104,8 @@ export const TREE = {
       { label: 'Stretch your legs!', action: 'starby:focusWander:on', show: (ctx) => !ctx.pet.focusWander },
       // ...or stand still in one spot again (the usual focus mode).
       { label: 'Stay still', action: 'starby:focusWander:off', show: (ctx) => Boolean(ctx.pet.focusWander) },
-      // TODO: not built yet; for now this just closes the menu.
-      { label: 'Start a timer', action: 'close' },
+      // Opens the study timer window (src/renderer/timer/; style: Settings → UI → Study Timer).
+      { label: 'Start a timer', action: 'starby:openTimer' },
       // TODO: not built yet; for now this just closes the menu.
       { label: "Let's set goals!", action: 'close' },
       // Lets him chat now and then (speech.js idle chatter) instead of staying quiet...

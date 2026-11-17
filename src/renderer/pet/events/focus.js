@@ -103,6 +103,10 @@ const WANDER_PAUSE = [3, 15]; // seconds standing still between walks (idle anim
 const WANDER_MIN = 0.75; // star-sizes: shortest walk
 const STEP_RATE = 2; // steps per second (the bob while walking)
 const STEP_HEIGHT = 0.035; // star-sizes
+// Petted: sparkly eyes for PETTED_FOR seconds, starting with a little hop.
+const PETTED_FOR = 1.8;
+const PET_HOP_FOR = 0.35; // seconds
+const PET_HOP_HEIGHT = 0.12; // star-sizes (same as his usual petted hop in mood.js)
 // Dropped after being picked up: falls straight down, speeding up.
 // Let go while focusing: he keeps the momentum your hand gave him and arcs down under gravity,
 // bouncing off the screen edges, then slides to a stop on the taskbar line.
@@ -129,6 +133,7 @@ const LINES = {
   callOver: lineBag(['call over? hi again!', "all done talking? i'm back!"]),
   okay: lineBag(["okay! i'll be right here!", 'you got this! i believe in you!', "okay, i'll be quiet. good luck!", 'go get it! i\'ll wait over here!']),
   back: lineBag(["yay, you're back!", 'all done? hi hi!', 'break time? yay!']),
+  timerEnded: lineBag(['ding ding ding!', 'time\'s up!', 'is it snack time?', 'the timer\'s done!', 'break time, you\'ve earned it!', 'ok timer... we hear you', 'ok done for now']),
   study: lineBag(['stay focused!', 'keep  up to good work!', 'you shine bright!', 'wow so focused :o', 'me when i\'m focused', 'you\'re doing great :3', 'ok studious!', '*hums*', 'la la laa~', 'i like seeing your progress :)', 'maybe i\'ll work too... jk', 'you\'re doing great!']),
 };
 
@@ -215,6 +220,7 @@ function parkedIdle(S) {
     case 'bop': return { face: 'calm', bob: -Math.abs(Math.sin(Math.PI * BOP_RATE * u)) * BOP_HEIGHT * S };
     case 'glisten': return { face: 'glistening', bob: 0 };
     case 'wink': return { face: 'wink', bob: 0 };
+    case 'petted': return { face: 'glistening', bob: u < PET_HOP_FOR ? -Math.sin((Math.PI * u) / PET_HOP_FOR) * PET_HOP_HEIGHT * S : 0 };
     default: return { face: 'calm', bob: 0 };
   }
 }
@@ -275,6 +281,13 @@ function sayThroughHush(ctx, pickLine, delay = 0) {
   }, 'focus line');
 }
 
+// The study timer ran out: Starby tells you. While focusing he's hushed, so the line goes through
+// the hush (like a clicked study line); otherwise he just says it.
+function onTimerEnded(ctx) {
+  if (endFocus) sayThroughHush(ctx, () => LINES.timerEnded());
+  else ctx.say(LINES.timerEnded(), STUDY_LINE_MS);
+}
+
 // A left-click while focusing: a study line (or the flavor's click line: "shh, i'm in the zone").
 function onClick(ctx) {
   if (!endFocus) return;
@@ -292,6 +305,18 @@ function updateFlavor(ctx) {
 }
 
 // "Stretch your legs" / "Stay still" (the focus menu in ../dialogue/tree.js).
+// Petted (mood.js's slow back-and-forth rub, which also works in focus mode): sparkly eyes and a
+// happy hop, standing still or strolling. A stroll stops for it, then carries on after a pause.
+// (mood.js's own glistening pose can't show here: focus's faceOverride beats poses.)
+function onPetted() {
+  if (!endFocus || phase !== 'parked') return;
+  idleAnim = { kind: 'petted', start: parkedFor, until: parkedFor + PETTED_FOR };
+  if (wandering) {
+    wanderTo = null;
+    wanderPauseUntil = Math.max(wanderPauseUntil, parkedFor + PETTED_FOR + rand(...WANDER_PAUSE) / 2);
+  }
+}
+
 function setWander(ctx, on) {
   const { pet } = ctx;
   wandering = on;
@@ -339,6 +364,7 @@ export default {
     ctx.events.onEntry((e) => {
       if (e.type === 'system' && e.data.type === 'call') inCall = Boolean(e.data.active);
       if (e.type === 'system' && e.data.type === 'fullscreen') fullscreen = Boolean(e.data.active);
+      if (e.type === 'petted') onPetted();
       if (e.type === 'system' && e.data.type === 'active-window') {
         app = { category: e.data.category || null, key: e.data.key || null };
         const nowGame = app.category === 'game' && !LAUNCHER_KEYS.includes(app.key);
@@ -347,10 +373,13 @@ export default {
       }
     });
     ctx.petEl.addEventListener('pet:clicked', () => onClick(ctx));
+    // The study timer ran out (main process → { type: 'timer-ended' }, see renderer/timer/timer.js).
+    ctx.api.onPetCommand?.((cmd) => { if (cmd?.type === 'timer-ended') onTimerEnded(ctx); });
     // The focus menu (../dialogue/tree.js) calls these through its 'starby:<fn>:<arg>' actions.
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.focusWander = (arg) => { if (endFocus) setWander(ctx, arg !== 'off'); };
       window.starby.focusTalk = (arg) => { if (endFocus) setTalk(ctx, arg !== 'off'); };
+      window.starby.openTimer = () => ctx.api.openTimer?.(); // "Start a timer" (main/windows/timerWindow.js)
     }
   },
 
@@ -533,11 +562,16 @@ export default {
       pet.faceOverride = null;
       return;
     }
+    // His spot is always ON the taskbar line, worked out fresh every frame from his CURRENT size:
+    // pet.x/y is his top-left corner, so a spot saved at one size left him floating after making
+    // him smaller in Settings, or with his feet below the screen after making him bigger. Same if
+    // the taskbar moves. (Kept on screen sideways too.)
+    const b = petBounds(ctx);
+    target.y = b.maxY;
+    target.x = Math.max(b.minX, Math.min(b.maxX, target.x));
     // "Stretch your legs": move his spot (target) along the bottom, a step at a time.
     let walkDir = 0;
     if (wandering) {
-      const b = petBounds(ctx);
-      target.y = b.maxY;
       if (wanderTo == null && parkedFor >= wanderPauseUntil) {
         const lo = b.minX + EDGE;
         const hi = Math.max(lo, b.maxX - EDGE);
@@ -574,6 +608,13 @@ export default {
       if (feelingIt(pet)) pet.faceOverride = null;
       else if (flavor) pet.faceOverride = flavor.face; // (keeps the controller / popcorn while strolling)
       else pet.faceOverride = ctx.isSpeaking?.() ? null : walkDir < 0 ? 'left' : 'right';
+      return;
+    }
+    if (idleAnim?.kind === 'petted' && parkedFor < idleAnim.until) {
+      // Just petted (onPetted): sparkly eyes + hop, over his mood / flavor face for a moment.
+      const petted = parkedIdle(pet.size);
+      pet.bob = petted.bob;
+      pet.faceOverride = petted.face;
       return;
     }
     if (feelingIt(pet)) {

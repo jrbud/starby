@@ -229,26 +229,27 @@ function renderLists() {
   fitNames();
 }
 
-// Long names ("Basketball shoes") don't fit next to a price in the narrow rows: shrink just
-// those names, a step at a time, until they fit (down to a readable minimum).
+// Item names are always shown in full: long ones ("Rainbow Ribbon") wrap between words onto more
+// lines, and the row grows taller (shop.css .item-name). Only when a single WORD is too wide for
+// the row ("Sandevistan" next to a price, at a big Font size) is that name made smaller, a step at
+// a time, until every word fits. Still too wide at the smallest size: break inside the word
+// (.break) rather than hide any of it.
 // Sizes follow Settings → UI → Font size (--font-scale, set by ../shared/menuZoom.js), and
 // everything is re-fitted when it changes.
-// Still too long at the smallest size (big Font size): back to full size on 2 lines (.wrap in
-// shop.css), and the row grows taller to fit them.
+const NAME_PX = 18; // the CSS size (× font scale)
+const NAME_MIN_PX = 9; // smallest it shrinks to (× font scale)
 function fitNames() {
   const fs = Number(getComputedStyle(document.documentElement).getPropertyValue('--font-scale')) || 1;
   for (const name of document.querySelectorAll('.item-name')) {
-    name.classList.remove('wrap');
-    name.style.fontSize = ''; // start from the CSS size (18px × font scale)
-    let px = 18 * fs;
-    while (name.scrollWidth > name.clientWidth && px > 12 * fs) {
-      px -= 1;
+    name.classList.remove('break');
+    name.style.fontSize = ''; // start from the CSS size
+    let px = NAME_PX * fs;
+    // A word wider than the box makes the content overflow sideways (wrapping never splits words).
+    while (name.scrollWidth > name.clientWidth && px > NAME_MIN_PX * fs) {
+      px -= 0.5;
       name.style.fontSize = `${px}px`;
     }
-    if (name.scrollWidth > name.clientWidth) {
-      name.style.fontSize = '';
-      name.classList.add('wrap');
-    }
+    if (name.scrollWidth > name.clientWidth) name.classList.add('break');
   }
 }
 window.addEventListener('fontscale', fitNames);

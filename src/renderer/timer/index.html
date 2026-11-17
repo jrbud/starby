@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>sprite.exe — timer</title>
+    <link rel="stylesheet" href="timer.css" />
+    <!-- Hover / other-state art, loaded up front so swapping never flickers. -->
+    <link rel="preload" as="image" href="../../../assets/menuIcons/clock/base-dark.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/clock/back-arrow-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/clock/minimize-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/clock/x-yellow-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/clock/triangle-dark-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/clock/triangle-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/events/moon.png" />
+  </head>
+  <!-- data-state: set | running | paused | done. data-mode: analog | phases | pie (Settings → UI → Study Timer). -->
+  <body data-state="set" data-mode="analog">
+    <h1 class="sr-only">Study timer</h1>
+    <div class="stage">
+      <!-- Ears behind the clock body. They shake when time's up (the icons on them don't). -->
+      <img class="ear left" src="../../../assets/menuIcons/clock/left-ear.png" alt="" draggable="false" />
+      <img class="ear right" src="../../../assets/menuIcons/clock/right-ear.png" alt="" draggable="false" />
+      <div class="base" aria-hidden="true"></div>
+
+      <button id="rewind" class="icon rewind" type="button" title="Reset timer" aria-label="Reset timer"></button>
+      <button id="minimize" class="icon minimize" type="button" title="Minimize" aria-label="Minimize timer"></button>
+      <button id="close" class="icon close" type="button" title="Close" aria-label="Close timer"></button>
+
+      <!-- Moon modes: the team's moon art, drawn into a canvas and clipped to the time left. -->
+      <canvas id="moon" class="moon" aria-label="Time left. Click to pause or resume." role="button" tabindex="0"></canvas>
+      <div class="resume-mark" aria-hidden="true">
+        <span class="tri dark"></span>
+        <span class="tri light"></span>
+      </div>
+
+      <!-- Text on the clock face. Everything inside is sized in em, so it all scales together. -->
+      <div class="dial">
+        <div class="label">Timer</div>
+        <div class="digits" id="digits">
+          <!-- Columns are filled in by timer.js: an up arrow, the digit, a down arrow. -->
+        </div>
+        <div class="times-up">Time&rsquo;s up!</div>
+        <button id="action" class="action" type="button">Start</button>
+      </div>
+    </div>
+    <script type="module" src="timer.js"></script>
+  </body>
+</html>

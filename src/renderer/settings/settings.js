@@ -324,8 +324,24 @@ function showUserName(settings) {
   if (document.activeElement !== nameBox) nameBox.value = typeof settings.userName === 'string' ? settings.userName : '';
 }
 
+// ---- UI → Study Timer: pick one (settingsStore.studyTimer) ----
+// Only one is ever picked: clicking one picks it and un-picks the others (aria-checked drives the
+// green / tan art in settings.css). Clicking the picked one keeps it picked (Analog by default).
+const studyTimerButtons = [...document.querySelectorAll('#study-timer .choice')];
+function showStudyTimer(value) {
+  const picked = studyTimerButtons.some((b) => b.dataset.value === value) ? value : 'analog';
+  for (const b of studyTimerButtons) b.setAttribute('aria-checked', String(b.dataset.value === picked));
+}
+for (const b of studyTimerButtons) {
+  b.addEventListener('click', () => {
+    showStudyTimer(b.dataset.value); // right away; the saved value comes back via onSettingsChanged
+    api.setSettings({ studyTimer: b.dataset.value });
+  });
+}
+
 function show(settings) {
   showUserName(settings);
+  showStudyTimer(settings.studyTimer);
   showSfx(settings);
   showSwitches(settings);
   showStarbySize(settings.starbySize);
