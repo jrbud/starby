@@ -39,6 +39,11 @@ body {
 
 /* Settings → UI → Font size: --font-scale is set by ../shared/menuZoom.js (1 = 100 %). Text that
    doesn't set its own size inherits this; every font-size in the pages' CSS is × it as well. */
+:root {
+  /* Default only: menuZoom.js sets the real value on <html> (an inline style, which wins over
+     this). Declared here so the IDE can resolve var(--font-scale) in shop / settings / goals CSS. */
+  --font-scale: 1;
+}
 html {
   font-size: calc(16px * var(--font-scale, 1));
 }

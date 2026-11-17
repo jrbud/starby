@@ -353,6 +353,7 @@ output {
   --fill-color: var(--accent); /* the line's color left of the starbit */
 }
 .art-slider {
+  --p: 0; /* default; settings.js sets the real value on each wrapper (also lets the IDE resolve it) */
   position: relative;
   display: block;
   flex: 1; /* in the size / sound rows: take the room beside the preview / on-off box */

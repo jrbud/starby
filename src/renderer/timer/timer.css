@@ -18,6 +18,9 @@
 }
 
 :root {
+  /* Settings → UI → Font size, 1 = 100 %. Default only: timer.js sets the real value on <html>
+     (an inline style, which wins). Declared here so the IDE can resolve it. */
+  --font-scale: 1;
   --ink: #2d2335; /* text on the yellow face (from the mockups) */
   --light: #e3d8a2; /* text on the dark face (time's up) */
 }
