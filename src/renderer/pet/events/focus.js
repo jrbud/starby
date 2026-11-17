@@ -133,6 +133,8 @@ const LINES = {
   callOver: lineBag(['call over? hi again!', "all done talking? i'm back!"]),
   okay: lineBag(["okay! i'll be right here!", 'you got this! i believe in you!', "okay, i'll be quiet. good luck!", 'go get it! i\'ll wait over here!']),
   back: lineBag(["yay, you're back!", 'all done? hi hi!', 'break time? yay!']),
+  goalDone: lineBag(['one down!', 'good progress!', 'check!', 'boom!', 'go go go!']),
+  allGoalsDone: lineBag(['all done!', 'wow you\'re so dedicated!', 'tens across the board', 'is it snack time?', 'great job :0', 'so smart :)', 'look at you!', 'you\'re a star!']),
   timerEnded: lineBag(['ding ding ding!', 'time\'s up!', 'is it snack time?', 'the timer\'s done!', 'break time! you\'ve earned it ;3', 'ok timer... we hear you', 'ok done for now :)']),
   study: lineBag(['stay focused!', 'keep  up to good work!', 'you shine bright!', 'wow so focused :o', 'me when i\'m focused', 'you\'re doing great :3', 'ok studious!', '*hums*', 'la la laa~', 'i like seeing your progress :)', 'maybe i\'ll work too... jk', 'you\'re doing great!']),
 };
@@ -288,6 +290,34 @@ function onTimerEnded(ctx) {
   else ctx.say(LINES.timerEnded(), STUDY_LINE_MS);
 }
 
+// A goal was ticked off in the goals checklist (renderer/goals/goals.js → { type: 'goal-checked',
+// total, checked }). Focusing or not, like the timer:
+//   - it finished ALL the goals (at least ALL_GOALS_MIN): an all-goals line. Wins over the normal
+//     line and ignores its cooldown, but not more than once per ALL_GOALS_COOLDOWN (ticking the
+//     last goal off and on again gets the normal reaction instead, if that's off cooldown).
+//   - otherwise: a goal line, at most once per GOAL_COOLDOWN (so ticking lots fast isn't spammy).
+const GOAL_COOLDOWN = 10; // seconds
+const ALL_GOALS_MIN = 3; // goals needed for the all-goals line
+const ALL_GOALS_COOLDOWN = 60; // seconds
+let lastGoalLineAt = -Infinity;
+let lastAllGoalsAt = -Infinity;
+function onGoalChecked(ctx, { total, checked }) {
+  const now = ctx.clock.seconds;
+  const say = (pick) => {
+    if (endFocus) sayThroughHush(ctx, pick);
+    else ctx.say(pick(), STUDY_LINE_MS);
+  };
+  if (total >= ALL_GOALS_MIN && checked >= total && now - lastAllGoalsAt >= ALL_GOALS_COOLDOWN) {
+    lastAllGoalsAt = now;
+    lastGoalLineAt = now; // (and no normal line right after it)
+    say(() => LINES.allGoalsDone());
+    return;
+  }
+  if (now - lastGoalLineAt < GOAL_COOLDOWN) return;
+  lastGoalLineAt = now;
+  say(() => LINES.goalDone());
+}
+
 // A left-click while focusing: a study line (or the flavor's click line: "shh, i'm in the zone").
 function onClick(ctx) {
   if (!endFocus) return;
@@ -374,12 +404,17 @@ export default {
     });
     ctx.petEl.addEventListener('pet:clicked', () => onClick(ctx));
     // The study timer ran out (main process → { type: 'timer-ended' }, see renderer/timer/timer.js).
-    ctx.api.onPetCommand?.((cmd) => { if (cmd?.type === 'timer-ended') onTimerEnded(ctx); });
+    ctx.api.onPetCommand?.((cmd) => {
+      if (cmd?.type === 'timer-ended') onTimerEnded(ctx);
+      // A goal ticked off in the goals checklist (renderer/goals/goals.js).
+      if (cmd?.type === 'goal-checked') onGoalChecked(ctx, cmd);
+    });
     // The focus menu (../dialogue/tree.js) calls these through its 'starby:<fn>:<arg>' actions.
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.focusWander = (arg) => { if (endFocus) setWander(ctx, arg !== 'off'); };
       window.starby.focusTalk = (arg) => { if (endFocus) setTalk(ctx, arg !== 'off'); };
       window.starby.openTimer = () => ctx.api.openTimer?.(); // "Start a timer" (main/windows/timerWindow.js)
+      window.starby.openGoals = () => ctx.api.openGoals?.(); // "Let's set goals!" (main/windows/goalsWindow.js)
     }
   },
 

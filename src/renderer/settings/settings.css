@@ -26,8 +26,11 @@ body {
 .settings-scroll::-webkit-scrollbar {
   width: 8px;
 }
+/* Track: a faint version of the thumb's purple, the full height of the scroll area (like the shop's
+   faint yellow track), so you can see how long the whole page is. */
 .settings-scroll::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(95, 85, 135, 0.22);
+  border-radius: 4px;
   margin: 6px 0;
 }
 .settings-scroll::-webkit-scrollbar-thumb {
