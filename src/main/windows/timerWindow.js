@@ -17,6 +17,8 @@ const { BrowserWindow, screen } = require('electron');
 const path = require('path');
 const settingsStore = require('../settingsStore');
 const { bringToFront } = require('./bringToFront');
+// Never above the shop: it ranks higher, like it does over Settings (shopWindow.js).
+const { keepShopAboveSettings, rankBelowShop } = require('./shopWindow');
 
 const DESIGN_WIDTH = 308; // keep in sync with src/renderer/timer/timer.js and timer.css
 const DESIGN_HEIGHT = 307;
@@ -56,9 +58,16 @@ settingsStore.onChange((s) => {
   applySize();
 });
 
+// In front of other windows, but below the shop (bringToFront raises it over everything, so the
+// shop goes back above it straight after).
+function raise() {
+  bringToFront(timerWindow, { stayOnTop: true });
+  keepShopAboveSettings(timerWindow);
+}
+
 function openTimerWindow() {
   if (timerWindow) {
-    bringToFront(timerWindow, { stayOnTop: true });
+    raise();
     return timerWindow;
   }
   lastMenuScale = settingsStore.get().menuScale;
@@ -84,7 +93,8 @@ function openTimerWindow() {
       backgroundThrottling: false,
     },
   });
-  timerWindow.once('ready-to-show', () => bringToFront(timerWindow, { stayOnTop: true }));
+  rankBelowShop(timerWindow); // the shop slots back above it whenever it's raised / moved
+  timerWindow.once('ready-to-show', raise);
   timerWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'timer', 'index.html'));
   timerWindow.on('closed', () => { timerWindow = null; });
   return timerWindow;

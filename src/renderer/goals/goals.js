@@ -370,6 +370,10 @@ function tidy() {
 // ---------------------------------------------------------------- editing
 function changed() {
   tidy();
+  // An item emptied out (its text cut / deleted) starts over unticked.
+  for (const li of editor.querySelectorAll('li[data-checked]')) {
+    if (!li.textContent.trim()) li.removeAttribute('data-checked');
+  }
   editor.classList.toggle('is-empty', !editor.textContent.trim() && !editor.querySelector('li'));
   saveSoon();
 }
@@ -428,9 +432,134 @@ editor.addEventListener('input', (e) => {
   changed();
   updateToolbar();
 });
-// Paste as plain text (no fonts / colors / pictures from other apps).
+// ---------------------------------------------------------------- copy / cut / paste
+// Copy and paste keep the checklist's own formatting, and only that: bold, italic, underline,
+// bullet points, checkboxes (ticked or not) and line breaks. Anything else in pasted HTML (fonts,
+// colours, sizes, pictures, links, tables...) is dropped, its text kept. Pasting from other apps
+// keeps their bold / italic / underline / lists too (e.g. a web page's or Word's), and a web page's
+// checkbox list (<li><input type="checkbox">...) becomes checkboxes.
+
+/** Clean HTML holding only the formatting this editor supports. `source` is a node to read from. */
+function cleanHtml(source) {
+  const out = document.createElement('div');
+  const tagFor = (el) => {
+    const t = el.tagName;
+    if (BOLD.has(t)) return 'b';
+    if (ITALIC.has(t)) return 'i';
+    if (t === 'U' || t === 'INS') return 'u';
+    if (t === 'UL' || t === 'OL') return 'ul';
+    if (t === 'LI') return 'li';
+    if (t === 'BR') return 'br';
+    if (/^(DIV|P|H[1-6]|BLOCKQUOTE|PRE|SECTION|ARTICLE|HEADER|FOOTER|TR)$/.test(t)) return 'div';
+    return null; // anything else: just its contents
+  };
+  const walk = (node, into) => {
+    for (const n of node.childNodes) {
+      if (n.nodeType === Node.TEXT_NODE) {
+        // Line breaks in HTML source are just formatting (the editor shows whitespace as typed,
+        // so they'd become stray blank lines / spaces): drop whitespace-only bits that contain
+        // one, and turn the rest into a single space, the way a web page shows them.
+        if (/\n/.test(n.nodeValue) && !n.nodeValue.trim()) continue;
+        into.appendChild(document.createTextNode(n.nodeValue.replace(/\s*\n\s*/g, ' ')));
+        continue;
+      }
+      if (n.nodeType !== Node.ELEMENT_NODE) continue;
+      if (/^(SCRIPT|STYLE|TEMPLATE|HEAD|TITLE|META|LINK|IMG|SVG|VIDEO|AUDIO|IFRAME|OBJECT|BUTTON|SELECT|TEXTAREA)$/.test(n.tagName)) continue;
+      if (n.tagName === 'INPUT') continue; // (a checkbox is read by its <li> below)
+      let tag = tagFor(n);
+      let el = tag ? document.createElement(tag) : null;
+      // Inline styles from other apps (Word, Google Docs...): bold / italic / underline as tags.
+      const st = n.style;
+      const wraps = [];
+      if (st) {
+        if (st.fontWeight === 'bold' || parseInt(st.fontWeight, 10) >= 600) wraps.push('b');
+        if (st.fontStyle === 'italic') wraps.push('i');
+        if (/underline/.test(st.textDecorationLine || st.textDecoration || '')) wraps.push('u');
+      }
+      if (tag === 'ul') {
+        const box = n.querySelector(':scope > li > input[type="checkbox"]');
+        if (n.classList.contains('checklist') || box) el.className = 'checklist';
+      }
+      if (tag === 'li') {
+        const box = n.querySelector(':scope > input[type="checkbox"]');
+        if (n.dataset.checked === 'true' || box?.checked || box?.hasAttribute('checked')) el.dataset.checked = 'true';
+      }
+      let target = el || into;
+      if (el) into.appendChild(el);
+      for (const w of wraps) {
+        if (w === tag) continue;
+        const wrap = document.createElement(w);
+        target.appendChild(wrap);
+        target = wrap;
+      }
+      if (tag !== 'br') walk(n, target);
+    }
+  };
+  walk(source, out);
+  // List items outside a list (e.g. copying a few items out of the middle of one): wrap them.
+  for (const li of [...out.querySelectorAll('li')]) {
+    if (li.parentElement.tagName === 'UL') continue;
+    const ul = document.createElement('ul');
+    li.before(ul);
+    ul.appendChild(li);
+    while (ul.nextSibling?.tagName === 'LI') ul.appendChild(ul.nextSibling);
+  }
+  return out.innerHTML;
+}
+
+// Copy / cut: put the selection on the clipboard as clean HTML (so pasting keeps checkboxes,
+// ticks and styles, here or in another window) plus plain text for other apps.
+function copySelection(e) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount || sel.isCollapsed) return false;
+  const range = sel.getRangeAt(0);
+  const box = document.createElement('div');
+  box.appendChild(range.cloneContents());
+  // Several items copied out of one list: the copy holds bare <li>s; give them their list's type.
+  const common = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+    ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
+  // All of ONE item's text selected: copy it as that item (keeps its checkbox / tick), not as a
+  // plain line. (Part of an item's text is copied as just that text.)
+  const item = common?.closest?.('li');
+  if (item && editor.contains(item) && range.toString().trim() && range.toString().trim() === item.textContent.trim()) {
+    const ul = document.createElement('ul');
+    ul.className = item.parentElement.className;
+    const li = document.createElement('li');
+    if (item.dataset.checked === 'true') li.dataset.checked = 'true';
+    while (box.firstChild) li.appendChild(box.firstChild);
+    ul.appendChild(li);
+    box.appendChild(ul);
+  }
+  const list = common?.closest?.('ul');
+  if (list && box.querySelector(':scope > li')) {
+    const ul = document.createElement('ul');
+    ul.className = list.className;
+    while (box.firstChild) ul.appendChild(box.firstChild);
+    box.appendChild(ul);
+  }
+  e.clipboardData.setData('text/html', cleanHtml(box));
+  e.clipboardData.setData('text/plain', sel.toString());
+  e.preventDefault();
+  return true;
+}
+editor.addEventListener('copy', copySelection);
+editor.addEventListener('cut', (e) => {
+  if (copySelection(e)) document.execCommand('delete');
+});
+
 editor.addEventListener('paste', (e) => {
   e.preventDefault();
+  const html = e.clipboardData.getData('text/html');
+  if (html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const clean = cleanHtml(doc.body);
+    if (clean.trim()) {
+      document.execCommand('insertHTML', false, clean);
+      changed(); // tidies whatever the browser added while inserting
+      updateToolbar();
+      return;
+    }
+  }
   document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
 });
 

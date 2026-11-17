@@ -11,6 +11,8 @@ const { app, BrowserWindow } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { bringToFront } = require('./bringToFront');
+// Never above the shop: it ranks higher, like it does over Settings (shopWindow.js).
+const { keepShopAboveSettings, rankBelowShop } = require('./shopWindow');
 const { MENU_SCALE } = require('./menuSize');
 const { menuWindowSize, trackMenuWindow } = require('./menuScale');
 
@@ -41,9 +43,16 @@ function saveGoals(markdown) {
   }
 }
 
+// In front of other windows, but below the shop (bringToFront raises it over everything, so the
+// shop goes back above it straight after).
+function raise() {
+  bringToFront(goalsWindow, { stayOnTop: true });
+  keepShopAboveSettings(goalsWindow);
+}
+
 function openGoalsWindow() {
   if (goalsWindow) {
-    bringToFront(goalsWindow, { stayOnTop: true });
+    raise();
     return goalsWindow;
   }
   goalsWindow = new BrowserWindow({
@@ -67,7 +76,8 @@ function openGoalsWindow() {
     },
   });
   trackMenuWindow(goalsWindow); // follows Settings → UI → Menu size, live
-  goalsWindow.once('ready-to-show', () => bringToFront(goalsWindow, { stayOnTop: true }));
+  rankBelowShop(goalsWindow); // the shop slots back above it whenever it's raised / moved
+  goalsWindow.once('ready-to-show', raise);
   goalsWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'goals', 'index.html'));
   goalsWindow.on('closed', () => { goalsWindow = null; });
   return goalsWindow;
