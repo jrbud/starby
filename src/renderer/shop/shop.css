@@ -67,6 +67,29 @@ button {
   height: 24px;
 }
 
+/* STARBIT NUMBERS (the wallet's count and each item's price) stay in "Sour Gummy", the font they
+   had before the shop moved to Pangolin (../shared/menuFrame.css). Sour Gummy has real bold
+   weights, so these turn off menuFrame's Pangolin outline and use font-weight instead. */
+@font-face {
+  font-family: 'Sour Gummy';
+  src: local('Sour Gummy'), url('../../../assets/fonts/SourGummy.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+body.menu-window #balance,
+body.menu-window .price {
+  /* (body.menu-window: to outrank menuFrame's `body.menu-window *` outline rule) */
+  font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif;
+  -webkit-text-stroke: 0;
+}
+#balance {
+  font-weight: 700; /* as before */
+}
+
+body.menu-window .price {
+  font-weight: 700;
+}
+
 .starbit-icon {
   width: 16px;
   height: 16px;
@@ -236,7 +259,7 @@ button {
 }
 
 /* Color rows: a ★ glyph tinted with the item's color (set inline from shopCatalog.js).
-   Segoe UI Symbol has the glyph; Sour Gummy may not. */
+   Segoe UI Symbol has the glyph; Pangolin may not. */
 .color-star {
   display: inline-flex;
   align-items: center;
@@ -247,20 +270,21 @@ button {
   -webkit-text-stroke: 0.5px rgba(1, 0, 33, 0.35); /* keeps pale colors (Moonbeam) visible */
 }
 
+/* Item names: always shown in full. They wrap between words onto as many lines as they need (the
+   row grows taller; icon and price stay centered), and shop.js fitNames shrinks a name only when one
+   of its words is too wide for the row on its own. */
 .item-name {
   flex: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
   line-height: 1.15;
 }
-/* Still too long at the smallest size (shop.js fitNames): 2 lines, and the row grows taller. */
-.item-name.wrap {
-  white-space: normal;
+/* Last resort (a single word too wide even at the smallest size): break inside the word rather
+   than hide any of it. */
+.item-name.break {
   overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .price {

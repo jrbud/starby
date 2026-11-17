@@ -41,6 +41,13 @@ contextBridge.exposeInMainWorld('sprite', {
   // Try-on for colors/skins: show this color item id on Starby while browsing (null = equipped).
   previewColor: (id) => ipcRenderer.send('shop:preview-color', id),
 
+  // Study timer window ("Start a timer" in the focus menu): open it, and its own title-bar icons.
+  openTimer: () => ipcRenderer.send('timer:open'),
+  minimizeTimer: () => ipcRenderer.send('timer:minimize'),
+  closeTimer: () => ipcRenderer.send('timer:close'),
+  timerEnded: () => ipcRenderer.send('timer:ended'), // time's up: Starby says something
+
+
   // Settings (sliders): { flingPower: 0–100 }
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),

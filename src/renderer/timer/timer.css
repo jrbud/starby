@@ -1,0 +1,369 @@
+/* Study timer window. All art is the team's (assets/menuIcons/clock/, assets/events/moon.png);
+   this file only places it, measured from their mockups (baseClock / analogClock / moonClock.png).
+
+   COORDINATES: the page is laid out at 308 × 307 CSS px, exactly the clock's size in the mockups,
+   and timer.js zooms the whole page to fit the window (Settings → UI → Menu size). So every
+   number below is "mockup pixels": the clock body (base-*.png, 646 × 679) is drawn at 0.387×, like
+   every other piece of art.
+
+   TEXT: Settings → UI → Font size (--font-scale, 0.75–1.5) scales the text on the face, but never
+   past the mockup's size (min(…, 1) in .dial): the mockup already fills the round face, and bigger
+   text would spill over the drawn edge. Smaller font sizes shrink it. */
+
+/* Google's "Pangolin" (OFL), in assets/fonts/. */
+@font-face {
+  font-family: 'Pangolin';
+  src: local('Pangolin'), url('../../../assets/fonts/Pangolin.ttf') format('truetype');
+  font-display: block; /* no fallback-font flash: the window is shown once it has painted */
+}
+
+:root {
+  --ink: #2d2335; /* text on the yellow face (from the mockups) */
+  --light: #e3d8a2; /* text on the dark face (time's up) */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 308px;
+  height: 307px;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+}
+
+body {
+  font-family: 'Pangolin', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.dial,
+.dial * {
+  -webkit-text-stroke: 0.05em currentColor;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* The whole clock drags the window (frameless). Anything you click opts out (no-drag). */
+.stage {
+  position: relative;
+  width: 308px;
+  height: 307px;
+  -webkit-app-region: drag;
+}
+button,
+.moon,
+.resume-mark {
+  -webkit-app-region: no-drag;
+}
+
+/* ---- The clock ---- */
+.ear {
+  position: absolute;
+  top: 0;
+  width: 138.2px; /* 357 × 0.387 */
+  height: 124.3px; /* 321 × 0.387 */
+  pointer-events: none;
+}
+.ear.left {
+  left: 0;
+  transform-origin: 85% 90%; /* shakes around where it meets the clock */
+}
+.ear.right {
+  left: 169.8px;
+  transform-origin: 15% 90%;
+}
+
+.base {
+  position: absolute;
+  left: 27.9px;
+  top: 43.5px;
+  width: 250px; /* 646 × 0.387 */
+  height: 262.7px; /* 679 × 0.387 */
+  background: url('../../../assets/menuIcons/clock/base-yellow.png') center / 100% 100% no-repeat;
+}
+body[data-state='done'] .base,
+body:not([data-mode='analog']):is([data-state='running'], [data-state='paused']) .base {
+  /* Time's up, and behind the moon (Moon Phases / Moon Pie) while it counts down. Switching to
+     Analog mid-countdown goes back to the yellow face (data-mode changes live). */
+  background-image: url('../../../assets/menuIcons/clock/base-dark.png');
+}
+
+/* Time's up: the ears ring. Only the ears move; the icons on top of them stay put. */
+body[data-state='done'] .ear.left {
+  animation: ring-left 0.05s linear infinite alternate;
+}
+body[data-state='done'] .ear.right {
+  animation: ring-right 0.05s linear infinite alternate;
+}
+@keyframes ring-left {
+  from { transform: rotate(-5deg) translateY(1px); }
+  to { transform: rotate(5deg) translateY(-1px); }
+}
+@keyframes ring-right {
+  from { transform: rotate(5deg) translateY(-1px); }
+  to { transform: rotate(-5deg) translateY(1px); }
+}
+
+/* ---- Rewind / minimize / close (on the ears) ---- */
+.icon {
+  position: absolute;
+  background: center / 100% 100% no-repeat;
+  transition: transform 120ms ease-out; /* grows a bit on hover, like the shop / settings close button */
+}
+.icon:hover,
+.icon:focus-visible {
+  transform: scale(1.15);
+}
+/* Icons sit ~3px lower than in the mockup. The rewind arrow is drawn as tall as the X (both PNGs
+   fill their canvas: X 68px drawn → 26.3px here; rewind 104px drawn → scaled to the same height). */
+.rewind {
+  left: 35.2px; /* centered where the mockup has it (48.5, 44.5) */
+  top: 31.2px;
+  width: 26.6px;
+  height: 26.6px;
+  background-image: url('../../../assets/menuIcons/clock/back-arrow.png');
+}
+.rewind:hover,
+.rewind:focus-visible {
+  background-image: url('../../../assets/menuIcons/clock/back-arrow-hover.png');
+}
+.minimize {
+  left: 220.7px;
+  top: 40.4px;
+  width: 23.6px; /* 61 × 0.387 */
+  height: 8.1px; /* 21 × 0.387 */
+  /* A bigger hit area than the thin dash, without moving the art. */
+  outline: 8px solid transparent;
+}
+.minimize {
+  background-image: url('../../../assets/menuIcons/clock/minimize.png');
+}
+.minimize:hover,
+.minimize:focus-visible {
+  background-image: url('../../../assets/menuIcons/clock/minimize-hover.png');
+}
+.close {
+  left: 256.8px;
+  top: 31.3px;
+  width: 27.5px; /* 71 × 0.387 */
+  height: 27.5px;
+  background-image: url('../../../assets/menuIcons/clock/x-yellow.png');
+}
+.close:hover,
+.close:focus-visible {
+  background-image: url('../../../assets/menuIcons/clock/x-yellow-hover.png');
+}
+
+/* ---- Moon modes ---- */
+.moon {
+  position: absolute;
+  left: 59.9px;
+  top: 71.9px;
+  width: 190px;
+  height: 190px;
+  cursor: pointer;
+  display: none;
+  outline: none;
+}
+body:not([data-mode='analog']):is([data-state='running'], [data-state='paused']) .moon {
+  display: block;
+}
+
+/* Paused: a sideways triangle (pointing right) on the moon. The light triangle sits on a slightly
+   bigger dark one, which shows as its outline. */
+.resume-mark {
+  position: absolute;
+  left: 152px;
+  top: 167px;
+  width: 0;
+  height: 0;
+  display: none;
+  cursor: pointer;
+}
+body:not([data-mode='analog'])[data-state='paused'] .resume-mark {
+  display: block;
+}
+.tri {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 31px; /* triangle*.png */
+  height: 35px;
+  background: center / 100% 100% no-repeat;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+.tri.dark {
+  background-image: url('../../../assets/menuIcons/clock/triangle-dark.png');
+  transform: translate(-50%, -50%) rotate(90deg) scale(1.35);
+}
+.tri.light {
+  background-image: url('../../../assets/menuIcons/clock/triangle.png');
+}
+.resume-mark:hover .tri.dark {
+  background-image: url('../../../assets/menuIcons/clock/triangle-dark-hover.png');
+}
+.resume-mark:hover .tri.light {
+  background-image: url('../../../assets/menuIcons/clock/triangle-hover.png');
+}
+
+/* ---- Text on the face ----
+   .dial is a point at the middle of the face's text block; everything is placed around it in em
+   (1em = 20px at 100 % = the mockups' "Timer" / "Start" size), so the whole block scales as one. */
+.dial {
+  position: absolute;
+  left: 152.3px; /* the inner (yellow) circle's center: base-*.png face 96–547 × 97–546, × 0.387 */
+  top: 167.9px;
+  width: 0;
+  height: 0;
+  font-size: calc(20px * min(var(--font-scale, 1), 1));
+  -webkit-app-region: no-drag;
+}
+.dial > * {
+  position: absolute;
+  left: 0;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+}
+body[data-state='done'] .dial {
+  color: var(--light);
+}
+
+/* VERTICAL SPACING (all in em, so it holds at any Font / Menu size). Pangolin's capitals and digits
+   are 0.72em tall with their ink 0.045em above the middle of the text box, so each box is nudged
+   down by that much to put the INK where it should be:
+     digits    ink centered on the circle (2.4em font: ink ±0.864em, box nudged +0.108em = 0.045 of its own em)
+     arrows    0.35em from the digits' ink, above and below (each 0.75em tall)
+     Timer / Start·Pause·Resume·Stop   1.85em from the digits' ink, above and below */
+.label {
+  top: -3.029em; /* ink center −3.074em = −(0.864 + 1.85 + 0.36) */
+  pointer-events: none;
+}
+
+.digits {
+  top: 0;
+  width: 0;
+  height: 0;
+  transform: none;
+}
+.col {
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+.digit,
+.colon {
+  position: absolute;
+  left: 0;
+  top: 0.045em; /* (in its OWN em, 2.4× the dial's: = the 0.108em nudge below) */
+  font-size: 2.4em; /* 48px at 100 % */
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+/* Big digits get a thinner outline than the other text, so neighbouring digits never touch. */
+.dial .digit,
+.dial .colon {
+  -webkit-text-stroke-width: 0.018em;
+}
+/* Up / down arrows: the team's dark triangle (down = turned upside down). */
+.arrow {
+  position: absolute;
+  left: 0;
+  width: 0.7em; /* 14 × 15 px at 100 % */
+  height: 0.75em;
+  background: url('../../../assets/menuIcons/clock/triangle-dark.png') center / 100% 100% no-repeat;
+  transform: translate(-50%, -50%);
+}
+.arrow.up {
+  top: -1.589em; /* −(0.864 + 0.35 + 0.375) */
+}
+.arrow.down {
+  top: 1.589em;
+  transform: translate(-50%, -50%) rotate(180deg);
+}
+.arrow:hover,
+.arrow:focus-visible {
+  background-image: url('../../../assets/menuIcons/clock/triangle-dark-hover.png');
+}
+body:not([data-state='set']) .arrow {
+  display: none;
+}
+
+/* Where each column sits (digit centers). Pangolin's 0 has 0.59em of ink (2.4em font: ~28px at
+   100 %), so the two digits of each pair are 1.9em (38px) apart: a ~10px gap between them, so
+   "00" never looks joined up. The same spacing is used while picking and while counting down.
+   Widest point ±(3.3em + half a digit) ≈ ±80px at 100 %: inside the 175px face. */
+.col[data-i='0'] { left: -3.3em; }
+.col[data-i='1'] { left: -1.4em; }
+.col[data-i='c'] { left: 0; }
+.col[data-i='2'] { left: 1.4em; }
+.col[data-i='3'] { left: 3.3em; }
+
+.times-up {
+  top: -0.04em; /* centered on the circle: its ink sits 0.04em (its own em) low */
+  font-size: 1.75em;
+  display: none;
+  pointer-events: none;
+}
+
+/* Start / Pause / Resume / Stop: plain text. Underlined while hovered (Start: only once there's a
+   time to count down; at 00:00 it can't start, so it doesn't react). */
+.action {
+  top: 3.119em; /* ink center +3.074em = 0.864 + 1.85 + 0.36 */
+  padding: 0.15em 0.3em;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 0.07em;
+  transition: transform 120ms ease-out;
+}
+.action:hover,
+.action:focus-visible {
+  text-decoration-line: underline;
+  transform: translate(-50%, -50%) scale(1.15); /* grows a bit, like the shop / settings buttons */
+}
+.action.disabled {
+  cursor: default;
+}
+.action.disabled:hover,
+.action.disabled:focus-visible {
+  text-decoration-line: none;
+  transform: translate(-50%, -50%); /* 00:00: Start doesn't react at all */
+}
+
+/* What shows in each state:
+     set       Timer · digits with arrows · Start
+     running   analog: Timer · digits · Pause      moon: just the moon
+     paused    analog: Timer · digits · Resume     moon: the moon + the resume triangle
+     done      analog: Timer · 00 : 00 · Stop      moon: Time's up! · Stop       (dark face) */
+body:not([data-mode='analog']):is([data-state='running'], [data-state='paused']) .dial {
+  display: none;
+}
+body:not([data-mode='analog'])[data-state='done'] .label,
+body:not([data-mode='analog'])[data-state='done'] .digits {
+  display: none;
+}
+body:not([data-mode='analog'])[data-state='done'] .times-up {
+  display: block;
+}

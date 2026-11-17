@@ -5,6 +5,7 @@ const store = require('./store');
 const { SHOP_ITEMS, getItem } = require('../shared/shopCatalog');
 const { openShopWindow, setDisplayRect, petSay, setPreview, setPreviewColor, minimizeShop, closeShop } = require('./windows/shopWindow');
 const { openSettingsWindow } = require('./windows/settingsWindow');
+const { openTimerWindow, minimizeTimer, closeTimer } = require('./windows/timerWindow');
 const settingsStore = require('./settingsStore');
 const { openDevToolsWindow, handleDevCommand } = require('./windows/devToolsWindow');
 const adminSettingsStore = require('./adminSettingsStore');
@@ -107,6 +108,16 @@ function registerIpc() {
   ipcMain.handle('settings:set', (_e, patch) => settingsStore.set(patch));
   ipcMain.handle('settings:reset', () => settingsStore.reset());
   ipcMain.on('settings:open', () => openSettingsWindow());
+
+  // ---- Study timer window (focus menu → "Start a timer") ----
+  ipcMain.on('timer:open', () => openTimerWindow());
+  ipcMain.on('timer:minimize', () => minimizeTimer());
+  ipcMain.on('timer:close', () => closeTimer());
+  // Time's up: tell the pet, so Starby says something (renderer/pet/events/focus.js).
+  ipcMain.on('timer:ended', () => {
+    const pet = getPetWindow();
+    if (pet && !pet.isDestroyed()) pet.webContents.send('pet:command', { type: 'timer-ended' });
+  });
 
   // ---- Welcome window + run when Windows starts (windows/welcomeWindow.js, startup.js) ----
   ipcMain.handle('startup:get', () => startup.get()); // { available, enabled }

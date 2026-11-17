@@ -19,6 +19,10 @@ const DEFAULTS = {
   menuScale: 100, // shop/settings windows (windows/menuScale.js) + the right-click/event menus' answer boxes
   chatScale: 100, // speech + thought bubbles (incl. his line in the right-click menu)
   fontScale: 100, // text in the bubbles and menu boxes (the bubbles grow to fit)
+  // Settings → UI → "Study Timer": how the timer window (focus menu → "Start a timer") shows the
+  // time left: 'analog' (digits), 'phases' (the moon wanes from the right) or 'pie' (the moon
+  // empties clockwise like a pie chart). One of CHOICES.studyTimer.
+  studyTimer: 'analog',
   // (pet-window side of all three: renderer/pet/uiScale.js)
   // Starbit colors switched ON in Settings (names from renderer/shared/starbitArt.js).
   // Default: every color except white. Must match DEFAULT_STARBIT_COLORS in starbitArt.js.
@@ -63,6 +67,11 @@ const RANGES = {
   sfxVoiceVolume: [0, 200],
   sfxStarbitsVolume: [0, 200],
   sfxActionVolume: [0, 200],
+};
+
+// Pick-one settings: only these values are accepted (anything else is ignored).
+const CHOICES = {
+  studyTimer: ['analog', 'phases', 'pie'],
 };
 
 // List settings: arrays of short lowercase names (e.g. color names), nothing else.
@@ -111,6 +120,10 @@ function set(patch) {
         settings[key] = [...new Set(patch[key].filter((v) => typeof v === 'string' && LIST_ITEM.test(v)))]
           .slice(0, LIST_MAX);
       }
+      continue;
+    }
+    if (CHOICES[key]) {
+      if (CHOICES[key].includes(patch[key])) settings[key] = patch[key];
       continue;
     }
     if (typeof DEFAULTS[key] === 'string') {

@@ -8,12 +8,28 @@
      title band     top ~3–16% (drag handle + close button live here)
      inner panel    x 9.04%–91.30%, y 17.64%–90.76%  (content goes in .menu-panel) */
 
-/* FONT: "Sour Gummy" (Google Fonts, OFL), file in assets/fonts/. */
+/* FONT: "Pangolin" (Google Fonts, OFL), file in assets/fonts/ (same as the study timer). */
 @font-face {
-  font-family: 'Sour Gummy';
-  src: local('Sour Gummy'), url('../../../assets/fonts/SourGummy.ttf') format('truetype');
-  font-weight: 100 900;
+  font-family: 'Pangolin';
+  src: local('Pangolin'), url('../../../assets/fonts/Pangolin.ttf') format('truetype');
   font-display: swap;
+}
+
+/* WEIGHT: all text is as bold as the study timer's "Timer" title (renderer/timer/timer.css):
+   Pangolin plus a thin outline in the text's own colour (0.05em). Pangolin has one weight only;
+   the browser's made-up bold (font-weight 600–800) came out lighter than the timer, and draws
+   some glyphs badly (the colon's dot as a ring), so it's switched off (font-synthesis) and every
+   bit of text gets the outline instead, whatever font-weight the page asks for.
+   An outline never changes layout (letters keep their widths), so text that fit before still fits
+   at any Font size / Menu size. Set on every element (not inherited) so 0.05em follows each
+   element's own size. Fonts with real bold weights (Sour Gummy on the shop's starbit numbers)
+   switch the outline off themselves. */
+body.menu-window {
+  font-synthesis-weight: none;
+}
+body.menu-window,
+body.menu-window * {
+  -webkit-text-stroke: 0.05em currentColor;
 }
 
 html,
@@ -35,7 +51,7 @@ body.menu-window {
   background-position: center;
   background-size: 100% 100%;
   background-repeat: no-repeat;
-  font-family: 'Sour Gummy', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Pangolin', 'Segoe UI', system-ui, sans-serif;
 }
 
 /* Drag handle for the frameless window: the art's title band. */

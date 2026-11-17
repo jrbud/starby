@@ -18,6 +18,11 @@
     <link rel="preload" as="image" href="../../../assets/menuIcons/white-square-hover.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/button-white-dark.png" />
     <link rel="preload" as="image" href="../../../assets/menuIcons/button-red-hover.png" />
+    <!-- Study Timer choice buttons (settings.css .choice). -->
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-tan-idle.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-tan-hover.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-green-idle.png" />
+    <link rel="preload" as="image" href="../../../assets/menuIcons/button-green-hover.png" />
     <!-- Slider art (settings.css): the line track and the yellow starbit handle. -->
     <link rel="preload" as="image" href="../../../assets/menuIcons/line.png" />
     <link rel="preload" as="image" href="../../../assets/starbits/yellow1.png" />
@@ -128,6 +133,18 @@
         <output id="font-scale-value" for="font-scale">100%</output>
       </div>
       <input id="font-scale" type="range" min="75" max="150" step="5" value="100" />
+    </section>
+
+    <!-- How the study timer (focus menu → "Start a timer") shows the time left
+         (settingsStore.studyTimer). Pick one: the picked button is green, the others tan (settings.js).
+         Always one row of three, at any Font size / Menu size (settings.css .choice). -->
+    <section class="setting">
+      <span class="label" id="study-timer-label">Study Timer</span>
+      <div class="choice-row" id="study-timer" role="radiogroup" aria-labelledby="study-timer-label">
+        <button type="button" class="choice" role="radio" data-value="analog">Analog</button>
+        <button type="button" class="choice" role="radio" data-value="phases">Moon Phases</button>
+        <button type="button" class="choice" role="radio" data-value="pie">Moon Pie</button>
+      </div>
     </section>
 
       </div>

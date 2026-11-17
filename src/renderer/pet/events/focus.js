@@ -133,6 +133,11 @@ const LINES = {
   callOver: lineBag(['call over? hi again!', "all done talking? i'm back!"]),
   okay: lineBag(["okay! i'll be right here!", 'you got this! i believe in you!', "okay, i'll be quiet. good luck!", 'go get it! i\'ll wait over here!']),
   back: lineBag(["yay, you're back!", 'all done? hi hi!', 'break time? yay!']),
+  // Said when the study timer (focus menu → "Start a timer") runs out, focusing or not
+  // (onTimerEnded). TODO(team): ADD MORE TIMER-ENDED LINES HERE, e.g. 'ding ding! break time!'.
+  // Same rules as the study lines: short, lowercase, supportive; lineBag() won't repeat a line
+  // until the others have been said.
+  timerEnded: lineBag(['timer ended']),
   study: lineBag(['stay focused!', 'keep  up to good work!', 'you shine bright!', 'wow so focused :o', 'me when i\'m focused', 'you\'re doing great :3', 'ok studious!', '*hums*', 'la la laa~', 'i like seeing your progress :)', 'maybe i\'ll work too... jk', 'you\'re doing great!']),
 };
 
@@ -280,6 +285,13 @@ function sayThroughHush(ctx, pickLine, delay = 0) {
   }, 'focus line');
 }
 
+// The study timer ran out: Starby tells you. While focusing he's hushed, so the line goes through
+// the hush (like a clicked study line); otherwise he just says it.
+function onTimerEnded(ctx) {
+  if (endFocus) sayThroughHush(ctx, () => LINES.timerEnded());
+  else ctx.say(LINES.timerEnded(), STUDY_LINE_MS);
+}
+
 // A left-click while focusing: a study line (or the flavor's click line: "shh, i'm in the zone").
 function onClick(ctx) {
   if (!endFocus) return;
@@ -365,10 +377,13 @@ export default {
       }
     });
     ctx.petEl.addEventListener('pet:clicked', () => onClick(ctx));
+    // The study timer ran out (main process → { type: 'timer-ended' }, see renderer/timer/timer.js).
+    ctx.api.onPetCommand?.((cmd) => { if (cmd?.type === 'timer-ended') onTimerEnded(ctx); });
     // The focus menu (../dialogue/tree.js) calls these through its 'starby:<fn>:<arg>' actions.
     if (typeof window !== 'undefined' && window.starby) {
       window.starby.focusWander = (arg) => { if (endFocus) setWander(ctx, arg !== 'off'); };
       window.starby.focusTalk = (arg) => { if (endFocus) setTalk(ctx, arg !== 'off'); };
+      window.starby.openTimer = () => ctx.api.openTimer?.(); // "Start a timer" (main/windows/timerWindow.js)
     }
   },
 
