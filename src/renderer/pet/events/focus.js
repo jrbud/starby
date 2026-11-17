@@ -133,11 +133,7 @@ const LINES = {
   callOver: lineBag(['call over? hi again!', "all done talking? i'm back!"]),
   okay: lineBag(["okay! i'll be right here!", 'you got this! i believe in you!', "okay, i'll be quiet. good luck!", 'go get it! i\'ll wait over here!']),
   back: lineBag(["yay, you're back!", 'all done? hi hi!', 'break time? yay!']),
-  // Said when the study timer (focus menu → "Start a timer") runs out, focusing or not
-  // (onTimerEnded). TODO(team): ADD MORE TIMER-ENDED LINES HERE, e.g. 'ding ding! break time!'.
-  // Same rules as the study lines: short, lowercase, supportive; lineBag() won't repeat a line
-  // until the others have been said.
-  timerEnded: lineBag(['timer ended']),
+  timerEnded: lineBag(['ding ding ding!', 'time\'s up!', 'is it snack time?', 'the timer\'s done!', 'break time, you\'ve earned it!', 'ok timer... we hear you', 'ok done for now']),
   study: lineBag(['stay focused!', 'keep  up to good work!', 'you shine bright!', 'wow so focused :o', 'me when i\'m focused', 'you\'re doing great :3', 'ok studious!', '*hums*', 'la la laa~', 'i like seeing your progress :)', 'maybe i\'ll work too... jk', 'you\'re doing great!']),
 };
 
